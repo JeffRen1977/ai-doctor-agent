@@ -35,4 +35,32 @@ api.interceptors.response.use(
   }
 )
 
-export default api 
+export default api
+
+// 饮食分析相关接口
+export const dietAnalysisAPI = {
+  // 上传图片并分析饮食
+  analyzeDiet: async (imageFile: File) => {
+    const formData = new FormData()
+    formData.append('image', imageFile)
+    
+    const response = await api.post('/diet-analysis/analyze', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+    return response.data
+  },
+
+  // 获取食物数据库
+  getFoods: async () => {
+    const response = await api.get('/diet-analysis/foods')
+    return response.data
+  },
+
+  // 获取饮食建议
+  getRecommendations: async () => {
+    const response = await api.get('/diet-analysis/recommendations')
+    return response.data
+  },
+} 

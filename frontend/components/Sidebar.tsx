@@ -11,6 +11,7 @@ import {
   ExclamationCircleOutlined,
   UserOutlined,
   LogoutOutlined,
+  CameraOutlined,
 } from '@ant-design/icons'
 import { useAuthStore } from '@/stores/authStore'
 import './Sidebar.css'
@@ -42,6 +43,11 @@ const Sidebar: React.FC = () => {
       key: '/analytics',
       icon: <BarChartOutlined />,
       label: '健康分析',
+    },
+    {
+      key: '/diet-analysis',
+      icon: <CameraOutlined />,
+      label: '饮食分析',
     },
     {
       key: '/appointments',

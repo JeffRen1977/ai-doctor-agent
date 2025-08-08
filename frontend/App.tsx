@@ -11,6 +11,7 @@ import AppointmentPage from './pages/AppointmentPage'
 import DeviceSyncPage from './pages/DeviceSyncPage'
 import HealthAnalyticsPage from './pages/HealthAnalyticsPage'
 import EmergencyPage from './pages/EmergencyPage'
+import DietAnalysisPage from './pages/DietAnalysisPage'
 import { useAuthStore } from './stores/authStore'
 import './App.css'
 
@@ -37,6 +38,7 @@ function App() {
             <Route path="/appointments" element={<AppointmentPage />} />
             <Route path="/devices" element={<DeviceSyncPage />} />
             <Route path="/emergency" element={<EmergencyPage />} />
+            <Route path="/diet-analysis" element={<DietAnalysisPage />} />
             <Route path="/profile" element={<ProfilePage />} />
           </Routes>
         </Content>
