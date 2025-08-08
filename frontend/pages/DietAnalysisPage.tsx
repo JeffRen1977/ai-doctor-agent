@@ -3,13 +3,15 @@ import {
   Upload, 
   Camera, 
   FileImage, 
-  InfoCircle, 
-  AlertCircle, 
+  Info, 
+  AlertTriangle, 
   CheckCircle,
   Clock,
-  Fire,
-  Droplet,
-  Activity
+  Flame,
+  Droplets,
+  Zap,
+  Heart,
+  Star
 } from 'lucide-react';
 import { dietAnalysisAPI } from '../services/api';
 import './DietAnalysisPage.css';
@@ -289,8 +291,8 @@ const DietAnalysisPage: React.FC = () => {
                 </>
               ) : (
                 <>
-                  <Activity size={20} />
-                  开始分析
+                                       <Zap size={20} />
+                     开始分析
                 </>
               )}
             </button>
@@ -300,7 +302,7 @@ const DietAnalysisPage: React.FC = () => {
         {/* 错误提示 */}
         {error && (
           <div className="error-message">
-            <AlertCircle size={20} />
+            <AlertTriangle size={20} />
             {error}
           </div>
         )}
@@ -319,16 +321,16 @@ const DietAnalysisPage: React.FC = () => {
                   </div>
                   <div className="food-nutrition">
                     <div className="nutrition-item">
-                      <Fire size={16} />
+                      <Flame size={16} />
                       <span>{food.calories} 卡路里</span>
                     </div>
                     <div className="nutrition-item">
-                      <Droplet size={16} />
+                      <Droplets size={16} />
                       <span>碳水: {food.carbs}g</span>
                     </div>
                     <div className="nutrition-item">
-                      <Activity size={16} />
-                      <span>升糖指数: {food.glycemicIndex}</span>
+                                           <Star size={16} />
+                     <span>升糖指数: {food.glycemicIndex}</span>
                     </div>
                   </div>
                 </div>
@@ -344,26 +346,26 @@ const DietAnalysisPage: React.FC = () => {
             
             <div className="nutrition-summary">
               <div className="nutrition-card">
-                <Fire size={24} />
+                <Flame size={24} />
                 <div>
                   <h4>总卡路里</h4>
                   <p>{analysisResult.totalCalories} kcal</p>
                 </div>
               </div>
               <div className="nutrition-card">
-                <Droplet size={24} />
+                <Droplets size={24} />
                 <div>
                   <h4>碳水化合物</h4>
                   <p>{analysisResult.totalCarbs}g</p>
                 </div>
               </div>
-              <div className="nutrition-card">
-                <Activity size={24} />
-                <div>
-                  <h4>蛋白质</h4>
-                  <p>{analysisResult.totalProtein}g</p>
-                </div>
-              </div>
+                             <div className="nutrition-card">
+                 <Heart size={24} />
+                 <div>
+                   <h4>蛋白质</h4>
+                   <p>{analysisResult.totalProtein}g</p>
+                 </div>
+               </div>
               <div className="nutrition-card">
                 <Clock size={24} />
                 <div>
@@ -408,14 +410,14 @@ const DietAnalysisPage: React.FC = () => {
           <h3>使用说明</h3>
           <div className="tips-grid">
             <div className="tip-item">
-              <InfoCircle size={20} />
+              <Info size={20} />
               <div>
                 <h4>拍照技巧</h4>
                 <p>确保食物清晰可见，光线充足，避免阴影遮挡</p>
               </div>
             </div>
             <div className="tip-item">
-              <AlertCircle size={20} />
+              <AlertTriangle size={20} />
               <div>
                 <h4>糖尿病注意事项</h4>
                 <p>重点关注碳水化合物含量和升糖指数，合理控制餐量</p>
