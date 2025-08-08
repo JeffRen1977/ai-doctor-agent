@@ -1,0 +1,64 @@
+.sidebar {
+  background-color: #001529;
+  color: white;
+  display: flex;
+  flex-direction: column;
+}
+
+.logo {
+  padding: 24px;
+  text-align: center;
+  border-bottom: 1px solid #1f1f1f;
+}
+
+.logo h2 {
+  color: white;
+  margin: 0;
+  font-size: 18px;
+}
+
+.sidebar-menu {
+  flex: 1;
+  background-color: #001529;
+  border-right: none;
+}
+
+.sidebar-menu .ant-menu-item {
+  color: #bfbfbf;
+  margin: 4px 16px;
+  border-radius: 6px;
+}
+
+.sidebar-menu .ant-menu-item:hover {
+  color: white;
+  background-color: #1890ff;
+}
+
+.sidebar-menu .ant-menu-item-selected {
+  color: white;
+  background-color: #1890ff;
+}
+
+.user-section {
+  padding: 16px;
+  border-top: 1px solid #1f1f1f;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 6px;
+  transition: background-color 0.3s;
+}
+
+.user-info:hover {
+  background-color: #1f1f1f;
+}
+
+.user-name {
+  color: white;
+  font-size: 14px;
+} 

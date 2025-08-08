@@ -1,0 +1,14 @@
+.health-records-page {
+  height: 100%;
+}
+
+.health-records-page .ant-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.health-records-page .ant-card-body {
+  flex: 1;
+  overflow: auto;
+} 
