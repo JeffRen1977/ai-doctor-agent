@@ -1,5 +1,5 @@
 import React from 'react'
-import { Layout, Menu, Avatar, Dropdown } from 'antd'
+import { Layout, Menu, Avatar, Dropdown, Divider } from 'antd'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
   DashboardOutlined,
@@ -12,6 +12,7 @@ import {
   UserOutlined,
   LogoutOutlined,
   CameraOutlined,
+  SettingOutlined,
 } from '@ant-design/icons'
 import { useAuthStore } from '@/stores/authStore'
 import './Sidebar.css'
@@ -23,7 +24,7 @@ const Sidebar: React.FC = () => {
   const location = useLocation()
   const { user, logout } = useAuthStore()
 
-  const menuItems = [
+  const mainMenuItems = [
     {
       key: '/dashboard',
       icon: <DashboardOutlined />,
@@ -39,6 +40,9 @@ const Sidebar: React.FC = () => {
       icon: <FileTextOutlined />,
       label: '健康档案',
     },
+  ]
+
+  const analysisMenuItems = [
     {
       key: '/analytics',
       icon: <BarChartOutlined />,
@@ -49,6 +53,9 @@ const Sidebar: React.FC = () => {
       icon: <CameraOutlined />,
       label: '饮食分析',
     },
+  ]
+
+  const managementMenuItems = [
     {
       key: '/appointments',
       icon: <CalendarOutlined />,
@@ -73,6 +80,14 @@ const Sidebar: React.FC = () => {
       label: '个人资料',
     },
     {
+      key: '/settings',
+      icon: <SettingOutlined />,
+      label: '设置',
+    },
+    {
+      type: 'divider',
+    },
+    {
       key: 'logout',
       icon: <LogoutOutlined />,
       label: '退出登录',
@@ -83,19 +98,35 @@ const Sidebar: React.FC = () => {
     },
   ]
 
+  // 合并所有菜单项，添加分组
+  const allMenuItems = [
+    ...mainMenuItems,
+    { type: 'divider', key: 'divider1' },
+    ...analysisMenuItems,
+    { type: 'divider', key: 'divider2' },
+    ...managementMenuItems,
+  ]
+
   return (
     <Sider width={250} className="sidebar">
       <div className="logo">
         <h2>AI医生助理</h2>
+        <p className="logo-subtitle">您的健康管理专家</p>
       </div>
       
-      <Menu
-        mode="inline"
-        selectedKeys={[location.pathname]}
-        items={menuItems}
-        onClick={({ key }) => navigate(key)}
-        className="sidebar-menu"
-      />
+      <div className="menu-container">
+        <Menu
+          mode="inline"
+          selectedKeys={[location.pathname]}
+          items={allMenuItems}
+          onClick={({ key }) => {
+            if (key !== 'divider1' && key !== 'divider2') {
+              navigate(key)
+            }
+          }}
+          className="sidebar-menu"
+        />
+      </div>
 
       <div className="user-section">
         <Dropdown
@@ -105,16 +136,27 @@ const Sidebar: React.FC = () => {
               if (key === 'logout') {
                 logout()
                 navigate('/login')
-              } else {
+              } else if (key !== 'divider') {
                 navigate(key)
               }
             },
           }}
           placement="bottomRight"
+          trigger={['click']}
         >
           <div className="user-info">
-            <Avatar size={40} icon={<UserOutlined />} />
-            <span className="user-name">{user?.name || '用户'}</span>
+            <Avatar 
+              size={40} 
+              icon={<UserOutlined />} 
+              style={{ 
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                border: '2px solid rgba(255, 255, 255, 0.2)'
+              }} 
+            />
+            <div className="user-details">
+              <span className="user-name">{user?.name || '用户'}</span>
+              <span className="user-role">健康管理师</span>
+            </div>
           </div>
         </Dropdown>
       </div>
