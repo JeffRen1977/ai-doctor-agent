@@ -4,25 +4,26 @@
   "description": "AI个人医生助理前端应用",
   "private": true,
   "dependencies": {
+    "@ant-design/icons": "^5.0.0",
+    "@ant-design/plots": "^2.6.3",
     "@types/node": "^18.0.0",
     "@types/react": "^18.0.0",
     "@types/react-dom": "^18.0.0",
+    "antd": "^5.0.0",
+    "axios": "^1.3.0",
+    "dayjs": "^1.11.13",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.8.0",
     "typescript": "^4.9.0",
-    "axios": "^1.3.0",
-    "antd": "^5.0.0",
-    "@ant-design/icons": "^5.0.0",
-    "dayjs": "^1.11.0",
     "zustand": "^4.3.0"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "^3.1.0",
-    "vite": "^4.1.0",
-    "eslint": "^8.34.0",
     "@typescript-eslint/eslint-plugin": "^5.50.0",
-    "@typescript-eslint/parser": "^5.50.0"
+    "@typescript-eslint/parser": "^5.50.0",
+    "@vitejs/plugin-react": "^3.1.0",
+    "eslint": "^8.34.0",
+    "vite": "^4.1.0"
   },
   "scripts": {
     "dev": "vite",
@@ -42,4 +43,4 @@
       "last 1 safari version"
     ]
   }
-} 
+}

@@ -2,8 +2,13 @@ import React from 'react'
 import { Layout, Menu, Avatar, Dropdown } from 'antd'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
+  DashboardOutlined,
   MessageOutlined,
   FileTextOutlined,
+  BarChartOutlined,
+  CalendarOutlined,
+  SyncOutlined,
+  ExclamationCircleOutlined,
   UserOutlined,
   LogoutOutlined,
 } from '@ant-design/icons'
@@ -19,6 +24,11 @@ const Sidebar: React.FC = () => {
 
   const menuItems = [
     {
+      key: '/dashboard',
+      icon: <DashboardOutlined />,
+      label: '健康仪表板',
+    },
+    {
       key: '/chat',
       icon: <MessageOutlined />,
       label: 'AI医生对话',
@@ -26,7 +36,27 @@ const Sidebar: React.FC = () => {
     {
       key: '/health-records',
       icon: <FileTextOutlined />,
-      label: '健康记录',
+      label: '健康档案',
+    },
+    {
+      key: '/analytics',
+      icon: <BarChartOutlined />,
+      label: '健康分析',
+    },
+    {
+      key: '/appointments',
+      icon: <CalendarOutlined />,
+      label: '预约管理',
+    },
+    {
+      key: '/devices',
+      icon: <SyncOutlined />,
+      label: '设备同步',
+    },
+    {
+      key: '/emergency',
+      icon: <ExclamationCircleOutlined />,
+      label: '紧急求助',
     },
   ]
 

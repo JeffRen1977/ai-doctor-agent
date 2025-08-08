@@ -1,6 +1,6 @@
 import React from 'react'
 import { Avatar, Spin } from 'antd'
-import { UserOutlined, RobotOutlined } from '@ant-design/icons'
+import { UserOutlined, MessageOutlined } from '@ant-design/icons'
 import { Message } from '@/stores/chatStore'
 import dayjs from 'dayjs'
 import './ChatMessage.css'
@@ -16,7 +16,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
     <div className={`message ${message.sender}`}>
       <Avatar
         size={40}
-        icon={isUser ? <UserOutlined /> : <RobotOutlined />}
+        icon={isUser ? <UserOutlined /> : <MessageOutlined />}
         className={isUser ? 'user-avatar' : 'assistant-avatar'}
       />
       <div className="message-content">
