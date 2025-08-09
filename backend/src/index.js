@@ -8,6 +8,7 @@ const authRoutes = require('./routes/auth');
 const chatRoutes = require('./routes/chat');
 const healthRecordsRoutes = require('./routes/healthRecords');
 const dietAnalysisRoutes = require('./routes/dietAnalysis');
+const wearableRoutes = require('./routes/wearables');
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -24,6 +25,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/health-records', healthRecordsRoutes);
 app.use('/api/diet-analysis', dietAnalysisRoutes);
+app.use('/api/wearables', wearableRoutes);
 
 // 健康检查
 app.get('/api/health', (req, res) => {
