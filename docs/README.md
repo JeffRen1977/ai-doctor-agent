@@ -13,6 +13,17 @@
 - **[部署指南](./DEPLOYMENT_GUIDE.md)** - 全面的部署和运维指南
 - **[项目总结](./PROJECT_SUMMARY.md)** - 完整的项目总结和技术架构
 
+### 🎯 功能特性文档
+- **[饮食分析功能](./features/DIET_ANALYSIS_FEATURE.md)** - 饮食分析功能的详细说明
+
+### 🎨 设计文档
+- **[前端设计总结](./design/FRONTEND_DESIGN_SUMMARY.md)** - 前端UI/UX设计说明
+- **[核心架构文档](./design/)** - 系统架构和功能设计文档
+
+### 🔧 实用指南
+- **[故障排除指南](./guides/TROUBLESHOOTING.md)** - 常见问题和解决方案
+- **[项目完成总结](./PROJECT_COMPLETION_SUMMARY.md)** - 项目开发完成情况总结
+
 ## 🎯 文档导航
 
 ### 开发者文档
@@ -27,6 +38,18 @@
 |------|------|----------|
 | [部署指南](./DEPLOYMENT_GUIDE.md) | 开发环境、生产环境、云平台部署 | DevOps工程师、运维人员 |
 | [项目总结](./PROJECT_SUMMARY.md) | 部署选项、监控维护 | 运维团队、技术管理者 |
+
+### 功能文档
+| 文档 | 描述 | 适用人群 |
+|------|------|----------|
+| [饮食分析功能](./features/DIET_ANALYSIS_FEATURE.md) | 饮食分析功能详细说明 | 产品经理、开发者 |
+| [前端设计总结](./design/FRONTEND_DESIGN_SUMMARY.md) | UI/UX设计说明 | 前端开发者、设计师 |
+
+### 实用指南
+| 文档 | 描述 | 适用人群 |
+|------|------|----------|
+| [故障排除指南](./guides/TROUBLESHOOTING.md) | 常见问题和解决方案 | 开发者、运维人员 |
+| [项目完成总结](./PROJECT_COMPLETION_SUMMARY.md) | 项目开发完成情况 | 项目管理者、团队 |
 
 ## 📖 文档特点
 
@@ -62,6 +85,7 @@
 
 | 版本 | 日期 | 更新内容 |
 |------|------|----------|
+| v1.1.0 | 2024-01-15 | 重新组织文档结构，按功能分类 |
 | v1.0.0 | 2024-01-15 | 初始版本，包含完整的文档体系 |
 
 ## 🎯 使用建议
@@ -76,6 +100,11 @@
 1. 查看 [部署指南](./DEPLOYMENT_GUIDE.md) 了解部署方案
 2. 参考 [项目总结](./PROJECT_SUMMARY.md) 了解技术架构
 3. 根据实际需求选择合适的部署方式
+
+### 产品经理
+1. 阅读 [饮食分析功能](./features/DIET_ANALYSIS_FEATURE.md) 了解功能特性
+2. 查看 [前端设计总结](./design/FRONTEND_DESIGN_SUMMARY.md) 了解UI设计
+3. 参考 [项目完成总结](./PROJECT_COMPLETION_SUMMARY.md) 了解开发进度
 
 ### 项目管理者
 1. 阅读 [项目总结](./PROJECT_SUMMARY.md) 了解项目全貌

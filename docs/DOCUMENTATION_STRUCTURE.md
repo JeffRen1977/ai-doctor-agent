@@ -7,14 +7,29 @@ AI-doctor/
 ├── README.md                    # 项目主文档
 ├── docs/                        # 文档中心
 │   ├── README.md               # 文档导航和索引
-│   ├── API_DOCUMENTATION.md    # API接口文档
-│   ├── DEVELOPMENT_GUIDE.md    # 开发指南
-│   ├── DEPLOYMENT_GUIDE.md     # 部署指南
-│   ├── PROJECT_SUMMARY.md      # 项目总结
-│   └── DOCUMENTATION_STRUCTURE.md # 本文档
+│   ├── INDEX.md                # 完整文档索引
+│   ├── DOCUMENTATION_STRUCTURE.md # 本文档
+│   │
+│   ├── 📚 核心文档/
+│   │   ├── API_DOCUMENTATION.md    # API接口文档
+│   │   ├── DEVELOPMENT_GUIDE.md    # 开发指南
+│   │   ├── DEPLOYMENT_GUIDE.md     # 部署指南
+│   │   ├── PROJECT_SUMMARY.md      # 项目总结
+│   │   └── PROJECT_COMPLETION_SUMMARY.md # 项目完成总结
+│   │
+│   ├── 🎯 功能特性/
+│   │   └── DIET_ANALYSIS_FEATURE.md # 饮食分析功能
+│   │
+│   ├── 🎨 设计文档/
+│   │   ├── FRONTEND_DESIGN_SUMMARY.md # 前端设计总结
+│   │   ├── Core architecture & functionality.pdf # 核心架构文档
+│   │   ├── core functionalities.pdf # 核心功能文档
+│   │   └── 截屏2025-08-07 下午11.36.17.png # UI截图
+│   │
+│   └── 🔧 实用指南/
+│       └── TROUBLESHOOTING.md     # 故障排除指南
 ├── backend/
 │   └── README.md               # 后端说明
-└── Design_doc/                 # 设计文档
 ```
 
 ## 📚 文档分类
@@ -22,25 +37,35 @@ AI-doctor/
 ### 🚀 入门文档
 - **README.md** (根目录) - 项目主文档，快速开始指南
 - **docs/README.md** - 文档中心，完整的文档导航
+- **docs/INDEX.md** - 完整文档索引和统计
 
 ### 🔧 开发文档
 - **docs/DEVELOPMENT_GUIDE.md** - 详细的开发指南
 - **docs/API_DOCUMENTATION.md** - 完整的API文档
+- **docs/PROJECT_SUMMARY.md** - 项目架构和技术栈
 - **backend/README.md** - 后端开发说明
 
 ### 🚀 部署文档
 - **docs/DEPLOYMENT_GUIDE.md** - 全面的部署指南
-- **docs/PROJECT_SUMMARY.md** - 技术架构和部署选项
+- **docs/PROJECT_COMPLETION_SUMMARY.md** - 项目完成情况总结
 
-### 📋 项目文档
-- **docs/PROJECT_SUMMARY.md** - 项目总结和技术架构
-- **Design_doc/** - 原始设计文档
+### 🎯 功能特性文档
+- **docs/features/DIET_ANALYSIS_FEATURE.md** - 饮食分析功能详细说明
+
+### 🎨 设计文档
+- **docs/design/FRONTEND_DESIGN_SUMMARY.md** - 前端UI/UX设计说明
+- **docs/design/Core architecture & functionality.pdf** - 系统架构设计
+- **docs/design/core functionalities.pdf** - 核心功能设计
+- **docs/design/截屏2025-08-07 下午11.36.17.png** - UI设计截图
+
+### 🔧 实用指南
+- **docs/guides/TROUBLESHOOTING.md** - 常见问题和解决方案
 
 ## 🎯 文档特点
 
 ### 结构化组织
 - **分层结构**: 主文档 → 文档中心 → 专业文档
-- **功能分类**: 按开发、部署、API等功能模块组织
+- **功能分类**: 按开发、部署、API、功能、设计等模块组织
 - **交叉引用**: 文档间相互链接，便于导航
 
 ### 内容完整性
@@ -65,6 +90,11 @@ AI-doctor/
 1. 查看 `docs/DEPLOYMENT_GUIDE.md` 了解部署方案
 2. 参考 `docs/PROJECT_SUMMARY.md` 了解技术架构
 3. 根据实际需求选择合适的部署方式
+
+### 产品经理
+1. 阅读 `docs/features/DIET_ANALYSIS_FEATURE.md` 了解功能特性
+2. 查看 `docs/design/FRONTEND_DESIGN_SUMMARY.md` 了解UI设计
+3. 参考 `docs/PROJECT_COMPLETION_SUMMARY.md` 了解开发进度
 
 ### 项目管理者
 1. 阅读 `docs/PROJECT_SUMMARY.md` 了解项目全貌
@@ -93,14 +123,16 @@ AI-doctor/
 
 | 文档类型 | 文件数量 | 总字数 | 主要用途 |
 |----------|----------|--------|----------|
-| 主文档 | 1 | ~8,000 | 项目概述和快速开始 |
+| 入门文档 | 3 | ~5,500 | 项目概述和文档导航 |
 | API文档 | 1 | ~9,500 | 接口规范和示例 |
 | 开发指南 | 1 | ~14,000 | 开发环境和技术规范 |
 | 部署指南 | 1 | ~14,300 | 部署方案和运维指南 |
-| 项目总结 | 1 | ~9,100 | 技术架构和功能说明 |
-| 文档中心 | 1 | ~3,600 | 文档导航和索引 |
+| 项目总结 | 2 | ~16,700 | 技术架构和功能说明 |
+| 功能特性 | 1 | ~6,000 | 功能详细说明 |
+| 设计文档 | 4 | ~9,200 | UI/UX和架构设计 |
+| 实用指南 | 1 | ~4,700 | 故障排除和问题解决 |
 
-**总计**: 6个核心文档，约58,000字
+**总计**: 13个文档，约79,900字 + 150KB设计文档
 
 ## 🎯 文档价值
 
@@ -113,6 +145,11 @@ AI-doctor/
 - **部署指南**: 详细的部署方案和故障排除
 - **监控维护**: 完整的运维流程和工具
 - **问题解决**: 常见问题的解决方案
+
+### 对产品团队
+- **功能理解**: 详细的功能特性和设计说明
+- **UI/UX参考**: 完整的设计文档和截图
+- **开发进度**: 项目完成情况跟踪
 
 ### 对项目管理
 - **技术决策**: 完整的技术架构和选型说明
