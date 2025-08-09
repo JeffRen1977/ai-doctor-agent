@@ -157,6 +157,76 @@ export interface Translations {
     }
     noImage: string
     processing: string
+    header: {
+      title: string
+      subtitle: string
+    }
+    upload: {
+      title: string
+      subtitle: string
+      selectImage: string
+      takePhoto: string
+      retake: string
+    }
+    analysis: {
+      analyzing: string
+      startAnalysis: string
+    }
+    foodDatabase: {
+      rice: string
+      noodles: string
+      vegetables: string
+      meat: string
+      fish: string
+      bread: string
+      fruit: string
+    }
+    nutrition: {
+      calories: string
+      carbs: string
+      protein: string
+      fat: string
+      fiber: string
+      glycemicIndex: string
+      servingSize: string
+      confidence: string
+      totalCalories: string
+      totalCarbs: string
+      totalProtein: string
+      totalFat: string
+      totalFiber: string
+      averageGlycemicIndex: string
+    }
+    diabetes: {
+      title: string
+      riskLevel: string
+      bloodSugarImpact: string
+      healthAdvice: string
+      lowRisk: string
+      mediumRisk: string
+      highRisk: string
+    }
+    usage: {
+      title: string
+      photoTips: {
+        title: string
+        description: string
+      }
+      diabetesNotes: {
+        title: string
+        description: string
+      }
+      healthAdvice: {
+        title: string
+        description: string
+      }
+    }
+    errors: {
+      selectValidImage: string
+      uploadImageFirst: string
+      analysisFailed: string
+      analysisError: string
+    }
   }
   healthAnalytics: {
     title: string
@@ -391,7 +461,77 @@ export const translations: Record<Language, Translations> = {
         recommendations: '健康建议'
       },
       noImage: '请先上传图片',
-      processing: '正在分析中...'
+      processing: '正在分析中...',
+      header: {
+        title: '饮食分析',
+        subtitle: '通过图片识别食物，获取营养成分和健康建议'
+      },
+      upload: {
+        title: '上传食物图片',
+        subtitle: '点击或拖拽图片到此处，或点击“拍照”',
+        selectImage: '选择图片',
+        takePhoto: '拍照',
+        retake: '重拍'
+      },
+      analysis: {
+        analyzing: '正在分析中...',
+        startAnalysis: '开始分析'
+      },
+      foodDatabase: {
+        rice: '米饭',
+        noodles: '面条',
+        vegetables: '蔬菜',
+        meat: '肉类',
+        fish: '鱼类',
+        bread: '面包',
+        fruit: '水果'
+      },
+      nutrition: {
+        calories: '卡路里',
+        carbs: '碳水化合物',
+        protein: '蛋白质',
+        fat: '脂肪',
+        fiber: '纤维',
+        glycemicIndex: '血糖生成指数',
+        servingSize: '份量',
+        confidence: '置信度',
+        totalCalories: '总卡路里',
+        totalCarbs: '总碳水化合物',
+        totalProtein: '总蛋白质',
+        totalFat: '总脂肪',
+        totalFiber: '总纤维',
+        averageGlycemicIndex: '平均血糖生成指数'
+      },
+      diabetes: {
+        title: '糖尿病风险评估',
+        riskLevel: '风险等级',
+        bloodSugarImpact: '血糖影响',
+        healthAdvice: '健康建议',
+        lowRisk: '低风险',
+        mediumRisk: '中风险',
+        highRisk: '高风险'
+      },
+      usage: {
+        title: '使用说明',
+        photoTips: {
+          title: '拍照小贴士',
+          description: '确保光线充足，避免阴影，清晰拍摄食物'
+        },
+        diabetesNotes: {
+          title: '糖尿病患者注意事项',
+          description: '请在专业医生指导下使用，避免空腹或餐后立即使用'
+        },
+        healthAdvice: {
+          title: '健康建议',
+          description: '本应用提供的营养成分和健康建议仅供参考，不构成医疗诊断或治疗建议'
+        }
+      },
+      errors: {
+        selectValidImage: '请选择有效的图片文件',
+        uploadImageFirst: '请先上传图片',
+        analysisFailed: '分析失败',
+        analysisError: '分析过程中出现错误'
+      }
     },
     healthAnalytics: {
       title: '健康分析',
@@ -624,7 +764,77 @@ export const translations: Record<Language, Translations> = {
         recommendations: 'Health Recommendations'
       },
       noImage: 'Please upload an image first',
-      processing: 'Analyzing...'
+      processing: 'Analyzing...',
+      header: {
+        title: 'Diet Analysis',
+        subtitle: 'Identify food through images to get nutrition and health recommendations'
+      },
+      upload: {
+        title: 'Upload Food Image',
+        subtitle: 'Click or drag an image here, or click "Take Photo"',
+        selectImage: 'Select Image',
+        takePhoto: 'Take Photo',
+        retake: 'Retake'
+      },
+      analysis: {
+        analyzing: 'Analyzing...',
+        startAnalysis: 'Start Analysis'
+      },
+      foodDatabase: {
+        rice: 'Rice',
+        noodles: 'Noodles',
+        vegetables: 'Vegetables',
+        meat: 'Meat',
+        fish: 'Fish',
+        bread: 'Bread',
+        fruit: 'Fruit'
+      },
+      nutrition: {
+        calories: 'Calories',
+        carbs: 'Carbs',
+        protein: 'Protein',
+        fat: 'Fat',
+        fiber: 'Fiber',
+        glycemicIndex: 'Glycemic Index',
+        servingSize: 'Serving Size',
+        confidence: 'Confidence',
+        totalCalories: 'Total Calories',
+        totalCarbs: 'Total Carbs',
+        totalProtein: 'Total Protein',
+        totalFat: 'Total Fat',
+        totalFiber: 'Total Fiber',
+        averageGlycemicIndex: 'Average Glycemic Index'
+      },
+      diabetes: {
+        title: 'Diabetes Risk Assessment',
+        riskLevel: 'Risk Level',
+        bloodSugarImpact: 'Blood Sugar Impact',
+        healthAdvice: 'Health Advice',
+        lowRisk: 'Low Risk',
+        mediumRisk: 'Medium Risk',
+        highRisk: 'High Risk'
+      },
+      usage: {
+        title: 'Usage Instructions',
+        photoTips: {
+          title: 'Photo Tips',
+          description: 'Ensure sufficient lighting, avoid shadows, and take clear photos of the food'
+        },
+        diabetesNotes: {
+          title: 'Diabetes Patient Notes',
+          description: 'Please use this application under the guidance of a professional doctor, and avoid using it immediately before or after meals'
+        },
+        healthAdvice: {
+          title: 'Health Advice',
+          description: 'The nutritional information and health recommendations provided by this application are for reference only and do not constitute medical diagnosis or treatment advice'
+        }
+      },
+      errors: {
+        selectValidImage: 'Please select a valid image file',
+        uploadImageFirst: 'Please upload an image first',
+        analysisFailed: 'Analysis failed',
+        analysisError: 'An error occurred during analysis'
+      }
     },
     healthAnalytics: {
       title: 'Health Analytics',
