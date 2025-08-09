@@ -1,6 +1,7 @@
 const { initializeApp } = require('firebase/app');
 const { getAuth } = require('firebase/auth');
 const { getFirestore } = require('firebase/firestore');
+const { getStorage } = require('firebase/storage');
 
 // 检查必需的环境变量
 const requiredEnvVars = [
@@ -44,9 +45,10 @@ FIREBASE_APP_ID=your-app-id
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
+    const storage = getStorage(app);
     
     console.log('✅ Firebase配置成功（开发模式）');
-    module.exports = { app, auth, db, isMock: false };
+    module.exports = { app, auth, db, storage, isMock: false };
     return;
   } else {
     process.exit(1);
@@ -70,10 +72,11 @@ try {
   // 获取Firebase服务
   const auth = getAuth(app);
   const db = getFirestore(app);
+  const storage = getStorage(app);
   
   console.log('✅ Firebase配置成功');
   
-  module.exports = { app, auth, db, isMock: false };
+  module.exports = { app, auth, db, storage, isMock: false };
 } catch (error) {
   console.error('❌ Firebase初始化失败:', error.message);
   
@@ -92,9 +95,10 @@ try {
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
+    const storage = getStorage(app);
     
     console.log('✅ Firebase配置成功（开发模式）');
-    module.exports = { app, auth, db, isMock: false };
+    module.exports = { app, auth, db, storage, isMock: false };
   } else {
     process.exit(1);
   }

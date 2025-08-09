@@ -136,6 +136,12 @@ router.get('/:id', (req, res) => {
 });
 
 const fhirService = require('../services/fhirService');
+const firebaseService = require('../services/firebaseService');
+const multer = require('multer');
+
+// Configure multer for memory storage to handle file uploads
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
 
 // Get patient records from FHIR server
 router.get('/fhir/:patientId', async (req, res) => {
@@ -145,6 +151,53 @@ router.get('/fhir/:patientId', async (req, res) => {
     res.json(records);
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Upload a health record file
+router.post('/upload', upload.single('file'), async (req, res) => {
+  try {
+    const { userEmail } = req.body;
+    const file = req.file;
+
+    if (!file) {
+      return res.status(400).json({ error: 'No file uploaded.' });
+    }
+
+    if (!userEmail) {
+      return res.status(400).json({ error: 'User email is required.' });
+    }
+
+    // 1. Upload file to Firebase Storage
+    const uploadResult = await firebaseService.uploadHealthRecordFile(file, userEmail);
+    if (!uploadResult.success) {
+      throw new Error(uploadResult.error);
+    }
+
+    // 2. Add record metadata to Firestore
+    const recordData = {
+      fileName: file.originalname,
+      fileType: file.mimetype,
+      fileUrl: uploadResult.url,
+      storagePath: uploadResult.path,
+    };
+    const recordResult = await firebaseService.addHealthRecord(userEmail, recordData);
+    if (!recordResult.success) {
+      throw new Error(recordResult.error);
+    }
+
+    res.status(201).json({
+      message: 'File uploaded and record created successfully.',
+      recordId: recordResult.id,
+      fileUrl: uploadResult.url,
+    });
+
+  } catch (error) {
+    console.error('Health record upload error:', error);
+    res.status(500).json({ 
+      error: 'Failed to upload health record.', 
+      details: error.message 
+    });
   }
 });
 

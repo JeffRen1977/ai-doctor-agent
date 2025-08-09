@@ -1,4 +1,10 @@
 const { 
+  getStorage, 
+  ref, 
+  uploadBytesResumable, 
+  getDownloadURL 
+} = require('firebase/storage');
+const { 
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword,
   signOut,
@@ -10,11 +16,12 @@ const {
   getDoc, 
   updateDoc, 
   collection, 
+  addDoc, 
   query, 
   where, 
   getDocs 
 } = require('firebase/firestore');
-const { auth, db, isMock } = require('../config/firebase');
+const { auth, db, storage, isMock } = require('../config/firebase');
 
 class FirebaseService {
   constructor() {
@@ -318,6 +325,50 @@ class FirebaseService {
         success: false,
         error: error.message
       };
+    }
+  }
+
+  // Upload health record file to Firebase Storage
+  async uploadHealthRecordFile(file, userEmail) {
+    if (this.isMock) {
+      // Simulate file upload
+      const mockUrl = `https://fake-storage.com/health-records/${userEmail}/${Date.now()}-${file.originalname}`;
+      return { success: true, url: mockUrl };
+    }
+
+    try {
+      const storageRef = ref(storage, `health-records/${userEmail}/${Date.now()}-${file.originalname}`);
+      const snapshot = await uploadBytesResumable(storageRef, file.buffer, {
+        contentType: file.mimetype,
+      });
+      const downloadURL = await getDownloadURL(snapshot.ref);
+      return { success: true, url: downloadURL, path: snapshot.ref.fullPath };
+    } catch (error) {
+      console.error('文件上传至Firebase Storage错误:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // Add or overwrite a health record document in Firestore using the user's email as the ID.
+  async addHealthRecord(userEmail, fileData) {
+    try {
+      if (this.isMock) {
+        // Simulate adding record
+        console.log('Mock add health record:', { userEmail, ...fileData });
+        return { success: true, id: userEmail };
+      }
+
+      const recordDocRef = doc(db, 'healthRecords', userEmail);
+      await setDoc(recordDocRef, {
+        userEmail,
+        ...fileData,
+        updatedAt: new Date(),
+      }, { merge: true }); // Using merge to avoid overwriting fields unintentionally
+
+      return { success: true, id: recordDocRef.id };
+    } catch (error) {
+      console.error('添加健康记录至Firestore错误:', error);
+      return { success: false, error: error.message };
     }
   }
 }
