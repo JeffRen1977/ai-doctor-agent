@@ -1,7 +1,8 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Form, Input, Button, Card, message, Row, Col, Typography, Space } from 'antd'
 import { UserOutlined, LockOutlined, GlobalOutlined, MessageOutlined, FileTextOutlined, CameraOutlined, BarChartOutlined, CalendarOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
 import { useAuthStore } from '@/stores/authStore'
+import { useLanguageStore } from '@/stores/languageStore'
 import { translations, getTranslation, Language } from '../locales'
 import './LoginPage.css'
 
@@ -22,13 +23,23 @@ interface RegisterForm {
 const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [isLoginMode, setIsLoginMode] = useState(true)
-  const [language, setLanguage] = useState<Language>('zh')
+  const { language, setLanguage, initLanguage } = useLanguageStore()
   const { login } = useAuthStore()
+
+  // 初始化语言设置
+  useEffect(() => {
+    initLanguage()
+  }, [initLanguage])
 
   const t = (key: string) => getTranslation(language, key)
 
   const toggleLanguage = () => {
-    setLanguage(language === 'zh' ? 'en' : 'zh')
+    const newLanguage = language === 'zh' ? 'en' : 'zh'
+    setLanguage(newLanguage)
+    // 保存到localStorage
+    localStorage.setItem('selectedLanguage', newLanguage)
+    // 触发自定义事件
+    window.dispatchEvent(new CustomEvent('languageChanged', { detail: newLanguage }))
   }
 
   const toggleMode = () => {
@@ -64,8 +75,17 @@ const LoginPage: React.FC = () => {
           localStorage.setItem('token', data.token)
           localStorage.setItem('user', JSON.stringify(user))
           
-          login(user)
+          // 确保语言设置被保存
+          localStorage.setItem('selectedLanguage', language)
+          console.log('🌐 Language saved to localStorage:', language)
+          
+          // 显示成功消息
           message.success(language === 'zh' ? '登录成功！' : 'Login successful!')
+          
+          // 延迟一下再调用login，确保语言设置已经保存
+          setTimeout(() => {
+            login(user)
+          }, 100)
         } else {
           console.error('❌ Login failed:', data.error)
           message.error(data.error || (language === 'zh' ? '登录失败，请重试' : 'Login failed, please try again'))

@@ -148,6 +148,12 @@
   background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.2) 50%, transparent 100%);
 }
 
+.user-info-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .user-info {
   display: flex;
   align-items: center;
@@ -252,4 +258,30 @@
 
 .menu-container::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
+}
+
+/* 语言切换按钮样式 */
+.language-switch-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.language-switch-container .ant-btn {
+  border-radius: 8px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.language-switch-container .ant-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.language-switch-container .ant-btn .anticon {
+  margin-right: 4px;
+  font-size: 12px;
 } 

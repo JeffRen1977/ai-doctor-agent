@@ -4,6 +4,8 @@ import { SendOutlined, ClearOutlined } from '@ant-design/icons'
 import { useChatStore, Message } from '@/stores/chatStore'
 import { chatService } from '@/services/chatService'
 import ChatMessage from '@/components/ChatMessage'
+import { useLanguageStore } from '@/stores/languageStore'
+import { getTranslation } from '@/locales'
 import './ChatPage.css'
 
 const { TextArea } = Input
@@ -13,6 +15,9 @@ const ChatPage: React.FC = () => {
   const [sending, setSending] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const { messages, addMessage, updateMessage, clearMessages } = useChatStore()
+  const { language } = useLanguageStore()
+
+  const t = (key: string) => getTranslation(language, key)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -53,11 +58,14 @@ const ChatPage: React.FC = () => {
         isLoading: false,
       })
     } catch (error) {
+      const errorMessage = language === 'zh' 
+        ? '抱歉，我遇到了一些问题。请稍后再试。'
+        : 'Sorry, I encountered some issues. Please try again later.'
       updateMessage(assistantMessage.id, {
-        content: '抱歉，我遇到了一些问题。请稍后再试。',
+        content: errorMessage,
         isLoading: false,
       })
-      message.error('发送消息失败')
+      message.error(language === 'zh' ? '发送消息失败' : 'Failed to send message')
     } finally {
       setSending(false)
     }
@@ -72,13 +80,13 @@ const ChatPage: React.FC = () => {
 
   const handleClear = () => {
     clearMessages()
-    message.success('聊天记录已清空')
+    message.success(language === 'zh' ? '聊天记录已清空' : 'Chat history cleared')
   }
 
   return (
     <div className="chat-page">
       <Card
-        title="AI医生对话"
+        title={t('chat.title')}
         extra={
           <Space>
             <Button
@@ -86,7 +94,7 @@ const ChatPage: React.FC = () => {
               onClick={handleClear}
               disabled={messages.length === 0}
             >
-              清空记录
+              {language === 'zh' ? '清空记录' : 'Clear History'}
             </Button>
           </Space>
         }
@@ -96,8 +104,8 @@ const ChatPage: React.FC = () => {
           <div className="messages-container">
             {messages.length === 0 ? (
               <div className="empty-state">
-                <p>👋 您好！我是您的AI医生助理</p>
-                <p>请描述您的症状或健康问题，我会为您提供专业的建议</p>
+                <p>👋 {language === 'zh' ? '您好！我是您的AI医生助理' : 'Hello! I am your AI doctor assistant'}</p>
+                <p>{t('chat.placeholder')}</p>
               </div>
             ) : (
               messages.map((message) => (
@@ -112,7 +120,7 @@ const ChatPage: React.FC = () => {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="请描述您的症状或健康问题..."
+              placeholder={t('chat.placeholder')}
               autoSize={{ minRows: 2, maxRows: 4 }}
               disabled={sending}
             />
@@ -123,7 +131,7 @@ const ChatPage: React.FC = () => {
               loading={sending}
               disabled={!inputValue.trim()}
             >
-              发送
+              {t('chat.sendButton')}
             </Button>
           </div>
         </div>

@@ -1,5 +1,5 @@
 import React from 'react'
-import { Layout, Menu, Avatar, Dropdown, Divider } from 'antd'
+import { Layout, Menu, Avatar, Dropdown, Divider, Button } from 'antd'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
   DashboardOutlined,
@@ -13,8 +13,11 @@ import {
   LogoutOutlined,
   CameraOutlined,
   SettingOutlined,
+  GlobalOutlined,
 } from '@ant-design/icons'
 import { useAuthStore } from '@/stores/authStore'
+import { useLanguageStore } from '@/stores/languageStore'
+import { getTranslation } from '@/locales'
 import './Sidebar.css'
 
 const { Sider } = Layout
@@ -23,22 +26,31 @@ const Sidebar: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout } = useAuthStore()
+  const { language, setLanguage } = useLanguageStore()
+
+  const t = (key: string) => getTranslation(language, key)
+
+  const handleLanguageChange = (newLanguage: 'zh' | 'en') => {
+    setLanguage(newLanguage)
+    // 强制重新渲染
+    window.location.reload()
+  }
 
   const mainMenuItems = [
     {
       key: '/dashboard',
       icon: <DashboardOutlined />,
-      label: '健康仪表板',
+      label: t('sidebar.menu.dashboard'),
     },
     {
       key: '/chat',
       icon: <MessageOutlined />,
-      label: 'AI医生对话',
+      label: t('sidebar.menu.aiChat'),
     },
     {
       key: '/health-records',
       icon: <FileTextOutlined />,
-      label: '健康档案',
+      label: t('sidebar.menu.healthRecords'),
     },
   ]
 
@@ -46,12 +58,12 @@ const Sidebar: React.FC = () => {
     {
       key: '/analytics',
       icon: <BarChartOutlined />,
-      label: '健康分析',
+      label: t('sidebar.menu.healthAnalytics'),
     },
     {
       key: '/diet-analysis',
       icon: <CameraOutlined />,
-      label: '饮食分析',
+      label: t('sidebar.menu.dietAnalysis'),
     },
   ]
 
@@ -59,17 +71,17 @@ const Sidebar: React.FC = () => {
     {
       key: '/appointments',
       icon: <CalendarOutlined />,
-      label: '预约管理',
+      label: t('sidebar.menu.appointments'),
     },
     {
       key: '/devices',
       icon: <SyncOutlined />,
-      label: '设备同步',
+      label: t('sidebar.menu.deviceSync'),
     },
     {
       key: '/emergency',
       icon: <ExclamationCircleOutlined />,
-      label: '紧急求助',
+      label: t('sidebar.menu.emergency'),
     },
   ]
 
@@ -77,20 +89,18 @@ const Sidebar: React.FC = () => {
     {
       key: '/profile',
       icon: <UserOutlined />,
-      label: '个人资料',
+      label: t('sidebar.menu.profile'),
     },
     {
       key: '/settings',
       icon: <SettingOutlined />,
-      label: '设置',
+      label: t('sidebar.menu.settings'),
     },
-    {
-      type: 'divider',
-    },
+    { type: 'divider' },
     {
       key: 'logout',
       icon: <LogoutOutlined />,
-      label: '退出登录',
+      label: t('sidebar.menu.logout'),
       onClick: () => {
         logout()
         navigate('/login')
@@ -110,8 +120,8 @@ const Sidebar: React.FC = () => {
   return (
     <Sider width={250} className="sidebar">
       <div className="logo">
-        <h2>AI医生助理</h2>
-        <p className="logo-subtitle">您的健康管理专家</p>
+        <h2>{t('sidebar.logo.title')}</h2>
+        <p className="logo-subtitle">{t('sidebar.logo.subtitle')}</p>
       </div>
       
       <div className="menu-container">
@@ -129,36 +139,54 @@ const Sidebar: React.FC = () => {
       </div>
 
       <div className="user-section">
-        <Dropdown
-          menu={{
-            items: userMenuItems,
-            onClick: ({ key }) => {
-              if (key === 'logout') {
-                logout()
-                navigate('/login')
-              } else if (key !== 'divider') {
-                navigate(key)
-              }
-            },
-          }}
-          placement="bottomRight"
-          trigger={['click']}
-        >
-          <div className="user-info">
-            <Avatar 
-              size={40} 
-              icon={<UserOutlined />} 
-              style={{ 
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                border: '2px solid rgba(255, 255, 255, 0.2)'
-              }} 
-            />
-            <div className="user-details">
-              <span className="user-name">{user?.name || '用户'}</span>
-              <span className="user-role">健康管理师</span>
+        <div className="user-info-container">
+          <Dropdown
+            menu={{
+              items: userMenuItems,
+              onClick: ({ key }) => {
+                if (key === 'logout') {
+                  logout()
+                  navigate('/login')
+                } else if (key !== 'divider') {
+                  navigate(key)
+                }
+              },
+            }}
+            placement="bottomRight"
+            trigger={['click']}
+          >
+            <div className="user-info">
+              <Avatar 
+                size={40} 
+                icon={<UserOutlined />} 
+                style={{ 
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  border: '2px solid rgba(255, 255, 255, 0.2)'
+                }} 
+              />
+              <div className="user-details">
+                <span className="user-name">{user?.name || (language === 'zh' ? '用户' : 'User')}</span>
+                <span className="user-role">{t('sidebar.user.role')}</span>
+              </div>
             </div>
+          </Dropdown>
+          
+          {/* 添加语言切换按钮 */}
+          <div className="language-switch-container">
+            <Button
+              type="text"
+              icon={<GlobalOutlined />}
+              size="small"
+              onClick={() => handleLanguageChange(language === 'zh' ? 'en' : 'zh')}
+              style={{ 
+                color: 'rgba(255, 255, 255, 0.7)',
+                marginTop: '8px'
+              }}
+            >
+              {language === 'zh' ? 'EN' : '中文'}
+            </Button>
           </div>
-        </Dropdown>
+        </div>
       </div>
     </Sider>
   )

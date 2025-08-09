@@ -13,17 +13,46 @@ import HealthAnalyticsPage from './pages/HealthAnalyticsPage'
 import EmergencyPage from './pages/EmergencyPage'
 import DietAnalysisPage from './pages/DietAnalysisPage'
 import { useAuthStore } from './stores/authStore'
+import { useLanguageStore } from './stores/languageStore'
 import './App.css'
 
 const { Content } = Layout
 
 function App() {
   const { isAuthenticated, initAuth } = useAuthStore()
+  const { initLanguage, refreshLanguage, language } = useLanguageStore()
 
-  // Initialize authentication state on component mount
+  // Initialize authentication state and language settings on component mount
   useEffect(() => {
+    console.log('🚀 App component mounting, initializing...')
     initAuth()
-  }, [initAuth])
+    initLanguage()
+  }, [initAuth, initLanguage])
+
+  // 当认证状态变化时，确保语言设置正确
+  useEffect(() => {
+    if (isAuthenticated) {
+      console.log('🔐 User authenticated, ensuring language consistency...')
+      // 使用refreshLanguage方法，确保登录后的语言一致性
+      refreshLanguage()
+    }
+  }, [isAuthenticated, refreshLanguage])
+
+  // 监听语言变化事件
+  useEffect(() => {
+    const handleLanguageChange = () => {
+      console.log('🌐 Language change detected in App component')
+      refreshLanguage()
+    }
+
+    window.addEventListener('languageChanged', handleLanguageChange)
+    
+    return () => {
+      window.removeEventListener('languageChanged', handleLanguageChange)
+    }
+  }, [refreshLanguage])
+
+  console.log('🌐 Current language:', language, 'Authenticated:', isAuthenticated)
 
   if (!isAuthenticated) {
     return <LoginPage />

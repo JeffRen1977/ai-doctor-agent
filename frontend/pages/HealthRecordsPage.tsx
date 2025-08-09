@@ -6,6 +6,8 @@ import dayjs from 'dayjs';
 import './HealthRecordsPage.css';
 import { getFhirPatientRecords } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
+import { useLanguageStore } from '../stores/languageStore';
+import { getTranslation } from '../locales';
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -22,6 +24,9 @@ interface HealthRecord {
 
 const HealthRecordsPage: React.FC = () => {
   const { user } = useAuthStore();
+  const { language } = useLanguageStore();
+  const t = (key: string) => getTranslation(language, key);
+  
   const [records, setRecords] = useState<HealthRecord[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingRecord, setEditingRecord] = useState<HealthRecord | null>(null);
@@ -29,26 +34,135 @@ const HealthRecordsPage: React.FC = () => {
   const [form] = Form.useForm();
 
   const severityColors = { low: 'green', medium: 'orange', high: 'red' };
-  const severityLabels = { low: '轻微', medium: '中等', high: '严重' };
+  const severityLabels = { 
+    low: language === 'zh' ? '轻微' : 'Low', 
+    medium: language === 'zh' ? '中等' : 'Medium', 
+    high: language === 'zh' ? '严重' : 'High' 
+  };
   const statusColors = { active: 'red', resolved: 'green' };
-  const statusLabels = { active: '进行中', resolved: '已解决' };
+  const statusLabels = { 
+    active: language === 'zh' ? '进行中' : 'Active', 
+    resolved: language === 'zh' ? '已解决' : 'Resolved' 
+  };
 
   const columns = [
-    { title: '日期', dataIndex: 'date', key: 'date', render: (date: string) => dayjs(date).format('YYYY-MM-DD') },
-    { title: '症状类型', dataIndex: 'type', key: 'type' },
-    { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true },
-    { title: '严重程度', dataIndex: 'severity', key: 'severity', render: (severity: keyof typeof severityColors) => (<Tag color={severityColors[severity]}>{severityLabels[severity]}</Tag>) },
-    { title: '状态', dataIndex: 'status', key: 'status', render: (status: keyof typeof statusColors) => (<Tag color={statusColors[status]}>{statusLabels[status]}</Tag>) },
-    { title: '操作', key: 'action', render: (_: any, record: HealthRecord) => (<Space size="middle"><Button type="link" icon={<EditOutlined />} onClick={() => handleEdit(record)}>编辑</Button><Button type="link" danger icon={<DeleteOutlined />} onClick={() => handleDelete(record.id)}>删除</Button></Space>) },
+    { 
+      title: language === 'zh' ? '日期' : 'Date', 
+      dataIndex: 'date', 
+      key: 'date', 
+      render: (date: string) => dayjs(date).format('YYYY-MM-DD') 
+    },
+    { 
+      title: language === 'zh' ? '症状类型' : 'Symptom Type', 
+      dataIndex: 'type', 
+      key: 'type' 
+    },
+    { 
+      title: language === 'zh' ? '描述' : 'Description', 
+      dataIndex: 'description', 
+      key: 'description', 
+      ellipsis: true 
+    },
+    { 
+      title: language === 'zh' ? '严重程度' : 'Severity', 
+      dataIndex: 'severity', 
+      key: 'severity', 
+      render: (severity: keyof typeof severityColors) => (<Tag color={severityColors[severity]}>{severityLabels[severity]}</Tag>) 
+    },
+    { 
+      title: language === 'zh' ? '状态' : 'Status', 
+      dataIndex: 'status', 
+      key: 'status', 
+      render: (status: keyof typeof statusColors) => (<Tag color={statusColors[status]}>{statusLabels[status]}</Tag>) 
+    },
+    { 
+      title: language === 'zh' ? '操作' : 'Actions', 
+      key: 'action', 
+      render: (_: any, record: HealthRecord) => (
+        <Space size="middle">
+          <Button type="link" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
+            {language === 'zh' ? '编辑' : 'Edit'}
+          </Button>
+          <Button type="link" danger icon={<DeleteOutlined />} onClick={() => handleDelete(record.id)}>
+            {language === 'zh' ? '删除' : 'Delete'}
+          </Button>
+        </Space>
+      ) 
+    },
   ];
 
   const handleAdd = () => { setEditingRecord(null); form.resetFields(); setModalVisible(true); };
   const handleEdit = (record: HealthRecord) => { setEditingRecord(record); form.setFieldsValue({ ...record, date: dayjs(record.date) }); setModalVisible(true); };
-  const handleDelete = (id: string) => { Modal.confirm({ title: '确认删除', content: '确定要删除这条健康记录吗？', onOk: () => { setRecords(records.filter(record => record.id !== id)); message.success('删除成功'); } }); };
-  const handleSubmit = () => { form.validateFields().then(values => { const recordData = { ...values, date: values.date.format('YYYY-MM-DD') }; if (editingRecord) { setRecords(records.map(record => record.id === editingRecord.id ? { ...record, ...recordData } : record)); message.success('更新成功'); } else { const newRecord: HealthRecord = { id: Date.now().toString(), ...recordData }; setRecords([...records, newRecord]); message.success('添加成功'); } setModalVisible(false); form.resetFields(); }); };
+  const handleDelete = (id: string) => { 
+    Modal.confirm({ 
+      title: t('healthRecords.confirmDeleteTitle'), 
+      content: t('healthRecords.confirmDeleteContent'), 
+      onOk: () => { 
+        setRecords(records.filter(record => record.id !== id)); 
+        message.success(t('healthRecords.deleteSuccess')); 
+      } 
+    }); 
+  };
+  
+  const handleSubmit = () => { 
+    form.validateFields().then(values => { 
+      const recordData = { ...values, date: values.date.format('YYYY-MM-DD') }; 
+      if (editingRecord) { 
+        setRecords(records.map(record => record.id === editingRecord.id ? { ...record, ...recordData } : record)); 
+        message.success(t('healthRecords.updateSuccess')); 
+      } else { 
+        const newRecord: HealthRecord = { id: Date.now().toString(), ...recordData }; 
+        setRecords([...records, newRecord]); 
+        message.success(t('healthRecords.addSuccess')); 
+      } 
+      setModalVisible(false); 
+      form.resetFields(); 
+    }); 
+  };
 
-  const transformFhirToHealthRecord = (fhirResource: any): HealthRecord | null => { const resource = fhirResource.resource; if (!resource) return null; if (resource.resourceType === 'Observation') { return { id: resource.id, date: resource.effectiveDateTime ? dayjs(resource.effectiveDateTime).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'), type: resource.code?.text || 'FHIR Observation', description: `Value: ${resource.valueQuantity?.value || 'N/A'} ${resource.valueQuantity?.unit || ''}`, severity: 'low', status: resource.status === 'final' ? 'resolved' : 'active' }; } return null; };
-  const handleFetchFromFhir = async () => { setIsFetchingFhir(true); message.loading({ content: '正在从FHIR服务器获取记录...', key: 'fhirFetch' }); try { const fhirData = await getFhirPatientRecords('123'); const newRecords = fhirData.map(transformFhirToHealthRecord).filter((record: HealthRecord | null): record is HealthRecord => record !== null); if (newRecords.length === 0) { message.info({ content: '没有找到新的记录。', key: 'fhirFetch', duration: 2 }); return; } setRecords(prevRecords => { const existingIds = new Set(prevRecords.map(r => r.id)); const uniqueNewRecords = newRecords.filter(r => !existingIds.has(r.id)); if (uniqueNewRecords.length === 0) { message.info({ content: '所有获取的记录都已存在。', key: 'fhirFetch', duration: 2 }); return prevRecords; } message.success({ content: `成功获取并添加了 ${uniqueNewRecords.length} 条新记录。`, key: 'fhirFetch', duration: 2 }); return [...prevRecords, ...uniqueNewRecords]; }); } catch (error) { console.error('Failed to fetch from FHIR:', error); message.error({ content: '从FHIR服务器获取记录失败。', key: 'fhirFetch', duration: 2 }); } finally { setIsFetchingFhir(false); } };
+  const transformFhirToHealthRecord = (fhirResource: any): HealthRecord | null => { 
+    const resource = fhirResource.resource; 
+    if (!resource) return null; 
+    if (resource.resourceType === 'Observation') { 
+      return { 
+        id: resource.id, 
+        date: resource.effectiveDateTime ? dayjs(resource.effectiveDateTime).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'), 
+        type: resource.code?.text || 'FHIR Observation', 
+        description: `Value: ${resource.valueQuantity?.value || 'N/A'} ${resource.valueQuantity?.unit || ''}`, 
+        severity: 'low', 
+        status: resource.status === 'final' ? 'resolved' : 'active' 
+      }; 
+    } 
+    return null; 
+  };
+  
+  const handleFetchFromFhir = async () => { 
+    setIsFetchingFhir(true); 
+    message.loading({ content: t('healthRecords.fetchingFhirRecords'), key: 'fhirFetch' }); 
+    try { 
+      const fhirData = await getFhirPatientRecords('123'); 
+      const newRecords = fhirData.map(transformFhirToHealthRecord).filter((record: HealthRecord | null): record is HealthRecord => record !== null); 
+      if (newRecords.length === 0) { 
+        message.info({ content: t('healthRecords.noNewRecordsFound'), key: 'fhirFetch', duration: 2 }); 
+        return; 
+      } 
+      setRecords(prevRecords => { 
+        const existingIds = new Set(prevRecords.map(r => r.id)); 
+        const uniqueNewRecords = newRecords.filter(r => !existingIds.has(r.id)); 
+        if (uniqueNewRecords.length === 0) { 
+          message.info({ content: t('healthRecords.allFetchedRecordsExist'), key: 'fhirFetch', duration: 2 }); 
+          return prevRecords; 
+        } 
+        message.success({ content: t('healthRecords.successFetchedAndAddedRecords'), key: 'fhirFetch', duration: 2 }); 
+        return [...prevRecords, ...uniqueNewRecords]; 
+      }); 
+    } catch (error) { 
+      console.error('Failed to fetch from FHIR:', error); 
+      message.error({ content: t('healthRecords.fetchFhirRecordsFailed'), key: 'fhirFetch', duration: 2 }); 
+    } finally { 
+      setIsFetchingFhir(false); 
+    } 
+  };
 
   const uploadProps: UploadProps = {
     name: 'file',
@@ -58,21 +172,27 @@ const HealthRecordsPage: React.FC = () => {
     accept: '.pdf,.png,.jpg,.jpeg',
     onChange(info) {
       const { status } = info.file;
-      if (status === 'uploading') { message.loading({ content: `正在上传 ${info.file.name}...`, key: 'upload' }); }
-      if (status === 'done') { message.success({ content: `${info.file.name} 上传成功。`, key: 'upload' }); }
-      else if (status === 'error') { message.error({ content: `${info.file.name} 上传失败。`, key: 'upload' }); }
+      if (status === 'uploading') { 
+        message.loading({ content: t('healthRecords.uploadingFile'), key: 'upload' }); 
+      }
+      if (status === 'done') { 
+        message.success({ content: t('healthRecords.uploadSuccess'), key: 'upload' }); 
+      }
+      else if (status === 'error') { 
+        message.error({ content: t('healthRecords.uploadFailed'), key: 'upload' }); 
+      }
     },
   };
 
   const renderUploadTab = () => {
     if (!user) {
-      return <Alert message="请先登录后再上传健康记录。" type="warning" showIcon />;
+      return <Alert message={t('healthRecords.pleaseLoginToUpload')} type="warning" showIcon />;
     }
     return (
       <Dragger {...uploadProps}>
         <p className="ant-upload-drag-icon"><InboxOutlined /></p>
-        <p className="ant-upload-text">点击或拖拽文件到此区域上传</p>
-        <p className="ant-upload-hint">支持单个文件的PDF或图片格式上传。这些文件将被安全地存储并关联到您的健康档案中。</p>
+        <p className="ant-upload-text">{t('healthRecords.clickOrDragFileHere')}</p>
+        <p className="ant-upload-hint">{t('healthRecords.supportedFileTypesHint')}</p>
       </Dragger>
     );
   };
@@ -80,17 +200,17 @@ const HealthRecordsPage: React.FC = () => {
   const tabItems: TabsProps['items'] = [
     {
       key: '1',
-      label: '记录列表',
+      label: t('healthRecords.recordsList'),
       children: (
         <Card
-          title="健康记录"
+          title={t('healthRecords.healthRecords')}
           extra={
             <Space>
               <Button type="default" icon={<CloudDownloadOutlined />} onClick={handleFetchFromFhir} loading={isFetchingFhir}>
-                从FHIR获取
+                {t('healthRecords.fetchFromFhir')}
               </Button>
               <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
-                添加记录
+                {t('healthRecords.addRecord')}
               </Button>
             </Space>
           }
@@ -99,39 +219,64 @@ const HealthRecordsPage: React.FC = () => {
             columns={columns}
             dataSource={records}
             rowKey="id"
-            pagination={{ pageSize: 10, showSizeChanger: true, showQuickJumper: true }}
+            pagination={{ pageSize: 10 }}
+            locale={{
+              emptyText: t('healthRecords.noRecords')
+            }}
           />
         </Card>
-      ),
+      )
     },
     {
       key: '2',
-      label: '上传文件',
+      label: t('healthRecords.uploadFile'),
       children: (
-        <Card title="上传新的健康记录文件">
+        <Card title={t('healthRecords.uploadNewHealthRecordFile')}>
           {renderUploadTab()}
         </Card>
-      ),
-    },
+      )
+    }
   ];
 
   return (
     <div className="health-records-page">
-      <Tabs defaultActiveKey="1" items={tabItems} />
-
+      <Tabs 
+        defaultActiveKey="1" 
+        items={tabItems}
+        className="health-records-tabs"
+      />
+      
       <Modal
-        title={editingRecord ? '编辑健康记录' : '添加健康记录'}
+        title={editingRecord ? t('healthRecords.editHealthRecord') : t('healthRecords.addHealthRecord')}
         open={modalVisible}
         onOk={handleSubmit}
         onCancel={() => setModalVisible(false)}
-        width={600}
+        okText={t('healthRecords.save')}
+        cancelText={t('healthRecords.cancel')}
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="date" label="日期" rules={[{ required: true, message: '请选择日期' }]}><DatePicker style={{ width: '100%' }} /></Form.Item>
-          <Form.Item name="type" label="症状类型" rules={[{ required: true, message: '请输入症状类型' }]}><Input placeholder="例如：头痛、感冒、发烧等" /></Form.Item>
-          <Form.Item name="description" label="详细描述" rules={[{ required: true, message: '请输入详细描述' }]}><TextArea rows={4} placeholder="请详细描述您的症状..." /></Form.Item>
-          <Form.Item name="severity" label="严重程度" rules={[{ required: true, message: '请选择严重程度' }]}><Select placeholder="请选择严重程度"><Option value="low">轻微</Option><Option value="medium">中等</Option><Option value="high">严重</Option></Select></Form.Item>
-          <Form.Item name="status" label="状态" rules={[{ required: true, message: '请选择状态' }]}><Select placeholder="请选择状态"><Option value="active">进行中</Option><Option value="resolved">已解决</Option></Select></Form.Item>
+          <Form.Item name="date" label={t('healthRecords.date')} rules={[{ required: true, message: t('healthRecords.pleaseSelectDate') }]}>
+            <DatePicker style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item name="type" label={t('healthRecords.symptomType')} rules={[{ required: true, message: t('healthRecords.pleaseEnterSymptomType') }]}>
+            <Input placeholder={t('healthRecords.e_g_headache_cold_fever')} />
+          </Form.Item>
+          <Form.Item name="description" label={t('healthRecords.detailedDescription')} rules={[{ required: true, message: t('healthRecords.pleaseEnterDetailedDescription') }]}>
+            <TextArea rows={4} placeholder={t('healthRecords.pleaseEnterDetailedDescription')} />
+          </Form.Item>
+          <Form.Item name="severity" label={t('healthRecords.severity')} rules={[{ required: true, message: t('healthRecords.pleaseSelectSeverity') }]}>
+            <Select placeholder={t('healthRecords.pleaseSelectSeverity')}>
+              <Option value="low">{t('healthRecords.low')}</Option>
+              <Option value="medium">{t('healthRecords.medium')}</Option>
+              <Option value="high">{t('healthRecords.high')}</Option>
+            </Select>
+          </Form.Item>
+          <Form.Item name="status" label={t('healthRecords.status')} rules={[{ required: true, message: t('healthRecords.pleaseSelectStatus') }]}>
+            <Select placeholder={t('healthRecords.pleaseSelectStatus')}>
+              <Option value="active">{t('healthRecords.active')}</Option>
+              <Option value="resolved">{t('healthRecords.resolved')}</Option>
+            </Select>
+          </Form.Item>
         </Form>
       </Modal>
     </div>

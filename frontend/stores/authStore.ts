@@ -22,6 +22,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     console.log('🔑 Login called with user:', user)
     set({ user, isAuthenticated: true })
     console.log('Auth state updated, isAuthenticated should be true')
+    
+    // 登录成功后，确保语言设置立即生效
+    // 这里不需要直接调用语言初始化，因为App.tsx中的useEffect会处理
   },
   logout: () => {
     localStorage.removeItem('token')
