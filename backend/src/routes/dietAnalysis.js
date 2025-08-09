@@ -2,6 +2,11 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const geminiService = require('../services/geminiService');
+const { authenticateToken } = require('../middleware/auth');
+const { doc, setDoc, collection, query, where, orderBy, limit, getDocs } = require('firebase/firestore');
+const { db } = require('../config/firebase');
+
 const router = express.Router();
 
 // 配置文件上传
@@ -34,267 +39,249 @@ const upload = multer({
   }
 });
 
-// 食物数据库
-const foodDatabase = {
-  'rice': {
-    name: '白米饭',
-    calories: 130,
-    carbs: 28,
-    protein: 2.7,
-    fat: 0.3,
-    fiber: 0.4,
-    glycemicIndex: 73,
-    servingSize: '100g',
-    confidence: 0.95
-  },
-  'noodles': {
-    name: '面条',
-    calories: 138,
-    carbs: 25,
-    protein: 4.5,
-    fat: 1.1,
-    fiber: 1.2,
-    glycemicIndex: 55,
-    servingSize: '100g',
-    confidence: 0.92
-  },
-  'vegetables': {
-    name: '蔬菜',
-    calories: 25,
-    carbs: 5,
-    protein: 2,
-    fat: 0.2,
-    fiber: 3,
-    glycemicIndex: 15,
-    servingSize: '100g',
-    confidence: 0.88
-  },
-  'meat': {
-    name: '肉类',
-    calories: 250,
-    carbs: 0,
-    protein: 26,
-    fat: 15,
-    fiber: 0,
-    glycemicIndex: 0,
-    servingSize: '100g',
-    confidence: 0.90
-  },
-  'fish': {
-    name: '鱼类',
-    calories: 120,
-    carbs: 0,
-    protein: 22,
-    fat: 3,
-    fiber: 0,
-    glycemicIndex: 0,
-    servingSize: '100g',
-    confidence: 0.87
-  },
-  'bread': {
-    name: '面包',
-    calories: 265,
-    carbs: 49,
-    protein: 9,
-    fat: 3.2,
-    fiber: 2.7,
-    glycemicIndex: 70,
-    servingSize: '100g',
-    confidence: 0.93
-  },
-  'fruit': {
-    name: '水果',
-    calories: 60,
-    carbs: 15,
-    protein: 0.5,
-    fat: 0.2,
-    fiber: 2.5,
-    glycemicIndex: 40,
-    servingSize: '100g',
-    confidence: 0.85
-  },
-  'eggs': {
-    name: '鸡蛋',
-    calories: 155,
-    carbs: 1.1,
-    protein: 13,
-    fat: 11,
-    fiber: 0,
-    glycemicIndex: 0,
-    servingSize: '100g',
-    confidence: 0.89
-  },
-  'milk': {
-    name: '牛奶',
-    calories: 42,
-    carbs: 5,
-    protein: 3.4,
-    fat: 1,
-    fiber: 0,
-    glycemicIndex: 30,
-    servingSize: '100ml',
-    confidence: 0.86
-  },
-  'tofu': {
-    name: '豆腐',
-    calories: 76,
-    carbs: 1.9,
-    protein: 8,
-    fat: 4.8,
-    fiber: 0.3,
-    glycemicIndex: 15,
-    servingSize: '100g',
-    confidence: 0.84
+// 保存饮食分析结果到Firebase
+async function saveDietAnalysis(userId, analysisData) {
+  try {
+    const analysisRef = doc(collection(db, 'dietAnalysis'));
+    await setDoc(analysisRef, {
+      userId,
+      ...analysisData,
+      timestamp: new Date(),
+      createdAt: new Date()
+    });
+    return analysisRef.id;
+  } catch (error) {
+    console.error('保存饮食分析错误:', error);
+    throw error;
   }
-};
+}
 
-// 模拟AI食物识别
+// 获取用户饮食分析历史
+async function getDietAnalysisHistory(userId, limit = 20) {
+  try {
+    const analysisRef = collection(db, 'dietAnalysis');
+    const q = query(
+      analysisRef,
+      where('userId', '==', userId),
+      orderBy('timestamp', 'desc'),
+      limit(limit)
+    );
+    
+    const querySnapshot = await getDocs(q);
+    const history = [];
+    
+    querySnapshot.forEach((doc) => {
+      history.push({
+        id: doc.id,
+        ...doc.data(),
+        timestamp: doc.data().timestamp.toDate()
+      });
+    });
+    
+    return history;
+  } catch (error) {
+    console.error('获取饮食分析历史错误:', error);
+    throw error;
+  }
+}
+
+// 模拟食物识别（实际项目中应该使用真实的AI图像识别服务）
 const simulateFoodRecognition = (imagePath) => {
-  // 这里应该集成真实的AI模型，如Google Vision API, Azure Computer Vision等
+  // 这里应该集成真实的图像识别API
   // 目前使用模拟数据
-  const possibleFoods = Object.keys(foodDatabase);
-  const numFoods = Math.floor(Math.random() * 3) + 1; // 1-3种食物
-  const recognizedFoods = [];
-  
-  for (let i = 0; i < numFoods; i++) {
-    const randomFood = possibleFoods[Math.floor(Math.random() * possibleFoods.length)];
-    if (!recognizedFoods.find(food => food.name === foodDatabase[randomFood].name)) {
-      recognizedFoods.push(foodDatabase[randomFood]);
+  const foods = [
+    {
+      name: '白米饭',
+      calories: 130,
+      carbs: 28,
+      protein: 2.7,
+      fat: 0.3,
+      fiber: 0.4,
+      glycemicIndex: 73,
+      servingSize: '100g',
+      confidence: 0.95
+    },
+    {
+      name: '蔬菜',
+      calories: 25,
+      carbs: 5,
+      protein: 2,
+      fat: 0.2,
+      fiber: 3,
+      glycemicIndex: 15,
+      servingSize: '100g',
+      confidence: 0.88
     }
-  }
-  
-  return recognizedFoods;
+  ];
+
+  return foods;
 };
 
-// 计算营养分析
-const calculateNutritionAnalysis = (recognizedFoods) => {
-  const totalCalories = recognizedFoods.reduce((sum, food) => sum + food.calories, 0);
-  const totalCarbs = recognizedFoods.reduce((sum, food) => sum + food.carbs, 0);
-  const totalProtein = recognizedFoods.reduce((sum, food) => sum + food.protein, 0);
-  const totalFat = recognizedFoods.reduce((sum, food) => sum + food.fat, 0);
-  const totalFiber = recognizedFoods.reduce((sum, food) => sum + food.fiber, 0);
-  const averageGlycemicIndex = recognizedFoods.reduce((sum, food) => sum + food.glycemicIndex, 0) / recognizedFoods.length;
-
-  // 评估血糖影响
-  let estimatedBloodSugarImpact = '';
-  let diabetesRisk = 'low';
-  let recommendations = [];
-
-  if (averageGlycemicIndex > 70) {
-    estimatedBloodSugarImpact = '高 - 可能导致血糖快速上升';
-    diabetesRisk = 'high';
-    recommendations = [
-      '建议减少高升糖指数食物的摄入',
-      '可以搭配富含纤维的蔬菜',
-      '餐后建议适量运动',
-      '考虑分餐进食'
-    ];
-  } else if (averageGlycemicIndex > 55) {
-    estimatedBloodSugarImpact = '中等 - 血糖上升适中';
-    diabetesRisk = 'medium';
-    recommendations = [
-      '注意控制总碳水化合物摄入',
-      '建议搭配蛋白质食物',
-      '餐后监测血糖水平'
-    ];
-  } else {
-    estimatedBloodSugarImpact = '低 - 对血糖影响较小';
-    diabetesRisk = 'low';
-    recommendations = [
-      '这是糖尿病友好的饮食选择',
-      '继续保持健康的饮食习惯',
-      '建议定期监测血糖'
-    ];
-  }
-
-  return {
-    totalCalories,
-    totalCarbs,
-    totalProtein,
-    totalFat,
-    totalFiber,
-    averageGlycemicIndex: Math.round(averageGlycemicIndex),
-    estimatedBloodSugarImpact,
-    recommendations,
-    diabetesRisk
-  };
-};
-
-// 上传图片并分析饮食
-router.post('/analyze', upload.single('image'), async (req, res) => {
+// 分析饮食
+router.post('/analyze', authenticateToken, upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ 
-        success: false, 
-        message: '请上传图片文件' 
-      });
+      return res.status(400).json({ error: '请上传图片' });
     }
 
-    // 模拟AI分析过程
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    const userId = req.user.id;
+    const imagePath = req.file.path;
 
     // 模拟食物识别
-    const recognizedFoods = simulateFoodRecognition(req.file.path);
+    const recognizedFoods = simulateFoodRecognition(imagePath);
+
+    // 使用Gemini AI进行营养分析
+    const aiResult = await geminiService.analyzeDiet(recognizedFoods, {
+      userId,
+      timestamp: new Date()
+    });
+
+    if (!aiResult.success) {
+      return res.status(500).json({ error: 'AI分析失败' });
+    }
 
     // 计算营养分析
-    const analysis = calculateNutritionAnalysis(recognizedFoods);
+    const nutritionAnalysis = {
+      totalCalories: recognizedFoods.reduce((sum, food) => sum + food.calories, 0),
+      totalCarbs: recognizedFoods.reduce((sum, food) => sum + food.carbs, 0),
+      totalProtein: recognizedFoods.reduce((sum, food) => sum + food.protein, 0),
+      totalFat: recognizedFoods.reduce((sum, food) => sum + food.fat, 0),
+      totalFiber: recognizedFoods.reduce((sum, food) => sum + food.fiber, 0),
+      averageGlycemicIndex: recognizedFoods.reduce((sum, food) => sum + food.glycemicIndex, 0) / recognizedFoods.length
+    };
 
-    // 清理上传的文件
-    fs.unlink(req.file.path, (err) => {
-      if (err) console.error('删除文件失败:', err);
-    });
+    // 糖尿病风险评估
+    const diabetesRisk = {
+      riskLevel: nutritionAnalysis.averageGlycemicIndex > 70 ? 'high' : nutritionAnalysis.averageGlycemicIndex > 55 ? 'medium' : 'low',
+      riskScore: Math.min(100, Math.max(0, nutritionAnalysis.averageGlycemicIndex * 1.2)),
+      recommendations: aiResult.analysis
+    };
+
+    const analysisResult = {
+      recognizedFoods,
+      nutritionAnalysis,
+      diabetesRisk,
+      aiAnalysis: aiResult.analysis,
+      imagePath: req.file.filename
+    };
+
+    // 保存分析结果到Firebase
+    await saveDietAnalysis(userId, analysisResult);
 
     res.json({
       success: true,
-      data: {
-        recognizedFoods,
-        analysis
-      }
+      data: analysisResult
     });
 
   } catch (error) {
     console.error('饮食分析错误:', error);
-    res.status(500).json({
-      success: false,
-      message: '分析过程中出现错误',
-      error: error.message
+    res.status(500).json({ error: '服务器内部错误' });
+  }
+});
+
+// 获取饮食分析历史
+router.get('/history', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const history = await getDietAnalysisHistory(userId);
+    
+    res.json({
+      success: true,
+      data: history
     });
+  } catch (error) {
+    console.error('获取饮食分析历史错误:', error);
+    res.status(500).json({ error: '服务器内部错误' });
   }
 });
 
 // 获取食物数据库
 router.get('/foods', (req, res) => {
+  const foods = [
+    {
+      name: '白米饭',
+      calories: 130,
+      carbs: 28,
+      protein: 2.7,
+      fat: 0.3,
+      fiber: 0.4,
+      glycemicIndex: 73,
+      servingSize: '100g'
+    },
+    {
+      name: '面条',
+      calories: 138,
+      carbs: 25,
+      protein: 4.5,
+      fat: 1.1,
+      fiber: 1.2,
+      glycemicIndex: 55,
+      servingSize: '100g'
+    },
+    {
+      name: '蔬菜',
+      calories: 25,
+      carbs: 5,
+      protein: 2,
+      fat: 0.2,
+      fiber: 3,
+      glycemicIndex: 15,
+      servingSize: '100g'
+    },
+    {
+      name: '肉类',
+      calories: 250,
+      carbs: 0,
+      protein: 26,
+      fat: 15,
+      fiber: 0,
+      glycemicIndex: 0,
+      servingSize: '100g'
+    },
+    {
+      name: '鱼类',
+      calories: 120,
+      carbs: 0,
+      protein: 22,
+      fat: 3,
+      fiber: 0,
+      glycemicIndex: 0,
+      servingSize: '100g'
+    }
+  ];
+
   res.json({
     success: true,
-    data: foodDatabase
+    data: foods
   });
 });
 
 // 获取饮食建议
-router.get('/recommendations', (req, res) => {
-  const recommendations = {
-    diabetes: [
-      '控制碳水化合物摄入，特别是精制糖和淀粉',
-      '选择低升糖指数的食物',
-      '增加膳食纤维摄入',
-      '适量运动，帮助控制血糖',
-      '定期监测血糖水平',
-      '分餐进食，避免暴饮暴食'
-    ],
-    general: [
-      '保持均衡饮食，包含蛋白质、碳水化合物和健康脂肪',
-      '多吃蔬菜水果，补充维生素和矿物质',
-      '控制盐分摄入，预防高血压',
-      '适量饮水，保持身体水分',
-      '规律作息，保证充足睡眠',
-      '定期体检，关注身体健康'
-    ]
-  };
+router.get('/recommendations', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    // 使用Gemini AI生成个性化饮食建议
+    const aiResult = await geminiService.analyzeDiet([], {
+      userId,
+      type: 'recommendations'
+    });
 
-  res.json({
-    success: true,
-    data: recommendations
-  });
+    if (!aiResult.success) {
+      return res.status(500).json({ error: 'AI建议生成失败' });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        recommendations: aiResult.analysis,
+        timestamp: new Date()
+      }
+    });
+  } catch (error) {
+    console.error('获取饮食建议错误:', error);
+    res.status(500).json({ error: '服务器内部错误' });
+  }
 });
 
 module.exports = router; 
