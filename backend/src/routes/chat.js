@@ -2,7 +2,7 @@ const express = require('express');
 const Joi = require('joi');
 const geminiService = require('../services/geminiService');
 const { authenticateToken, optionalAuth } = require('../middleware/auth');
-const { doc, setDoc, getDoc, collection, query, where, orderBy, limit, getDocs } = require('firebase/firestore');
+const { doc, setDoc, getDoc, updateDoc, arrayUnion, collection, query, where, orderBy, limit, getDocs } = require('firebase/firestore');
 const { db, isMock } = require('../config/firebase');
 
 const router = express.Router();
@@ -15,81 +15,101 @@ const messageSchema = Joi.object({
 // 模拟聊天历史存储
 const mockChatHistory = new Map();
 
-// 保存聊天消息到Firebase
-async function saveChatMessage(userId, message, sender) {
+// 保存聊天消息到Firebase - 为每个用户创建一个文档
+async function saveChatMessage(userEmail, message, sender) {
   try {
     if (isMock) {
       // 模拟保存
-      if (!mockChatHistory.has(userId)) {
-        mockChatHistory.set(userId, []);
+      if (!mockChatHistory.has(userEmail)) {
+        mockChatHistory.set(userEmail, []);
       }
       
       const chatId = `mock-${Date.now()}`;
       const chatMessage = {
         id: chatId,
-        userId,
         content: message,
         sender,
         timestamp: new Date(),
         createdAt: new Date()
       };
       
-      mockChatHistory.get(userId).push(chatMessage);
+      mockChatHistory.get(userEmail).push(chatMessage);
       return chatId;
     }
 
-    console.log('💾 保存聊天消息:', { userId, sender, messageLength: message.length });
-    const chatRef = doc(collection(db, 'chats'));
-    await setDoc(chatRef, {
-      userId,
+    console.log('💾 保存聊天消息:', { userEmail, sender, messageLength: message.length });
+    
+    // 创建或获取用户的聊天文档
+    const userChatDocRef = doc(db, 'userChats', userEmail);
+    const userChatDoc = await getDoc(userChatDocRef);
+    
+    const chatMessage = {
+      id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       content: message,
       sender,
       timestamp: new Date(),
       createdAt: new Date()
-    });
-    console.log('✅ 聊天消息保存成功:', chatRef.id);
-    return chatRef.id;
+    };
+    
+    if (!userChatDoc.exists()) {
+      // 如果用户聊天文档不存在，创建一个新的
+      await setDoc(userChatDocRef, {
+        userEmail,
+        messages: [chatMessage],
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+      console.log('✅ 创建新用户聊天文档:', userEmail);
+    } else {
+      // 如果用户聊天文档存在，添加新消息到messages数组
+      await updateDoc(userChatDocRef, {
+        messages: arrayUnion(chatMessage),
+        updatedAt: new Date()
+      });
+      console.log('✅ 更新用户聊天文档:', userEmail);
+    }
+    
+    return chatMessage.id;
   } catch (error) {
     console.error('❌ 保存聊天消息错误:', error);
     throw error;
   }
 }
 
-// 获取用户聊天历史
-async function getChatHistory(userId, limit = 50) {
+// 获取用户聊天历史 - 从用户文档中获取
+async function getChatHistory(userEmail, limitCount = 50) {
   try {
     if (isMock) {
       // 模拟获取历史
-      const history = mockChatHistory.get(userId) || [];
-      return history.slice(-limit);
+      const history = mockChatHistory.get(userEmail) || [];
+      return history.slice(-limitCount);
     }
 
-    console.log('🔍 查询用户聊天历史:', userId);
-    const chatsRef = collection(db, 'chats');
-    const q = query(
-      chatsRef,
-      where('userId', '==', userId),
-      orderBy('timestamp', 'desc'),
-      limit(limit)
-    );
+    console.log('🔍 查询用户聊天历史:', userEmail);
     
-    const querySnapshot = await getDocs(q);
-    const messages = [];
+    // 获取用户的聊天文档
+    const userChatDocRef = doc(db, 'userChats', userEmail);
+    const userChatDoc = await getDoc(userChatDocRef);
     
-    querySnapshot.forEach((doc) => {
-      const data = doc.data();
-      messages.push({
-        id: doc.id,
-        userId: data.userId,
-        content: data.content,
-        sender: data.sender,
-        timestamp: data.timestamp ? data.timestamp.toDate() : new Date(),
-        createdAt: data.createdAt ? data.createdAt.toDate() : new Date()
-      });
-    });
+    if (!userChatDoc.exists()) {
+      console.log('📊 用户聊天文档不存在，返回空历史');
+      return [];
+    }
     
-    console.log('📊 找到聊天记录数量:', messages.length);
-    return messages.reverse(); // 按时间正序返回
+    const userChatData = userChatDoc.data();
+    const messages = userChatData.messages || [];
+    
+    // 按时间排序并限制数量
+    const sortedMessages = messages
+      .sort((a, b) => {
+        const timeA = a.timestamp ? (a.timestamp.toDate ? a.timestamp.toDate() : new Date(a.timestamp)) : new Date();
+        const timeB = b.timestamp ? (b.timestamp.toDate ? b.timestamp.toDate() : new Date(b.timestamp)) : new Date();
+        return timeA - timeB;
+      })
+      .slice(-limitCount);
+    
+    console.log('📊 找到聊天记录数量:', sortedMessages.length);
+    return sortedMessages;
   } catch (error) {
     console.error('❌ 获取聊天历史错误:', error);
     console.error('错误代码:', error.code);
@@ -117,12 +137,12 @@ router.post('/send', authenticateToken, async (req, res) => {
     }
 
     const { message } = value;
-    const userId = req.user.id;
-    console.log('📝 发送消息:', { userId, messageLength: message.length });
+    const userEmail = req.user.email;
+    console.log('📝 发送消息:', { userEmail, messageLength: message.length });
 
     // 保存用户消息
     try {
-      await saveChatMessage(userId, message, 'user');
+      await saveChatMessage(userEmail, message, 'user');
       console.log('✅ 用户消息保存成功');
     } catch (error) {
       console.error('❌ 保存用户消息失败:', error);
@@ -140,7 +160,7 @@ router.post('/send', authenticateToken, async (req, res) => {
 
     // 保存AI回复
     try {
-      await saveChatMessage(userId, aiResponse, 'assistant');
+      await saveChatMessage(userEmail, aiResponse, 'assistant');
       console.log('✅ AI回复保存成功');
     } catch (error) {
       console.error('❌ 保存AI回复失败:', error);
@@ -167,78 +187,78 @@ router.post('/send', authenticateToken, async (req, res) => {
   }
 });
 
+// 获取聊天历史
+router.get('/history', authenticateToken, async (req, res) => {
+  try {
+    const userEmail = req.user.email;
+    const limitCount = parseInt(req.query.limit) || 50;
+    
+    console.log('🔍 获取聊天历史，用户邮箱:', userEmail);
+    
+    const messages = await getChatHistory(userEmail, limitCount);
+    console.log('📊 聊天历史数量:', messages.length);
+    
+    res.json(messages);
+  } catch (error) {
+    console.error('❌ 获取聊天历史错误:', error);
+    res.status(500).json({ error: '服务器内部错误' });
+  }
+});
+
+// 清除聊天历史
+router.delete('/history', authenticateToken, async (req, res) => {
+  try {
+    const userEmail = req.user.email;
+    console.log('🗑️  清除聊天历史，用户邮箱:', userEmail);
+    
+    if (isMock) {
+      // 模拟清除
+      mockChatHistory.delete(userEmail);
+      return res.json({ message: '聊天历史已清除' });
+    }
+    
+    // 删除用户的聊天文档
+    const userChatDocRef = doc(db, 'userChats', userEmail);
+    await setDoc(userChatDocRef, {
+      userEmail,
+      messages: [],
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+    
+    res.json({ message: '聊天历史已清除' });
+  } catch (error) {
+    console.error('❌ 清除聊天历史错误:', error);
+    res.status(500).json({ error: '服务器内部错误' });
+  }
+});
+
 // 测试Firestore连接和权限
 router.get('/test', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
-    console.log('🔍 测试Firestore连接，用户ID:', userId);
+    const userEmail = req.user.email;
+    console.log('🔍 测试Firestore连接，用户邮箱:', userEmail);
     
     // 尝试创建一个测试文档
     const testRef = doc(collection(db, 'test'));
     await setDoc(testRef, {
-      userId,
+      userEmail,
       test: true,
       timestamp: new Date()
     });
     
-    console.log('✅ Firestore连接测试成功');
+    // 尝试读取测试文档
+    const testDoc = await getDoc(testRef);
     
-    // 尝试查询测试文档
-    const testQuery = query(collection(db, 'test'), where('userId', '==', userId));
-    const testSnapshot = await getDocs(testQuery);
-    console.log('📊 测试查询结果数量:', testSnapshot.size);
-    
-    res.json({ 
-      success: true, 
-      message: 'Firestore连接正常',
-      testQueryCount: testSnapshot.size
-    });
-  } catch (error) {
-    console.error('❌ Firestore连接测试失败:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// 获取聊天历史
-router.get('/history', authenticateToken, async (req, res) => {
-  try {
-    const userId = req.user.id;
-    console.log('🔍 获取聊天历史，用户ID:', userId);
-    
-    const history = await getChatHistory(userId);
-    console.log('📊 聊天历史数量:', history.length);
-    
-    res.json(history);
-  } catch (error) {
-    console.error('❌ 获取聊天历史错误:', error);
-    // 返回空数组而不是错误
-    res.json([]);
-  }
-});
-
-// 清空聊天历史
-router.delete('/history', authenticateToken, async (req, res) => {
-  try {
-    const userId = req.user.id;
-    
-    if (isMock) {
-      // 模拟清空
-      mockChatHistory.delete(userId);
+    if (testDoc.exists()) {
+      console.log('✅ Firestore连接测试成功');
+      res.json({ message: 'Firestore连接测试成功', userEmail });
     } else {
-      // 获取用户的所有聊天记录
-      const chatsRef = collection(db, 'chats');
-      const q = query(chatsRef, where('userId', '==', userId));
-      const querySnapshot = await getDocs(q);
-      
-      // 删除所有聊天记录
-      const deletePromises = querySnapshot.docs.map(doc => doc.ref.delete());
-      await Promise.all(deletePromises);
+      res.status(500).json({ error: 'Firestore连接测试失败' });
     }
-    
-    res.json({ message: '聊天历史已清空' });
   } catch (error) {
-    console.error('清空聊天历史错误:', error);
-    res.status(500).json({ error: '服务器内部错误' });
+    console.error('❌ Firestore连接测试错误:', error);
+    res.status(500).json({ error: 'Firestore连接测试失败', details: error.message });
   }
 });
 

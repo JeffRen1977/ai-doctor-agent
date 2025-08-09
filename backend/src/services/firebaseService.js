@@ -53,8 +53,9 @@ class FirebaseService {
         displayName: name
       });
 
-      // 在Firestore中创建用户文档
-      await setDoc(doc(db, 'users', user.uid), {
+      // 在Firestore中创建用户文档，使用电子邮件作为文档ID
+      const userDocRef = doc(db, 'users', email);
+      await setDoc(userDocRef, {
         uid: user.uid,
         email: user.email,
         name: name,
@@ -110,8 +111,8 @@ class FirebaseService {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // 获取用户文档
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      // 获取用户文档，使用电子邮件作为文档ID
+      const userDoc = await getDoc(doc(db, 'users', email));
       
       if (!userDoc.exists()) {
         throw new Error('用户文档不存在');
@@ -156,7 +157,58 @@ class FirebaseService {
         };
       }
 
-      const userDoc = await getDoc(doc(db, 'users', uid));
+      // 首先通过uid查找用户的电子邮件
+      const usersRef = collection(db, 'users');
+      const q = query(usersRef, where('uid', '==', uid));
+      const querySnapshot = await getDocs(q);
+      
+      if (querySnapshot.empty) {
+        return {
+          success: false,
+          error: '用户不存在'
+        };
+      }
+
+      const userData = querySnapshot.docs[0].data();
+      return {
+        success: true,
+        user: {
+          id: userData.uid,
+          email: userData.email,
+          name: userData.name,
+          avatar: userData.avatar,
+          role: userData.role
+        }
+      };
+    } catch (error) {
+      console.error('获取用户信息错误:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  // 通过电子邮件获取用户信息
+  async getUserByEmail(email) {
+    try {
+      if (this.isMock) {
+        // 模拟用户数据
+        const mockUser = {
+          uid: 'mock-user-1',
+          email: email,
+          name: '张三',
+          avatar: null,
+          role: 'user'
+        };
+        
+        return {
+          success: true,
+          user: mockUser
+        };
+      }
+
+      const userDoc = await getDoc(doc(db, 'users', email));
       
       if (!userDoc.exists()) {
         return {
@@ -196,7 +248,20 @@ class FirebaseService {
         };
       }
 
-      const userRef = doc(db, 'users', uid);
+      // 首先通过uid查找用户的电子邮件
+      const usersRef = collection(db, 'users');
+      const q = query(usersRef, where('uid', '==', uid));
+      const querySnapshot = await getDocs(q);
+      
+      if (querySnapshot.empty) {
+        return {
+          success: false,
+          error: '用户不存在'
+        };
+      }
+
+      const userEmail = querySnapshot.docs[0].data().email;
+      const userRef = doc(db, 'users', userEmail);
       await updateDoc(userRef, {
         ...updates,
         updatedAt: new Date()
@@ -223,11 +288,8 @@ class FirebaseService {
         return email === 'demo@example.com';
       }
 
-      const usersRef = collection(db, 'users');
-      const q = query(usersRef, where('email', '==', email));
-      const querySnapshot = await getDocs(q);
-      
-      return !querySnapshot.empty;
+      const userDoc = await getDoc(doc(db, 'users', email));
+      return userDoc.exists();
     } catch (error) {
       console.error('检查用户存在错误:', error);
       return false;

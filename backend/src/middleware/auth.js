@@ -22,7 +22,7 @@ const authenticateToken = async (req, res, next) => {
     }
 
     req.user = userResult.user;
-    console.log('✅ 用户认证成功:', req.user.id);
+    console.log('✅ 用户认证成功:', req.user.id, '邮箱:', req.user.email);
     next();
   } catch (error) {
     console.error('❌ Token验证错误:', error);
