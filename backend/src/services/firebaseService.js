@@ -21,6 +21,8 @@ class FirebaseService {
     this.isMock = isMock;
     if (this.isMock) {
       console.log('⚠️  使用模拟Firebase服务');
+    } else {
+      console.log('✅ 使用真实Firebase服务');
     }
   }
 

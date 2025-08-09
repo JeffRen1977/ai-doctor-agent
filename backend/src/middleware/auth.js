@@ -12,17 +12,20 @@ const authenticateToken = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    console.log('🔐 JWT解码成功:', decoded);
     
     // 验证用户是否存在
     const userResult = await firebaseService.getUserById(decoded.userId);
     if (!userResult.success) {
+      console.error('❌ 用户不存在:', decoded.userId);
       return res.status(401).json({ error: '用户不存在' });
     }
 
     req.user = userResult.user;
+    console.log('✅ 用户认证成功:', req.user.id);
     next();
   } catch (error) {
-    console.error('Token验证错误:', error);
+    console.error('❌ Token验证错误:', error);
     return res.status(403).json({ error: '无效的token' });
   }
 };

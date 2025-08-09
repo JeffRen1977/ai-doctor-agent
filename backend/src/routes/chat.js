@@ -38,6 +38,7 @@ async function saveChatMessage(userId, message, sender) {
       return chatId;
     }
 
+    console.log('💾 保存聊天消息:', { userId, sender, messageLength: message.length });
     const chatRef = doc(collection(db, 'chats'));
     await setDoc(chatRef, {
       userId,
@@ -46,9 +47,10 @@ async function saveChatMessage(userId, message, sender) {
       timestamp: new Date(),
       createdAt: new Date()
     });
+    console.log('✅ 聊天消息保存成功:', chatRef.id);
     return chatRef.id;
   } catch (error) {
-    console.error('保存聊天消息错误:', error);
+    console.error('❌ 保存聊天消息错误:', error);
     throw error;
   }
 }
@@ -62,6 +64,7 @@ async function getChatHistory(userId, limit = 50) {
       return history.slice(-limit);
     }
 
+    console.log('🔍 查询用户聊天历史:', userId);
     const chatsRef = collection(db, 'chats');
     const q = query(
       chatsRef,
@@ -74,17 +77,33 @@ async function getChatHistory(userId, limit = 50) {
     const messages = [];
     
     querySnapshot.forEach((doc) => {
+      const data = doc.data();
       messages.push({
         id: doc.id,
-        ...doc.data(),
-        timestamp: doc.data().timestamp.toDate()
+        userId: data.userId,
+        content: data.content,
+        sender: data.sender,
+        timestamp: data.timestamp ? data.timestamp.toDate() : new Date(),
+        createdAt: data.createdAt ? data.createdAt.toDate() : new Date()
       });
     });
     
+    console.log('📊 找到聊天记录数量:', messages.length);
     return messages.reverse(); // 按时间正序返回
   } catch (error) {
-    console.error('获取聊天历史错误:', error);
-    throw error;
+    console.error('❌ 获取聊天历史错误:', error);
+    console.error('错误代码:', error.code);
+    console.error('错误消息:', error.message);
+    
+    // 如果是Firestore权限错误，返回空数组
+    if (error.code === 'permission-denied') {
+      console.warn('⚠️  Firestore权限被拒绝，返回空历史');
+      return [];
+    }
+    
+    // 如果是其他错误，也返回空数组而不是抛出错误
+    console.warn('⚠️  返回空历史记录');
+    return [];
   }
 }
 
@@ -99,9 +118,16 @@ router.post('/send', authenticateToken, async (req, res) => {
 
     const { message } = value;
     const userId = req.user.id;
+    console.log('📝 发送消息:', { userId, messageLength: message.length });
 
     // 保存用户消息
-    await saveChatMessage(userId, message, 'user');
+    try {
+      await saveChatMessage(userId, message, 'user');
+      console.log('✅ 用户消息保存成功');
+    } catch (error) {
+      console.error('❌ 保存用户消息失败:', error);
+      // 继续执行，不中断流程
+    }
 
     // 使用Gemini AI生成回复
     const aiResult = await geminiService.healthChat(message);
@@ -113,7 +139,13 @@ router.post('/send', authenticateToken, async (req, res) => {
     const aiResponse = aiResult.message;
 
     // 保存AI回复
-    await saveChatMessage(userId, aiResponse, 'assistant');
+    try {
+      await saveChatMessage(userId, aiResponse, 'assistant');
+      console.log('✅ AI回复保存成功');
+    } catch (error) {
+      console.error('❌ 保存AI回复失败:', error);
+      // 继续执行，不中断流程
+    }
 
     // 返回AI回复
     res.json({
@@ -130,8 +162,40 @@ router.post('/send', authenticateToken, async (req, res) => {
       ]
     });
   } catch (error) {
-    console.error('发送消息错误:', error);
+    console.error('❌ 发送消息错误:', error);
     res.status(500).json({ error: '服务器内部错误' });
+  }
+});
+
+// 测试Firestore连接和权限
+router.get('/test', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    console.log('🔍 测试Firestore连接，用户ID:', userId);
+    
+    // 尝试创建一个测试文档
+    const testRef = doc(collection(db, 'test'));
+    await setDoc(testRef, {
+      userId,
+      test: true,
+      timestamp: new Date()
+    });
+    
+    console.log('✅ Firestore连接测试成功');
+    
+    // 尝试查询测试文档
+    const testQuery = query(collection(db, 'test'), where('userId', '==', userId));
+    const testSnapshot = await getDocs(testQuery);
+    console.log('📊 测试查询结果数量:', testSnapshot.size);
+    
+    res.json({ 
+      success: true, 
+      message: 'Firestore连接正常',
+      testQueryCount: testSnapshot.size
+    });
+  } catch (error) {
+    console.error('❌ Firestore连接测试失败:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -139,12 +203,16 @@ router.post('/send', authenticateToken, async (req, res) => {
 router.get('/history', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
+    console.log('🔍 获取聊天历史，用户ID:', userId);
+    
     const history = await getChatHistory(userId);
+    console.log('📊 聊天历史数量:', history.length);
     
     res.json(history);
   } catch (error) {
-    console.error('获取聊天历史错误:', error);
-    res.status(500).json({ error: '服务器内部错误' });
+    console.error('❌ 获取聊天历史错误:', error);
+    // 返回空数组而不是错误
+    res.json([]);
   }
 });
 

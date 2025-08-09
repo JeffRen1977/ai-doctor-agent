@@ -28,23 +28,25 @@ FIREBASE_MESSAGING_SENDER_ID=your-messaging-sender-id
 FIREBASE_APP_ID=your-app-id
   `);
   
-  // 如果缺少环境变量，使用模拟配置
+  // 如果缺少环境变量，使用真实Firebase配置（开发模式）
   if (process.env.NODE_ENV === 'development') {
-    console.warn('⚠️  使用模拟Firebase配置（仅用于开发）');
-    const mockConfig = {
-      apiKey: 'mock-api-key',
-      authDomain: 'mock-project.firebaseapp.com',
-      projectId: 'mock-project-id',
-      storageBucket: 'mock-project.appspot.com',
-      messagingSenderId: '123456789',
-      appId: 'mock-app-id'
+    console.warn('⚠️  使用真实Firebase配置（开发模式）');
+    const firebaseConfig = {
+      apiKey: "AIzaSyDmoZRDyZWldXcRtmSxYGxdfpNDVDbMyAc",
+      authDomain: "ai-doctor-agent-b3101.firebaseapp.com",
+      projectId: "ai-doctor-agent-b3101",
+      storageBucket: "ai-doctor-agent-b3101.firebasestorage.app",
+      messagingSenderId: "1044375747487",
+      appId: "1:1044375747487:web:3278f62319cda068995baa",
+      measurementId: "G-2GKJT03EK2"
     };
     
-    const app = initializeApp(mockConfig);
+    const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
     
-    module.exports = { app, auth, db, isMock: true };
+    console.log('✅ Firebase配置成功（开发模式）');
+    module.exports = { app, auth, db, isMock: false };
     return;
   } else {
     process.exit(1);
@@ -76,21 +78,23 @@ try {
   console.error('❌ Firebase初始化失败:', error.message);
   
   if (process.env.NODE_ENV === 'development') {
-    console.warn('⚠️  使用模拟Firebase配置（仅用于开发）');
-    const mockConfig = {
-      apiKey: 'mock-api-key',
-      authDomain: 'mock-project.firebaseapp.com',
-      projectId: 'mock-project-id',
-      storageBucket: 'mock-project.appspot.com',
-      messagingSenderId: '123456789',
-      appId: 'mock-app-id'
+    console.warn('⚠️  使用真实Firebase配置（开发模式）');
+    const firebaseConfig = {
+      apiKey: "AIzaSyDmoZRDyZWldXcRtmSxYGxdfpNDVDbMyAc",
+      authDomain: "ai-doctor-agent-b3101.firebaseapp.com",
+      projectId: "ai-doctor-agent-b3101",
+      storageBucket: "ai-doctor-agent-b3101.firebasestorage.app",
+      messagingSenderId: "1044375747487",
+      appId: "1:1044375747487:web:3278f62319cda068995baa",
+      measurementId: "G-2GKJT03EK2"
     };
     
-    const app = initializeApp(mockConfig);
+    const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
     
-    module.exports = { app, auth, db, isMock: true };
+    console.log('✅ Firebase配置成功（开发模式）');
+    module.exports = { app, auth, db, isMock: false };
   } else {
     process.exit(1);
   }
