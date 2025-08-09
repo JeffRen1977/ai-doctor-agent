@@ -371,6 +371,99 @@ class FirebaseService {
       return { success: false, error: error.message };
     }
   }
+
+  // 获取用户详细资料
+  async getUserProfile(email) {
+    try {
+      if (this.isMock) {
+        return {
+          success: true,
+          profile: {
+            email: email,
+            name: 'Mock User',
+            phone: '13800138000',
+            address: '北京市朝阳区',
+            age: '30',
+            gender: '男',
+            emergencyContact: '张三',
+            emergencyPhone: '13900139000',
+            createdAt: new Date(),
+            updatedAt: new Date()
+          }
+        };
+      }
+
+      const profileDoc = await getDoc(doc(db, 'userProfile', email));
+      
+      if (!profileDoc.exists()) {
+        return {
+          success: false,
+          error: '用户资料不存在'
+        };
+      }
+
+      return {
+        success: true,
+        profile: profileDoc.data()
+      };
+    } catch (error) {
+      console.error('获取用户资料错误:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  // 更新用户详细资料
+  async updateUserProfile(email, profileData) {
+    try {
+      if (this.isMock) {
+        return {
+          success: true,
+          profile: {
+            ...profileData,
+            email: email,
+            updatedAt: new Date()
+          }
+        };
+      }
+
+      const profileRef = doc(db, 'userProfile', email);
+      
+      // 检查用户资料是否存在，如果不存在则创建
+      const profileDoc = await getDoc(profileRef);
+      
+      const updateData = {
+        ...profileData,
+        email: email,
+        updatedAt: new Date()
+      };
+
+      if (!profileDoc.exists()) {
+        // 创建新的用户资料文档
+        updateData.createdAt = new Date();
+        await setDoc(profileRef, updateData);
+      } else {
+        // 更新现有用户资料
+        await updateDoc(profileRef, updateData);
+      }
+
+      // 返回更新后的资料
+      const updatedDoc = await getDoc(profileRef);
+      
+      return {
+        success: true,
+        profile: updatedDoc.data()
+      };
+    } catch (error) {
+      console.error('更新用户资料错误:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
 }
 
 module.exports = new FirebaseService(); 

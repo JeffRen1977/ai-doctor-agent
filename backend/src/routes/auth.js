@@ -187,4 +187,49 @@ router.put('/profile', async (req, res) => {
   }
 });
 
+// 获取用户详细资料
+router.get('/profile/:email', async (req, res) => {
+  try {
+    const { email } = req.params;
+    
+    if (!email) {
+      return res.status(400).json({ error: '邮箱是必需的' });
+    }
+
+    const result = await firebaseService.getUserProfile(email);
+    
+    if (!result.success) {
+      return res.status(404).json({ error: result.error });
+    }
+
+    res.json({ profile: result.profile });
+  } catch (error) {
+    console.error('获取用户资料错误:', error);
+    res.status(500).json({ error: '服务器内部错误' });
+  }
+});
+
+// 更新用户详细资料
+router.put('/profile/:email', async (req, res) => {
+  try {
+    const { email } = req.params;
+    const profileData = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ error: '邮箱是必需的' });
+    }
+
+    const result = await firebaseService.updateUserProfile(email, profileData);
+    
+    if (!result.success) {
+      return res.status(400).json({ error: result.error });
+    }
+
+    res.json({ message: '用户资料更新成功', profile: result.profile });
+  } catch (error) {
+    console.error('更新用户资料错误:', error);
+    res.status(500).json({ error: '服务器内部错误' });
+  }
+});
+
 module.exports = router; 

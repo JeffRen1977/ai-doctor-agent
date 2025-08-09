@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Card, Form, Input, Button, Avatar, Row, Col, message } from 'antd'
 import { UserOutlined, MailOutlined, PhoneOutlined, HomeOutlined } from '@ant-design/icons'
 import { useAuthStore } from '@/stores/authStore'
@@ -18,6 +18,7 @@ interface ProfileForm {
 const ProfilePage: React.FC = () => {
   const { user, login } = useAuthStore()
   const [loading, setLoading] = useState(false)
+  const [profileLoading, setProfileLoading] = useState(true)
   const [form] = Form.useForm()
 
   const initialValues: ProfileForm = {
@@ -31,24 +32,78 @@ const ProfilePage: React.FC = () => {
     emergencyPhone: '',
   }
 
+  // 获取用户资料
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!user?.email) return;
+      
+      try {
+        setProfileLoading(true);
+        const response = await fetch(`/api/auth/profile/${encodeURIComponent(user.email)}`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          const profile = data.profile;
+          
+          // 更新表单初始值
+          form.setFieldsValue({
+            name: profile.name || user?.name || '',
+            email: profile.email || user?.email || '',
+            phone: profile.phone || '',
+            address: profile.address || '',
+            age: profile.age || '',
+            gender: profile.gender || '',
+            emergencyContact: profile.emergencyContact || '',
+            emergencyPhone: profile.emergencyPhone || '',
+          });
+        }
+      } catch (error) {
+        console.error('获取用户资料失败:', error);
+        // 如果获取失败，使用默认值
+        form.setFieldsValue(initialValues);
+      } finally {
+        setProfileLoading(false);
+      }
+    };
+
+    fetchUserProfile();
+  }, [user?.email, form]);
+
   const handleSubmit = async (values: ProfileForm) => {
+    if (!user?.email) {
+      message.error('用户未登录');
+      return;
+    }
+
     setLoading(true)
     try {
-      // 模拟API调用
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      // 更新用户信息
-      if (user) {
-        login({
-          ...user,
-          name: values.name,
-          email: values.email,
-        })
+      const response = await fetch(`/api/auth/profile/${encodeURIComponent(user.email)}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(values)
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        
+        // 更新本地用户信息
+        if (user) {
+          login({
+            ...user,
+            name: values.name,
+          })
+        }
+        
+        message.success('个人资料更新成功！');
+      } else {
+        const errorData = await response.json();
+        message.error(errorData.error || '更新失败，请重试');
       }
-      
-      message.success('个人资料更新成功！')
     } catch (error) {
-      message.error('更新失败，请重试')
+      console.error('更新用户资料失败:', error);
+      message.error('更新失败，请重试');
     } finally {
       setLoading(false)
     }
