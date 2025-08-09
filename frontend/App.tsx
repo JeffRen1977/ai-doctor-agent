@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { Layout } from 'antd'
 import Sidebar from './components/Sidebar'
@@ -18,7 +18,12 @@ import './App.css'
 const { Content } = Layout
 
 function App() {
-  const { isAuthenticated } = useAuthStore()
+  const { isAuthenticated, initAuth } = useAuthStore()
+
+  // Initialize authentication state on component mount
+  useEffect(() => {
+    initAuth()
+  }, [initAuth])
 
   if (!isAuthenticated) {
     return <LoginPage />

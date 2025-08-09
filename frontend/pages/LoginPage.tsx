@@ -12,8 +12,16 @@ interface LoginForm {
   password: string
 }
 
+interface RegisterForm {
+  email: string
+  password: string
+  confirmPassword: string
+  name: string
+}
+
 const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false)
+  const [isLoginMode, setIsLoginMode] = useState(true)
   const [language, setLanguage] = useState<Language>('zh')
   const { login } = useAuthStore()
 
@@ -23,23 +31,84 @@ const LoginPage: React.FC = () => {
     setLanguage(language === 'zh' ? 'en' : 'zh')
   }
 
-  const onFinish = async (values: LoginForm) => {
+  const toggleMode = () => {
+    setIsLoginMode(!isLoginMode)
+  }
+
+  const onFinish = async (values: LoginForm | RegisterForm) => {
     setLoading(true)
     try {
-      // 模拟登录API调用
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      // 模拟用户数据
-      const user = {
-        id: '1',
-        name: '张三',
-        email: values.email,
+      if (isLoginMode) {
+        // Login mode
+        console.log('🔐 Attempting login with:', values.email)
+        
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: values.email,
+            password: values.password
+          })
+        })
+
+        const data = await response.json()
+        console.log('📡 Login response:', data)
+
+        if (response.ok && data.user && data.token) {
+          const user = data.user
+          console.log('✅ Login successful, user:', user)
+          
+          // 存储token和用户信息到localStorage
+          localStorage.setItem('token', data.token)
+          localStorage.setItem('user', JSON.stringify(user))
+          
+          login(user)
+          message.success(language === 'zh' ? '登录成功！' : 'Login successful!')
+        } else {
+          console.error('❌ Login failed:', data.error)
+          message.error(data.error || (language === 'zh' ? '登录失败，请重试' : 'Login failed, please try again'))
+        }
+      } else {
+        // Register mode
+        const registerValues = values as RegisterForm
+        console.log('📝 Attempting registration with:', registerValues.email)
+        
+        if (registerValues.password !== registerValues.confirmPassword) {
+          message.error(language === 'zh' ? '密码确认不匹配！' : 'Password confirmation does not match!')
+          return
+        }
+        
+        const response = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: registerValues.email,
+            password: registerValues.password,
+            name: registerValues.name
+          })
+        })
+
+        const data = await response.json()
+        console.log('📡 Registration response:', data)
+
+        if (response.ok && data.user && data.token) {
+          message.success(language === 'zh' ? '注册成功！请登录' : 'Registration successful! Please login')
+          setIsLoginMode(true) // Switch back to login mode
+        } else {
+          console.error('❌ Registration failed:', data.error)
+          message.error(data.error || (language === 'zh' ? '注册失败，请重试' : 'Registration failed, please try again'))
+        }
       }
-      
-      login(user)
-      message.success(language === 'zh' ? '登录成功！' : 'Login successful!')
     } catch (error) {
-      message.error(language === 'zh' ? '登录失败，请重试' : 'Login failed, please try again')
+      console.error('💥 Error:', error)
+      const errorMessage = isLoginMode 
+        ? (language === 'zh' ? '登录失败，请重试' : 'Login failed, please try again')
+        : (language === 'zh' ? '注册失败，请重试' : 'Registration failed, please try again')
+      message.error(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -60,16 +129,30 @@ const LoginPage: React.FC = () => {
       <div className="login-content">
         <Card className="login-card">
           <div className="login-header">
-            <Title level={2}>{t('login.title')}</Title>
-            <Paragraph type="secondary">{t('login.subtitle')}</Paragraph>
+            <Title level={2}>{isLoginMode ? t('login.title') : (language === 'zh' ? '用户注册' : 'User Registration')}</Title>
+            <Paragraph type="secondary">
+              {isLoginMode ? t('login.subtitle') : (language === 'zh' ? '创建新账户以开始使用AI医生服务' : 'Create a new account to start using AI Doctor services')}
+            </Paragraph>
           </div>
           
           <Form
-            name="login"
+            name={isLoginMode ? "login" : "register"}
             onFinish={onFinish}
             autoComplete="off"
             size="large"
           >
+            {!isLoginMode && (
+              <Form.Item
+                name="name"
+                rules={[{ required: true, message: language === 'zh' ? '请输入姓名!' : 'Please enter your name!' }]}
+              >
+                <Input
+                  prefix={<UserOutlined />}
+                  placeholder={language === 'zh' ? '姓名' : 'Full Name'}
+                />
+              </Form.Item>
+            )}
+            
             <Form.Item
               name="email"
               rules={[
@@ -93,6 +176,28 @@ const LoginPage: React.FC = () => {
               />
             </Form.Item>
 
+            {!isLoginMode && (
+              <Form.Item
+                name="confirmPassword"
+                rules={[
+                  { required: true, message: language === 'zh' ? '请确认密码!' : 'Please confirm your password!' },
+                  ({ getFieldValue }) => ({
+                    validator(_, value) {
+                      if (!value || getFieldValue('password') === value) {
+                        return Promise.resolve();
+                      }
+                      return Promise.reject(new Error(language === 'zh' ? '密码确认不匹配！' : 'Password confirmation does not match!'));
+                    },
+                  }),
+                ]}
+              >
+                <Input.Password
+                  prefix={<LockOutlined />}
+                  placeholder={language === 'zh' ? '确认密码' : 'Confirm Password'}
+                />
+              </Form.Item>
+            )}
+
             <Form.Item>
               <Button
                 type="primary"
@@ -101,7 +206,20 @@ const LoginPage: React.FC = () => {
                 block
                 size="large"
               >
-                {t('login.loginButton')}
+                {isLoginMode ? t('login.loginButton') : (language === 'zh' ? '注册' : 'Register')}
+              </Button>
+            </Form.Item>
+
+            <Form.Item>
+              <Button
+                type="link"
+                onClick={toggleMode}
+                block
+              >
+                {isLoginMode 
+                  ? (language === 'zh' ? '没有账户？点击注册' : 'No account? Click to register')
+                  : (language === 'zh' ? '已有账户？点击登录' : 'Have an account? Click to login')
+                }
               </Button>
             </Form.Item>
           </Form>

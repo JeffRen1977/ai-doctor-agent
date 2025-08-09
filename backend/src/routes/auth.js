@@ -97,6 +97,28 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// 为现有Firebase Auth用户创建用户文档
+router.post('/create-document', async (req, res) => {
+  try {
+    const { email, uid, name } = req.body;
+    
+    if (!email || !uid) {
+      return res.status(400).json({ error: '邮箱和用户ID是必需的' });
+    }
+
+    const result = await firebaseService.createUserDocumentForExistingUser(email, uid, name || 'User');
+    
+    if (!result.success) {
+      return res.status(400).json({ error: result.error });
+    }
+
+    res.json({ message: result.message });
+  } catch (error) {
+    console.error('创建用户文档错误:', error);
+    res.status(500).json({ error: '服务器内部错误' });
+  }
+});
+
 // 用户登出
 router.post('/logout', async (req, res) => {
   try {

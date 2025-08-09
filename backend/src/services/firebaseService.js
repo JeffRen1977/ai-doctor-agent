@@ -122,7 +122,7 @@ class FirebaseService {
       const userDoc = await getDoc(doc(db, 'users', email));
       
       if (!userDoc.exists()) {
-        throw new Error('用户文档不存在');
+          throw new Error('用户文档不存在');
       }
 
       const userData = userDoc.data();
