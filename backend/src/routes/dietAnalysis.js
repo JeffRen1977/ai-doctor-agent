@@ -5,7 +5,7 @@ const fs = require('fs');
 const geminiService = require('../services/geminiService');
 const { authenticateToken } = require('../middleware/auth');
 const { doc, setDoc, collection, query, where, orderBy, limit, getDocs } = require('firebase/firestore');
-const { db } = require('../config/firebase');
+const { db, isMock } = require('../config/firebase');
 
 const router = express.Router();
 
@@ -39,9 +39,31 @@ const upload = multer({
   }
 });
 
+// 模拟饮食分析历史存储
+const mockDietAnalysisHistory = new Map();
+
 // 保存饮食分析结果到Firebase
 async function saveDietAnalysis(userId, analysisData) {
   try {
+    if (isMock) {
+      // 模拟保存
+      if (!mockDietAnalysisHistory.has(userId)) {
+        mockDietAnalysisHistory.set(userId, []);
+      }
+      
+      const analysisId = `mock-${Date.now()}`;
+      const analysis = {
+        id: analysisId,
+        userId,
+        ...analysisData,
+        timestamp: new Date(),
+        createdAt: new Date()
+      };
+      
+      mockDietAnalysisHistory.get(userId).push(analysis);
+      return analysisId;
+    }
+
     const analysisRef = doc(collection(db, 'dietAnalysis'));
     await setDoc(analysisRef, {
       userId,
@@ -59,6 +81,12 @@ async function saveDietAnalysis(userId, analysisData) {
 // 获取用户饮食分析历史
 async function getDietAnalysisHistory(userId, limit = 20) {
   try {
+    if (isMock) {
+      // 模拟获取历史
+      const history = mockDietAnalysisHistory.get(userId) || [];
+      return history.slice(-limit);
+    }
+
     const analysisRef = collection(db, 'dietAnalysis');
     const q = query(
       analysisRef,

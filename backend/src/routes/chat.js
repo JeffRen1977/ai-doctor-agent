@@ -3,7 +3,7 @@ const Joi = require('joi');
 const geminiService = require('../services/geminiService');
 const { authenticateToken, optionalAuth } = require('../middleware/auth');
 const { doc, setDoc, getDoc, collection, query, where, orderBy, limit, getDocs } = require('firebase/firestore');
-const { db } = require('../config/firebase');
+const { db, isMock } = require('../config/firebase');
 
 const router = express.Router();
 
@@ -12,9 +12,32 @@ const messageSchema = Joi.object({
   message: Joi.string().min(1).max(1000).required()
 });
 
+// 模拟聊天历史存储
+const mockChatHistory = new Map();
+
 // 保存聊天消息到Firebase
 async function saveChatMessage(userId, message, sender) {
   try {
+    if (isMock) {
+      // 模拟保存
+      if (!mockChatHistory.has(userId)) {
+        mockChatHistory.set(userId, []);
+      }
+      
+      const chatId = `mock-${Date.now()}`;
+      const chatMessage = {
+        id: chatId,
+        userId,
+        content: message,
+        sender,
+        timestamp: new Date(),
+        createdAt: new Date()
+      };
+      
+      mockChatHistory.get(userId).push(chatMessage);
+      return chatId;
+    }
+
     const chatRef = doc(collection(db, 'chats'));
     await setDoc(chatRef, {
       userId,
@@ -33,6 +56,12 @@ async function saveChatMessage(userId, message, sender) {
 // 获取用户聊天历史
 async function getChatHistory(userId, limit = 50) {
   try {
+    if (isMock) {
+      // 模拟获取历史
+      const history = mockChatHistory.get(userId) || [];
+      return history.slice(-limit);
+    }
+
     const chatsRef = collection(db, 'chats');
     const q = query(
       chatsRef,
@@ -124,14 +153,19 @@ router.delete('/history', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
     
-    // 获取用户的所有聊天记录
-    const chatsRef = collection(db, 'chats');
-    const q = query(chatsRef, where('userId', '==', userId));
-    const querySnapshot = await getDocs(q);
-    
-    // 删除所有聊天记录
-    const deletePromises = querySnapshot.docs.map(doc => doc.ref.delete());
-    await Promise.all(deletePromises);
+    if (isMock) {
+      // 模拟清空
+      mockChatHistory.delete(userId);
+    } else {
+      // 获取用户的所有聊天记录
+      const chatsRef = collection(db, 'chats');
+      const q = query(chatsRef, where('userId', '==', userId));
+      const querySnapshot = await getDocs(q);
+      
+      // 删除所有聊天记录
+      const deletePromises = querySnapshot.docs.map(doc => doc.ref.delete());
+      await Promise.all(deletePromises);
+    }
     
     res.json({ message: '聊天历史已清空' });
   } catch (error) {

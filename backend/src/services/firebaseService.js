@@ -14,12 +14,34 @@ const {
   where, 
   getDocs 
 } = require('firebase/firestore');
-const { auth, db } = require('../config/firebase');
+const { auth, db, isMock } = require('../config/firebase');
 
 class FirebaseService {
+  constructor() {
+    this.isMock = isMock;
+    if (this.isMock) {
+      console.log('⚠️  使用模拟Firebase服务');
+    }
+  }
+
   // 用户注册
   async registerUser(email, password, name) {
     try {
+      if (this.isMock) {
+        // 模拟注册
+        const mockUser = {
+          uid: `mock-${Date.now()}`,
+          email,
+          name,
+          avatar: null
+        };
+        
+        return {
+          success: true,
+          user: mockUser
+        };
+      }
+
       // 创建用户账户
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
@@ -61,6 +83,28 @@ class FirebaseService {
   // 用户登录
   async loginUser(email, password) {
     try {
+      if (this.isMock) {
+        // 模拟登录
+        if (email === 'demo@example.com' && password === '123456') {
+          const mockUser = {
+            uid: 'mock-user-1',
+            email,
+            name: '张三',
+            avatar: null
+          };
+          
+          return {
+            success: true,
+            user: mockUser
+          };
+        } else {
+          return {
+            success: false,
+            error: '邮箱或密码错误'
+          };
+        }
+      }
+
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
@@ -94,6 +138,22 @@ class FirebaseService {
   // 获取用户信息
   async getUserById(uid) {
     try {
+      if (this.isMock) {
+        // 模拟用户数据
+        const mockUser = {
+          uid: uid,
+          email: 'demo@example.com',
+          name: '张三',
+          avatar: null,
+          role: 'user'
+        };
+        
+        return {
+          success: true,
+          user: mockUser
+        };
+      }
+
       const userDoc = await getDoc(doc(db, 'users', uid));
       
       if (!userDoc.exists()) {
@@ -126,6 +186,14 @@ class FirebaseService {
   // 更新用户信息
   async updateUser(uid, updates) {
     try {
+      if (this.isMock) {
+        // 模拟更新
+        return {
+          success: true,
+          message: '用户信息更新成功'
+        };
+      }
+
       const userRef = doc(db, 'users', uid);
       await updateDoc(userRef, {
         ...updates,
@@ -148,6 +216,11 @@ class FirebaseService {
   // 检查用户是否存在
   async checkUserExists(email) {
     try {
+      if (this.isMock) {
+        // 模拟检查
+        return email === 'demo@example.com';
+      }
+
       const usersRef = collection(db, 'users');
       const q = query(usersRef, where('email', '==', email));
       const querySnapshot = await getDocs(q);
@@ -162,6 +235,14 @@ class FirebaseService {
   // 用户登出
   async logoutUser() {
     try {
+      if (this.isMock) {
+        // 模拟登出
+        return {
+          success: true,
+          message: '登出成功'
+        };
+      }
+
       await signOut(auth);
       return {
         success: true,
