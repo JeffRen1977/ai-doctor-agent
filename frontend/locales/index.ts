@@ -246,11 +246,80 @@ export interface Translations {
     past: string
     bookNew: string
     doctor: string
-    date: string
-    time: string
-    reason: string
+    dateTime: string
+    type: string
     status: string
+    actions: string
     noAppointments: string
+    calendar: string
+    list: string
+    quickActions: string
+    newAppointment: string
+    onlineConsultation: string
+    messageCenter: string
+    todayAppointments: string
+    doctorList: string
+    rating: string
+    bookConsultation: string
+    notAvailable: string
+    createAppointment: string
+    selectDoctor: string
+    consultationType: string
+    appointmentDate: string
+    appointmentTime: string
+    confirmAppointment: string
+    cancel: string
+    edit: string
+    delete: string
+    scheduled: string
+    completed: string
+    cancelled: string
+    inPerson: string
+    videoConsultation: string
+    phoneConsultation: string
+    pleaseSelectDoctor: string
+    pleaseSelectConsultationType: string
+    pleaseSelectDate: string
+    pleaseSelectTime: string
+    pleaseDescribeSymptoms: string
+    appointmentCreatedSuccess: string
+    appointmentCreatedFailed: string
+    department: string
+    available: string
+    unavailable: string
+    pleaseRetry: string
+    symptoms: string
+    needs: string
+    doctors: {
+      zhang: string
+      li: string
+      wang: string
+    }
+    departments: {
+      cardiology: string
+      endocrinology: string
+      neurology: string
+    }
+    titles: {
+      chiefPhysician: string
+      associateChiefPhysician: string
+      attendingPhysician: string
+    }
+    specialties: {
+      hypertension: string
+      coronaryHeartDisease: string
+      arrhythmia: string
+      diabetes: string
+      thyroidDisease: string
+      obesity: string
+      headache: string
+      dizziness: string
+      epilepsy: string
+    }
+    notes: {
+      followUp: string
+      diabetesManagement: string
+    }
   }
   deviceSync: {
     title: string
@@ -551,11 +620,80 @@ export const translations: Record<Language, Translations> = {
       past: '历史预约',
       bookNew: '预约新医生',
       doctor: '医生',
-      date: '日期',
-      time: '时间',
-      reason: '就诊原因',
+      dateTime: '日期时间',
+      type: '类型',
       status: '状态',
-      noAppointments: '暂无预约记录'
+      actions: '操作',
+      noAppointments: '暂无预约记录',
+      calendar: '预约日历',
+      list: '预约列表',
+      quickActions: '快速操作',
+      newAppointment: '新建预约',
+      onlineConsultation: '在线问诊',
+      messageCenter: '消息中心',
+      todayAppointments: '今日预约',
+      doctorList: '医生列表',
+      rating: '评分',
+      bookConsultation: '预约问诊',
+      notAvailable: '暂不可预约',
+      createAppointment: '新建预约',
+      selectDoctor: '选择医生',
+      consultationType: '问诊类型',
+      appointmentDate: '预约日期',
+      appointmentTime: '预约时间',
+      confirmAppointment: '确认预约',
+      cancel: '取消',
+      edit: '编辑',
+            delete: '取消',
+      scheduled: '已预约',
+      completed: '已完成',
+      cancelled: '已取消',
+      inPerson: '面诊',
+      videoConsultation: '视频问诊',
+      phoneConsultation: '电话问诊',
+      pleaseSelectDoctor: '请选择医生',
+      pleaseSelectConsultationType: '请选择问诊类型',
+      pleaseSelectDate: '请选择预约日期',
+      pleaseSelectTime: '请选择预约时间',
+      pleaseDescribeSymptoms: '请描述您的症状或需求',
+      appointmentCreatedSuccess: '预约创建成功！',
+      appointmentCreatedFailed: '预约创建失败，请重试',
+      department: '科室',
+      available: '可用',
+      unavailable: '不可用',
+      pleaseRetry: '请重试',
+      symptoms: '症状',
+      needs: '需求',
+      doctors: {
+        zhang: '张医生',
+        li: '李医生',
+        wang: '王医生'
+      },
+      departments: {
+        cardiology: '心血管科',
+        endocrinology: '内分泌科',
+        neurology: '神经内科'
+      },
+      titles: {
+        chiefPhysician: '主任医师',
+        associateChiefPhysician: '副主任医师',
+        attendingPhysician: '主治医师'
+      },
+      specialties: {
+        hypertension: '高血压',
+        coronaryHeartDisease: '冠心病',
+        arrhythmia: '心律失常',
+        diabetes: '糖尿病',
+        thyroidDisease: '甲状腺疾病',
+        obesity: '肥胖症',
+        headache: '头痛',
+        dizziness: '眩晕',
+        epilepsy: '癫痫'
+      },
+      notes: {
+        followUp: '复诊检查血压控制情况',
+        diabetesManagement: '糖尿病管理咨询'
+      }
     },
     deviceSync: {
       title: '设备同步',
@@ -858,7 +996,66 @@ export const translations: Record<Language, Translations> = {
       time: 'Time',
       reason: 'Reason for Visit',
       status: 'Status',
-      noAppointments: 'No appointments found'
+      noAppointments: 'No appointments found',
+      calendar: 'Calendar',
+      list: 'List',
+      doctors: 'Doctor List',
+      quickActions: 'Quick Actions',
+      newAppointment: 'New Appointment',
+      onlineConsultation: 'Online Consultation',
+      messageCenter: 'Message Center',
+      todayAppointments: 'Today\'s Appointments',
+      doctorList: 'Doctor List',
+      specialties: 'Specialties',
+      rating: 'Rating',
+      bookConsultation: 'Book Consultation',
+      notAvailable: 'Not Available',
+      createAppointment: 'Create Appointment',
+      selectDoctor: 'Select Doctor',
+      consultationType: 'Consultation Type',
+      appointmentDate: 'Appointment Date',
+      appointmentTime: 'Appointment Time',
+      notes: 'Notes',
+      confirmAppointment: 'Confirm Appointment',
+      cancel: 'Cancel',
+      edit: 'Edit',
+      delete: 'Delete',
+      scheduled: 'Scheduled',
+      completed: 'Completed',
+      cancelled: 'Cancelled',
+      inPerson: 'In-Person',
+      videoConsultation: 'Video Consultation',
+      phoneConsultation: 'Phone Consultation',
+      pleaseSelectDoctor: 'Please select a doctor',
+      pleaseSelectConsultationType: 'Please select a consultation type',
+      pleaseSelectDate: 'Please select a date',
+      pleaseSelectTime: 'Please select a time',
+      pleaseDescribeSymptoms: 'Please describe your symptoms',
+      appointmentCreatedSuccess: 'Appointment created successfully!',
+      appointmentCreatedFailed: 'Appointment creation failed.',
+             department: 'Department',
+       available: 'Available',
+      unavailable: 'Unavailable',
+      pleaseRetry: 'Please retry',
+      symptoms: 'Symptoms',
+      needs: 'Needs',
+      followUp: 'Follow-up',
+      bloodPressureCheck: 'Blood Pressure Check',
+      diabetesManagement: 'Diabetes Management',
+      cardiology: 'Cardiology',
+      endocrinology: 'Endocrinology',
+      neurology: 'Neurology',
+      hypertension: 'Hypertension',
+      coronaryHeartDisease: 'Coronary Heart Disease',
+      arrhythmia: 'Arrhythmia',
+      thyroidDisease: 'Thyroid Disease',
+      obesity: 'Obesity',
+      headache: 'Headache',
+      dizziness: 'Dizziness',
+      epilepsy: 'Epilepsy',
+      chiefPhysician: 'Chief Physician',
+      associateChiefPhysician: 'Associate Chief Physician',
+      attendingPhysician: 'Attending Physician'
     },
     deviceSync: {
       title: 'Device Sync',

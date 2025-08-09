@@ -35,6 +35,8 @@ import {
   ClockCircleOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { useLanguageStore } from '@/stores/languageStore';
+import { getTranslation } from '@/locales';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -65,6 +67,9 @@ interface Appointment {
 }
 
 const AppointmentPage: React.FC = () => {
+  const { language } = useLanguageStore();
+  const t = (key: string) => getTranslation(language, key);
+  
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedDate, setSelectedDate] = useState<dayjs.Dayjs | null>(null);
   const [form] = Form.useForm();
@@ -72,33 +77,33 @@ const AppointmentPage: React.FC = () => {
   const doctors: Doctor[] = [
     {
       id: '1',
-      name: '张医生',
-      department: '心血管科',
-      title: '主任医师',
+      name: t('appointments.doctors.zhang'),
+      department: t('appointments.departments.cardiology'),
+      title: t('appointments.titles.chiefPhysician'),
       avatar: 'https://joeschmoe.io/api/v1/1',
       rating: 4.8,
       available: true,
-      specialties: ['高血压', '冠心病', '心律失常']
+      specialties: [t('appointments.specialties.hypertension'), t('appointments.specialties.coronaryHeartDisease'), t('appointments.specialties.arrhythmia')]
     },
     {
       id: '2',
-      name: '李医生',
-      department: '内分泌科',
-      title: '副主任医师',
+      name: t('appointments.doctors.li'),
+      department: t('appointments.departments.endocrinology'),
+      title: t('appointments.titles.associateChiefPhysician'),
       avatar: 'https://joeschmoe.io/api/v1/2',
       rating: 4.6,
       available: true,
-      specialties: ['糖尿病', '甲状腺疾病', '肥胖症']
+      specialties: [t('appointments.specialties.diabetes'), t('appointments.specialties.thyroidDisease'), t('appointments.specialties.obesity')]
     },
     {
       id: '3',
-      name: '王医生',
-      department: '神经内科',
-      title: '主治医师',
+      name: t('appointments.doctors.wang'),
+      department: t('appointments.departments.neurology'),
+      title: t('appointments.titles.attendingPhysician'),
       avatar: 'https://joeschmoe.io/api/v1/3',
       rating: 4.7,
       available: false,
-      specialties: ['头痛', '眩晕', '癫痫']
+      specialties: [t('appointments.specialties.headache'), t('appointments.specialties.dizziness'), t('appointments.specialties.epilepsy')]
     }
   ];
 
@@ -106,24 +111,24 @@ const AppointmentPage: React.FC = () => {
     {
       id: '1',
       doctorId: '1',
-      doctorName: '张医生',
-      department: '心血管科',
+      doctorName: t('appointments.doctors.zhang'),
+      department: t('appointments.departments.cardiology'),
       date: '2024-01-15',
       time: '14:30',
       type: 'in-person',
       status: 'scheduled',
-      notes: '复诊检查血压控制情况'
+      notes: t('appointments.notes.followUp')
     },
     {
       id: '2',
       doctorId: '2',
-      doctorName: '李医生',
-      department: '内分泌科',
+      doctorName: t('appointments.doctors.li'),
+      department: t('appointments.departments.endocrinology'),
       date: '2024-01-20',
       time: '10:00',
       type: 'video',
       status: 'scheduled',
-      notes: '糖尿病管理咨询'
+      notes: t('appointments.notes.diabetesManagement')
     }
   ];
 
@@ -153,17 +158,17 @@ const AppointmentPage: React.FC = () => {
   const handleCreateAppointment = async (values: any) => {
     try {
       console.log('Creating appointment:', values);
-      message.success('预约创建成功！');
+      message.success(t('appointments.appointmentCreatedSuccess'));
       setIsModalVisible(false);
       form.resetFields();
     } catch (error) {
-      message.error('预约创建失败，请重试');
+      message.error(t('appointments.appointmentCreatedFailed'));
     }
   };
 
   const appointmentColumns = [
     {
-      title: '医生',
+      title: t('appointments.doctor'),
       dataIndex: 'doctorName',
       key: 'doctorName',
       render: (text: string, record: Appointment) => (
@@ -177,7 +182,7 @@ const AppointmentPage: React.FC = () => {
       ),
     },
     {
-      title: '日期时间',
+      title: t('appointments.dateTime'),
       dataIndex: 'date',
       key: 'date',
       render: (date: string, record: Appointment) => (
@@ -188,37 +193,37 @@ const AppointmentPage: React.FC = () => {
       ),
     },
     {
-      title: '类型',
+      title: t('appointments.type'),
       dataIndex: 'type',
       key: 'type',
       render: (type: string) => (
         <Space>
           {getTypeIcon(type)}
           <Text>
-            {type === 'in-person' ? '面诊' : 
-             type === 'video' ? '视频问诊' : '电话问诊'}
+            {type === 'in-person' ? t('appointments.inPerson') : 
+             type === 'video' ? t('appointments.videoConsultation') : t('appointments.phoneConsultation')}
           </Text>
         </Space>
       ),
     },
     {
-      title: '状态',
+      title: t('appointments.status'),
       dataIndex: 'status',
       key: 'status',
       render: (status: string) => (
         <Tag color={getStatusColor(status)}>
-          {status === 'scheduled' ? '已预约' : 
-           status === 'completed' ? '已完成' : '已取消'}
+          {status === 'scheduled' ? t('appointments.scheduled') : 
+           status === 'completed' ? t('appointments.completed') : t('appointments.cancelled')}
         </Tag>
       ),
     },
     {
-      title: '操作',
+      title: t('appointments.actions'),
       key: 'action',
       render: (text: string, record: Appointment) => (
         <Space>
-          <Button size="small" icon={<EditOutlined />}>编辑</Button>
-          <Button size="small" danger icon={<DeleteOutlined />}>取消</Button>
+          <Button size="small" icon={<EditOutlined />}>{t('appointments.edit')}</Button>
+          <Button size="small" danger icon={<DeleteOutlined />}>{t('appointments.cancel')}</Button>
         </Space>
       ),
     },
@@ -226,10 +231,10 @@ const AppointmentPage: React.FC = () => {
 
   return (
     <div style={{ padding: '24px' }}>
-      <Title level={2}>预约管理</Title>
+      <Title level={2}>{t('appointments.title')}</Title>
       
       <Tabs defaultActiveKey="calendar">
-        <TabPane tab="预约日历" key="calendar">
+        <TabPane tab={t('appointments.calendar')} key="calendar">
           <Row gutter={[16, 16]}>
             <Col span={16}>
               <Card>
@@ -253,7 +258,7 @@ const AppointmentPage: React.FC = () => {
               </Card>
             </Col>
             <Col span={8}>
-              <Card title="快速操作">
+              <Card title={t('appointments.quickActions')}>
                 <Space direction="vertical" style={{ width: '100%' }}>
                   <Button 
                     type="primary" 
@@ -261,25 +266,25 @@ const AppointmentPage: React.FC = () => {
                     block
                     onClick={() => setIsModalVisible(true)}
                   >
-                    新建预约
+                    {t('appointments.newAppointment')}
                   </Button>
                   <Button 
                     icon={<VideoCameraOutlined />} 
                     block
                     onClick={() => window.location.href = '/chat'}
                   >
-                    在线问诊
+                    {t('appointments.onlineConsultation')}
                   </Button>
                   <Button 
                     icon={<MessageOutlined />} 
                     block
                   >
-                    消息中心
+                    {t('appointments.messageCenter')}
                   </Button>
                 </Space>
               </Card>
 
-              <Card title="今日预约" style={{ marginTop: '16px' }}>
+              <Card title={t('appointments.todayAppointments')} style={{ marginTop: '16px' }}>
                 <List
                   dataSource={appointments.filter(apt => apt.date === dayjs().format('YYYY-MM-DD'))}
                   renderItem={(item) => (
@@ -290,8 +295,8 @@ const AppointmentPage: React.FC = () => {
                         description={`${item.time} - ${item.department}`}
                       />
                       <Tag color={getStatusColor(item.status)}>
-                        {item.status === 'scheduled' ? '已预约' : 
-                         item.status === 'completed' ? '已完成' : '已取消'}
+                        {item.status === 'scheduled' ? t('appointments.scheduled') : 
+                         item.status === 'completed' ? t('appointments.completed') : t('appointments.cancelled')}
                       </Tag>
                     </List.Item>
                   )}
@@ -301,7 +306,7 @@ const AppointmentPage: React.FC = () => {
           </Row>
         </TabPane>
 
-        <TabPane tab="预约列表" key="list">
+        <TabPane tab={t('appointments.list')} key="list">
           <Card>
             <Table 
               columns={appointmentColumns} 
@@ -311,7 +316,7 @@ const AppointmentPage: React.FC = () => {
           </Card>
         </TabPane>
 
-        <TabPane tab="医生列表" key="doctors">
+        <TabPane tab={t('appointments.doctors')} key="doctors">
           <Row gutter={[16, 16]}>
             {doctors.map(doctor => (
               <Col span={8} key={doctor.id}>
@@ -322,11 +327,11 @@ const AppointmentPage: React.FC = () => {
                     <Text type="secondary">{doctor.title}</Text>
                   </div>
                   <div style={{ marginBottom: '16px' }}>
-                    <Text strong>科室：</Text>
+                    <Text strong>{t('appointments.department')}：</Text>
                     <Text>{doctor.department}</Text>
                   </div>
                   <div style={{ marginBottom: '16px' }}>
-                    <Text strong>专长：</Text>
+                    <Text strong>{t('appointments.specialties')}：</Text>
                     <div style={{ marginTop: '4px' }}>
                       {doctor.specialties.map(specialty => (
                         <Tag key={specialty} style={{ marginBottom: '4px' }}>
@@ -336,7 +341,7 @@ const AppointmentPage: React.FC = () => {
                     </div>
                   </div>
                   <div style={{ marginBottom: '16px' }}>
-                    <Text strong>评分：</Text>
+                    <Text strong>{t('appointments.rating')}：</Text>
                     <Text>{doctor.rating} ⭐</Text>
                   </div>
                   <Button 
@@ -344,7 +349,7 @@ const AppointmentPage: React.FC = () => {
                     block
                     disabled={!doctor.available}
                   >
-                    {doctor.available ? '预约问诊' : '暂不可预约'}
+                    {doctor.available ? t('appointments.bookConsultation') : t('appointments.notAvailable')}
                   </Button>
                 </Card>
               </Col>
@@ -353,9 +358,9 @@ const AppointmentPage: React.FC = () => {
         </TabPane>
       </Tabs>
 
-      {/* 新建预约模态框 */}
+      {/* Create appointment modal */}
       <Modal
-        title="新建预约"
+        title={t('appointments.createAppointment')}
         open={isModalVisible}
         onCancel={() => setIsModalVisible(false)}
         footer={null}
@@ -374,10 +379,10 @@ const AppointmentPage: React.FC = () => {
             <Col span={12}>
               <Form.Item
                 name="doctorId"
-                label="选择医生"
-                rules={[{ required: true, message: '请选择医生' }]}
+                label={t('appointments.selectDoctor')}
+                rules={[{ required: true, message: t('appointments.pleaseSelectDoctor') }]}
               >
-                <Select placeholder="请选择医生">
+                <Select placeholder={t('appointments.pleaseSelectDoctor')}>
                   {doctors.map(doctor => (
                     <Option key={doctor.id} value={doctor.id}>
                       {doctor.name} - {doctor.department}
@@ -389,13 +394,13 @@ const AppointmentPage: React.FC = () => {
             <Col span={12}>
               <Form.Item
                 name="type"
-                label="问诊类型"
-                rules={[{ required: true, message: '请选择问诊类型' }]}
+                label={t('appointments.consultationType')}
+                rules={[{ required: true, message: t('appointments.pleaseSelectConsultationType') }]}
               >
-                <Select placeholder="请选择问诊类型">
-                  <Option value="in-person">面诊</Option>
-                  <Option value="video">视频问诊</Option>
-                  <Option value="phone">电话问诊</Option>
+                <Select placeholder={t('appointments.pleaseSelectConsultationType')}>
+                  <Option value="in-person">{t('appointments.inPerson')}</Option>
+                  <Option value="video">{t('appointments.videoConsultation')}</Option>
+                  <Option value="phone">{t('appointments.phoneConsultation')}</Option>
                 </Select>
               </Form.Item>
             </Col>
@@ -405,8 +410,8 @@ const AppointmentPage: React.FC = () => {
             <Col span={12}>
               <Form.Item
                 name="date"
-                label="预约日期"
-                rules={[{ required: true, message: '请选择预约日期' }]}
+                label={t('appointments.appointmentDate')}
+                rules={[{ required: true, message: t('appointments.pleaseSelectDate') }]}
               >
                 <DatePicker style={{ width: '100%' }} />
               </Form.Item>
@@ -414,8 +419,8 @@ const AppointmentPage: React.FC = () => {
             <Col span={12}>
               <Form.Item
                 name="time"
-                label="预约时间"
-                rules={[{ required: true, message: '请选择预约时间' }]}
+                label={t('appointments.appointmentTime')}
+                rules={[{ required: true, message: t('appointments.pleaseSelectTime') }]}
               >
                 <TimePicker format="HH:mm" style={{ width: '100%' }} />
               </Form.Item>
@@ -424,18 +429,18 @@ const AppointmentPage: React.FC = () => {
 
           <Form.Item
             name="notes"
-            label="备注"
+            label={t('appointments.notes')}
           >
-            <TextArea rows={3} placeholder="请描述您的症状或需求" />
+            <TextArea rows={3} placeholder={t('appointments.pleaseDescribeSymptoms')} />
           </Form.Item>
 
           <Form.Item>
             <Space>
               <Button type="primary" htmlType="submit">
-                确认预约
+                {t('appointments.confirmAppointment')}
               </Button>
               <Button onClick={() => setIsModalVisible(false)}>
-                取消
+                {t('appointments.cancel')}
               </Button>
             </Space>
           </Form.Item>

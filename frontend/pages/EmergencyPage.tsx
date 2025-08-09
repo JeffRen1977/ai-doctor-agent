@@ -34,6 +34,8 @@ import {
   BellOutlined,
   EnvironmentOutlined
 } from '@ant-design/icons';
+import { useLanguageStore } from '@/stores/languageStore';
+import { getTranslation } from '@/locales';
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -56,27 +58,30 @@ interface EmergencyInfo {
 }
 
 const EmergencyPage: React.FC = () => {
+  const { language } = useLanguageStore();
+  const t = (key: string) => getTranslation(language, key);
+
   const [contacts, setContacts] = useState<EmergencyContact[]>([
     {
       id: '1',
-      name: '张小明',
-      relationship: '配偶',
+      name: language === 'zh' ? '张小明' : 'John Smith',
+      relationship: language === 'zh' ? '配偶' : 'Spouse',
       phone: '13800138000',
       isPrimary: true,
-      location: '北京市朝阳区'
+      location: language === 'zh' ? '北京市朝阳区' : 'Beijing, Chaoyang District'
     },
     {
       id: '2',
-      name: '李医生',
-      relationship: '主治医生',
+      name: language === 'zh' ? '李医生' : 'Dr. Li',
+      relationship: language === 'zh' ? '主治医生' : 'Primary Doctor',
       phone: '13900139000',
       isPrimary: false,
-      location: '北京协和医院'
+      location: language === 'zh' ? '北京协和医院' : 'Peking Union Medical College Hospital'
     },
     {
       id: '3',
-      name: '王护士',
-      relationship: '家庭护士',
+      name: language === 'zh' ? '王护士' : 'Nurse Wang',
+      relationship: language === 'zh' ? '家庭护士' : 'Family Nurse',
       phone: '13700137000',
       isPrimary: false
     }
@@ -84,10 +89,10 @@ const EmergencyPage: React.FC = () => {
 
   const [emergencyInfo, setEmergencyInfo] = useState<EmergencyInfo>({
     bloodType: 'A+',
-    allergies: ['青霉素', '海鲜'],
-    medications: ['缬沙坦 80mg', '阿司匹林 100mg'],
-    conditions: ['高血压', '糖尿病'],
-    emergencyNotes: '有心脏病史，请优先联系家属'
+    allergies: language === 'zh' ? ['青霉素', '海鲜'] : ['Penicillin', 'Seafood'],
+    medications: language === 'zh' ? ['缬沙坦 80mg', '阿司匹林 100mg'] : ['Valsartan 80mg', 'Aspirin 100mg'],
+    conditions: language === 'zh' ? ['高血压', '糖尿病'] : ['Hypertension', 'Diabetes'],
+    emergencyNotes: language === 'zh' ? '有心脏病史，请优先联系家属' : 'Has heart disease history, please contact family first'
   });
 
   const [isAddContactModalVisible, setIsAddContactModalVisible] = useState(false);
@@ -96,12 +101,16 @@ const EmergencyPage: React.FC = () => {
 
   const handleEmergencyCall = (contact: EmergencyContact) => {
     Modal.confirm({
-      title: '紧急呼叫',
-      content: `确定要拨打 ${contact.name} 的电话 ${contact.phone} 吗？`,
-      okText: '确定拨打',
-      cancelText: '取消',
+      title: language === 'zh' ? '紧急呼叫' : 'Emergency Call',
+      content: language === 'zh' 
+        ? `确定要拨打 ${contact.name} 的电话 ${contact.phone} 吗？`
+        : `Are you sure you want to call ${contact.name} at ${contact.phone}?`,
+      okText: language === 'zh' ? '确定拨打' : 'Call Now',
+      cancelText: language === 'zh' ? '取消' : 'Cancel',
       onOk: () => {
-        message.success(`正在拨打 ${contact.name} 的电话...`);
+        message.success(language === 'zh' 
+          ? `正在拨打 ${contact.name} 的电话...`
+          : `Calling ${contact.name}...`);
         // 这里可以集成实际的电话拨打功能
       }
     });
@@ -112,7 +121,9 @@ const EmergencyPage: React.FC = () => {
   };
 
   const handleSendEmergencyAlert = (values: any) => {
-    message.success('紧急求助信息已发送给所有联系人！');
+    message.success(language === 'zh' 
+      ? '紧急求助信息已发送给所有联系人！'
+      : 'Emergency alert sent to all contacts!');
     setIsEmergencyModalVisible(false);
     // 这里可以发送紧急求助信息给所有联系人
   };
@@ -129,31 +140,31 @@ const EmergencyPage: React.FC = () => {
       };
 
       setContacts(prev => [...prev, newContact]);
-      message.success('紧急联系人添加成功！');
+      message.success(language === 'zh' ? '紧急联系人添加成功！' : 'Emergency contact added successfully!');
       setIsAddContactModalVisible(false);
       form.resetFields();
     } catch (error) {
-      message.error('添加失败，请重试');
+      message.error(language === 'zh' ? '添加失败，请重试' : 'Failed to add, please try again');
     }
   };
 
   const handleRemoveContact = (contactId: string) => {
     setContacts(prev => prev.filter(contact => contact.id !== contactId));
-    message.success('联系人已移除');
+    message.success(language === 'zh' ? '联系人已移除' : 'Contact removed');
   };
 
   return (
     <div style={{ padding: '24px' }}>
-      <Title level={2}>紧急求助</Title>
+      <Title level={2}>{t('emergency.title')}</Title>
       
       {/* 紧急状态概览 */}
       <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
         <Col span={6}>
           <Card>
             <Statistic
-              title="紧急联系人"
+              title={language === 'zh' ? '紧急联系人' : 'Emergency Contacts'}
               value={contacts.length}
-              suffix="人"
+              suffix={language === 'zh' ? '人' : ''}
               prefix={<UserOutlined style={{ color: '#1890ff' }} />}
             />
           </Card>
@@ -161,7 +172,7 @@ const EmergencyPage: React.FC = () => {
         <Col span={6}>
           <Card>
             <Statistic
-              title="血型"
+              title={language === 'zh' ? '血型' : 'Blood Type'}
               value={emergencyInfo.bloodType}
               prefix={<HeartOutlined style={{ color: '#ff4d4f' }} />}
             />
@@ -170,9 +181,9 @@ const EmergencyPage: React.FC = () => {
         <Col span={6}>
           <Card>
             <Statistic
-              title="过敏原"
+              title={language === 'zh' ? '过敏原' : 'Allergies'}
               value={emergencyInfo.allergies.length}
-              suffix="种"
+              suffix={language === 'zh' ? '种' : ''}
               prefix={<ExclamationCircleOutlined style={{ color: '#faad14' }} />}
             />
           </Card>
@@ -180,9 +191,9 @@ const EmergencyPage: React.FC = () => {
         <Col span={6}>
           <Card>
             <Statistic
-              title="当前用药"
+              title={language === 'zh' ? '当前用药' : 'Current Medications'}
               value={emergencyInfo.medications.length}
-              suffix="种"
+              suffix={language === 'zh' ? '种' : ''}
               prefix={<SafetyOutlined style={{ color: '#52c41a' }} />}
             />
           </Card>
@@ -194,8 +205,10 @@ const EmergencyPage: React.FC = () => {
         <Row gutter={[16, 16]} align="middle">
           <Col span={12}>
             <Alert
-              message="紧急情况"
-              description="如果遇到紧急医疗情况，请立即点击紧急求助按钮"
+              message={language === 'zh' ? '紧急情况' : 'Emergency Situation'}
+              description={language === 'zh' 
+                ? '如果遇到紧急医疗情况，请立即点击紧急求助按钮'
+                : 'If you encounter an emergency medical situation, please click the emergency help button immediately'}
               type="warning"
               showIcon
               icon={<ExclamationCircleOutlined />}
@@ -215,7 +228,7 @@ const EmergencyPage: React.FC = () => {
                 borderRadius: '30px'
               }}
             >
-              紧急求助
+              {t('emergency.sos')}
             </Button>
           </Col>
         </Row>
@@ -225,14 +238,14 @@ const EmergencyPage: React.FC = () => {
       <Row gutter={[16, 16]}>
         <Col span={12}>
           <Card 
-            title="紧急联系人" 
+            title={language === 'zh' ? '紧急联系人' : 'Emergency Contacts'} 
             extra={
               <Button 
                 type="primary" 
                 icon={<PlusOutlined />}
                 onClick={() => setIsAddContactModalVisible(true)}
               >
-                添加联系人
+                {language === 'zh' ? '添加联系人' : 'Add Contact'}
               </Button>
             }
           >
@@ -246,20 +259,20 @@ const EmergencyPage: React.FC = () => {
                       icon={<PhoneOutlined />}
                       onClick={() => handleEmergencyCall(contact)}
                     >
-                      拨打
+                      {language === 'zh' ? '拨打' : 'Call'}
                     </Button>,
                     <Button 
                       icon={<MessageOutlined />}
-                      onClick={() => message.info('发送短信功能')}
+                      onClick={() => message.info(language === 'zh' ? '发送短信功能' : 'Send SMS feature')}
                     >
-                      短信
+                      {language === 'zh' ? '短信' : 'SMS'}
                     </Button>,
                     <Button 
                       danger 
                       icon={<DeleteOutlined />}
                       onClick={() => handleRemoveContact(contact.id)}
                     >
-                      删除
+                      {language === 'zh' ? '删除' : 'Delete'}
                     </Button>
                   ]}
                 >
@@ -273,7 +286,7 @@ const EmergencyPage: React.FC = () => {
                     title={
                       <Space>
                         <Text>{contact.name}</Text>
-                        {contact.isPrimary && <Tag color="red">主要联系人</Tag>}
+                        {contact.isPrimary && <Tag color="red">{language === 'zh' ? '主要联系人' : 'Primary Contact'}</Tag>}
                       </Space>
                     }
                     description={
@@ -294,14 +307,14 @@ const EmergencyPage: React.FC = () => {
         </Col>
 
         <Col span={12}>
-          <Card title="紧急医疗信息">
+          <Card title={language === 'zh' ? '紧急医疗信息' : 'Emergency Medical Information'}>
             <div style={{ marginBottom: '16px' }}>
-              <Text strong>血型：</Text>
+              <Text strong>{language === 'zh' ? '血型：' : 'Blood Type: '}</Text>
               <Tag color="red">{emergencyInfo.bloodType}</Tag>
             </div>
             
             <div style={{ marginBottom: '16px' }}>
-              <Text strong>过敏原：</Text>
+              <Text strong>{language === 'zh' ? '过敏原：' : 'Allergies: '}</Text>
               <div style={{ marginTop: '4px' }}>
                 {emergencyInfo.allergies.map(allergy => (
                   <Tag key={allergy} color="orange" style={{ marginBottom: '4px' }}>
@@ -312,7 +325,7 @@ const EmergencyPage: React.FC = () => {
             </div>
 
             <div style={{ marginBottom: '16px' }}>
-              <Text strong>当前用药：</Text>
+              <Text strong>{language === 'zh' ? '当前用药：' : 'Current Medications: '}</Text>
               <div style={{ marginTop: '4px' }}>
                 {emergencyInfo.medications.map(medication => (
                   <Tag key={medication} color="blue" style={{ marginBottom: '4px' }}>
@@ -323,7 +336,7 @@ const EmergencyPage: React.FC = () => {
             </div>
 
             <div style={{ marginBottom: '16px' }}>
-              <Text strong>疾病史：</Text>
+              <Text strong>{language === 'zh' ? '疾病史：' : 'Medical History: '}</Text>
               <div style={{ marginTop: '4px' }}>
                 {emergencyInfo.conditions.map(condition => (
                   <Tag key={condition} color="purple" style={{ marginBottom: '4px' }}>
@@ -334,7 +347,7 @@ const EmergencyPage: React.FC = () => {
             </div>
 
             <div>
-              <Text strong>紧急备注：</Text>
+              <Text strong>{language === 'zh' ? '紧急备注：' : 'Emergency Notes: '}</Text>
               <Paragraph style={{ marginTop: '4px', marginBottom: 0 }}>
                 {emergencyInfo.emergencyNotes}
               </Paragraph>
@@ -344,7 +357,7 @@ const EmergencyPage: React.FC = () => {
       </Row>
 
       {/* 快速操作 */}
-      <Card title="快速操作" style={{ marginTop: '24px' }}>
+      <Card title={language === 'zh' ? '快速操作' : 'Quick Actions'} style={{ marginTop: '24px' }}>
         <Row gutter={[16, 16]}>
           <Col span={6}>
             <Button 
@@ -353,16 +366,16 @@ const EmergencyPage: React.FC = () => {
               block
               size="large"
             >
-              拨打急救电话
+              {language === 'zh' ? '拨打急救电话' : 'Call Emergency'}
             </Button>
           </Col>
           <Col span={6}>
             <Button 
-                              icon={<GlobalOutlined />}
+              icon={<GlobalOutlined />}
               block
               size="large"
             >
-              分享位置
+              {language === 'zh' ? '分享位置' : 'Share Location'}
             </Button>
           </Col>
           <Col span={6}>
@@ -371,7 +384,7 @@ const EmergencyPage: React.FC = () => {
               block
               size="large"
             >
-              发送位置
+              {language === 'zh' ? '发送位置' : 'Send Location'}
             </Button>
           </Col>
           <Col span={6}>
@@ -380,7 +393,7 @@ const EmergencyPage: React.FC = () => {
               block
               size="large"
             >
-              健康档案
+              {language === 'zh' ? '健康档案' : 'Health Records'}
             </Button>
           </Col>
         </Row>
@@ -388,7 +401,7 @@ const EmergencyPage: React.FC = () => {
 
       {/* 添加联系人模态框 */}
       <Modal
-        title="添加紧急联系人"
+        title={language === 'zh' ? '添加紧急联系人' : 'Add Emergency Contact'}
         open={isAddContactModalVisible}
         onCancel={() => setIsAddContactModalVisible(false)}
         footer={null}
@@ -401,57 +414,57 @@ const EmergencyPage: React.FC = () => {
         >
           <Form.Item
             name="name"
-            label="姓名"
-            rules={[{ required: true, message: '请输入姓名' }]}
+            label={language === 'zh' ? '姓名' : 'Name'}
+            rules={[{ required: true, message: language === 'zh' ? '请输入姓名' : 'Please enter name' }]}
           >
-            <Input placeholder="请输入联系人姓名" />
+            <Input placeholder={language === 'zh' ? '请输入联系人姓名' : 'Enter contact name'} />
           </Form.Item>
 
           <Form.Item
             name="relationship"
-            label="关系"
-            rules={[{ required: true, message: '请输入关系' }]}
+            label={language === 'zh' ? '关系' : 'Relationship'}
+            rules={[{ required: true, message: language === 'zh' ? '请输入关系' : 'Please enter relationship' }]}
           >
-            <Select placeholder="请选择关系">
-              <Option value="配偶">配偶</Option>
-              <Option value="父母">父母</Option>
-              <Option value="子女">子女</Option>
-              <Option value="朋友">朋友</Option>
-              <Option value="医生">医生</Option>
-              <Option value="护士">护士</Option>
-              <Option value="其他">其他</Option>
+            <Select placeholder={language === 'zh' ? '请选择关系' : 'Select relationship'}>
+              <Option value={language === 'zh' ? '配偶' : 'Spouse'}>{language === 'zh' ? '配偶' : 'Spouse'}</Option>
+              <Option value={language === 'zh' ? '父母' : 'Parent'}>{language === 'zh' ? '父母' : 'Parent'}</Option>
+              <Option value={language === 'zh' ? '子女' : 'Child'}>{language === 'zh' ? '子女' : 'Child'}</Option>
+              <Option value={language === 'zh' ? '朋友' : 'Friend'}>{language === 'zh' ? '朋友' : 'Friend'}</Option>
+              <Option value={language === 'zh' ? '医生' : 'Doctor'}>{language === 'zh' ? '医生' : 'Doctor'}</Option>
+              <Option value={language === 'zh' ? '护士' : 'Nurse'}>{language === 'zh' ? '护士' : 'Nurse'}</Option>
+              <Option value={language === 'zh' ? '其他' : 'Other'}>{language === 'zh' ? '其他' : 'Other'}</Option>
             </Select>
           </Form.Item>
 
           <Form.Item
             name="phone"
-            label="电话号码"
-            rules={[{ required: true, message: '请输入电话号码' }]}
+            label={language === 'zh' ? '电话号码' : 'Phone Number'}
+            rules={[{ required: true, message: language === 'zh' ? '请输入电话号码' : 'Please enter phone number' }]}
           >
-            <Input placeholder="请输入电话号码" />
+            <Input placeholder={language === 'zh' ? '请输入电话号码' : 'Enter phone number'} />
           </Form.Item>
 
           <Form.Item
             name="location"
-            label="位置"
+            label={language === 'zh' ? '位置' : 'Location'}
           >
-            <Input placeholder="请输入位置信息（可选）" />
+            <Input placeholder={language === 'zh' ? '请输入位置信息（可选）' : 'Enter location (optional)'} />
           </Form.Item>
 
           <Form.Item
             name="isPrimary"
             valuePropName="checked"
           >
-            <Checkbox>设为主要联系人</Checkbox>
+            <Checkbox>{language === 'zh' ? '设为主要联系人' : 'Set as primary contact'}</Checkbox>
           </Form.Item>
 
           <Form.Item>
             <Space>
               <Button type="primary" htmlType="submit">
-                添加联系人
+                {language === 'zh' ? '添加联系人' : 'Add Contact'}
               </Button>
               <Button onClick={() => setIsAddContactModalVisible(false)}>
-                取消
+                {language === 'zh' ? '取消' : 'Cancel'}
               </Button>
             </Space>
           </Form.Item>
@@ -460,15 +473,17 @@ const EmergencyPage: React.FC = () => {
 
       {/* 紧急求助模态框 */}
       <Modal
-        title="紧急求助"
+        title={t('emergency.sos')}
         open={isEmergencyModalVisible}
         onCancel={() => setIsEmergencyModalVisible(false)}
         footer={null}
         width={600}
       >
         <Alert
-          message="紧急求助"
-          description="系统将向所有紧急联系人发送求助信息，包括您的位置和基本医疗信息"
+          message={t('emergency.sos')}
+          description={language === 'zh' 
+            ? '系统将向所有紧急联系人发送求助信息，包括您的位置和基本医疗信息'
+            : 'The system will send help requests to all emergency contacts, including your location and basic medical information'}
           type="warning"
           showIcon
           style={{ marginBottom: '16px' }}
@@ -480,12 +495,14 @@ const EmergencyPage: React.FC = () => {
         >
           <Form.Item
             name="message"
-            label="求助信息"
-            initialValue="我需要紧急医疗帮助，请立即联系我！"
+            label={language === 'zh' ? '求助信息' : 'Help Message'}
+            initialValue={language === 'zh' 
+              ? '我需要紧急医疗帮助，请立即联系我！'
+              : 'I need emergency medical help, please contact me immediately!'}
           >
             <Input.TextArea 
               rows={3} 
-              placeholder="请输入求助信息"
+              placeholder={language === 'zh' ? '请输入求助信息' : 'Enter help message'}
             />
           </Form.Item>
 
@@ -494,7 +511,7 @@ const EmergencyPage: React.FC = () => {
             valuePropName="checked"
             initialValue={true}
           >
-            <Checkbox>包含位置信息</Checkbox>
+            <Checkbox>{language === 'zh' ? '包含位置信息' : 'Include location information'}</Checkbox>
           </Form.Item>
 
           <Form.Item
@@ -502,16 +519,16 @@ const EmergencyPage: React.FC = () => {
             valuePropName="checked"
             initialValue={true}
           >
-            <Checkbox>包含基本医疗信息</Checkbox>
+            <Checkbox>{language === 'zh' ? '包含基本医疗信息' : 'Include basic medical information'}</Checkbox>
           </Form.Item>
 
           <Form.Item>
             <Space>
               <Button type="primary" danger htmlType="submit">
-                发送紧急求助
+                {language === 'zh' ? '发送紧急求助' : 'Send Emergency Alert'}
               </Button>
               <Button onClick={() => setIsEmergencyModalVisible(false)}>
-                取消
+                {language === 'zh' ? '取消' : 'Cancel'}
               </Button>
             </Space>
           </Form.Item>
