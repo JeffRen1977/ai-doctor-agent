@@ -135,4 +135,17 @@ router.get('/:id', (req, res) => {
   }
 });
 
+const fhirService = require('../services/fhirService');
+
+// Get patient records from FHIR server
+router.get('/fhir/:patientId', async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    const records = await fhirService.getPatientRecords(patientId);
+    res.json(records);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router; 

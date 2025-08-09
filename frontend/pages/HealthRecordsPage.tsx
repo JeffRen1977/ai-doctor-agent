@@ -1,8 +1,9 @@
 import React, { useState } from 'react'
 import { Card, Table, Button, Space, Tag, Modal, Form, Input, DatePicker, Select, message } from 'antd'
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
+import { PlusOutlined, EditOutlined, DeleteOutlined, CloudDownloadOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import './HealthRecordsPage.css'
+import { getFhirPatientRecords } from '../services/api'
 
 const { TextArea } = Input
 const { Option } = Select
@@ -37,6 +38,7 @@ const HealthRecordsPage: React.FC = () => {
   ])
   const [modalVisible, setModalVisible] = useState(false)
   const [editingRecord, setEditingRecord] = useState<HealthRecord | null>(null)
+  const [isFetchingFhir, setIsFetchingFhir] = useState(false)
   const [form] = Form.useForm()
 
   const severityColors = {
@@ -172,14 +174,69 @@ const HealthRecordsPage: React.FC = () => {
     })
   }
 
+  const transformFhirToHealthRecord = (fhirResource: any): HealthRecord | null => {
+    const resource = fhirResource.resource;
+    if (!resource) return null;
+
+    if (resource.resourceType === 'Observation') {
+        return {
+            id: resource.id,
+            date: resource.effectiveDateTime ? dayjs(resource.effectiveDateTime).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'),
+            type: resource.code?.text || 'FHIR Observation',
+            description: `Value: ${resource.valueQuantity?.value || 'N/A'} ${resource.valueQuantity?.unit || ''}`,
+            severity: 'low',
+            status: resource.status === 'final' ? 'resolved' : 'active',
+        };
+    }
+    return null;
+  };
+
+  const handleFetchFromFhir = async () => {
+    setIsFetchingFhir(true);
+    message.loading({ content: '正在从FHIR服务器获取记录...', key: 'fhirFetch' });
+    try {
+      const fhirData = await getFhirPatientRecords('123');
+      const newRecords = fhirData
+        .map(transformFhirToHealthRecord)
+        .filter((record: HealthRecord | null): record is HealthRecord => record !== null);
+
+      if (newRecords.length === 0) {
+        message.info({ content: '没有找到新的记录。', key: 'fhirFetch', duration: 2 });
+        return;
+      }
+
+      setRecords(prevRecords => {
+        const existingIds = new Set(prevRecords.map(r => r.id));
+        const uniqueNewRecords = newRecords.filter(r => !existingIds.has(r.id));
+        if (uniqueNewRecords.length === 0) {
+          message.info({ content: '所有获取的记录都已存在。', key: 'fhirFetch', duration: 2 });
+          return prevRecords;
+        }
+        message.success({ content: `成功获取并添加了 ${uniqueNewRecords.length} 条新记录。`, key: 'fhirFetch', duration: 2 });
+        return [...prevRecords, ...uniqueNewRecords];
+      });
+
+    } catch (error) {
+      console.error('Failed to fetch from FHIR:', error);
+      message.error({ content: '从FHIR服务器获取记录失败。', key: 'fhirFetch', duration: 2 });
+    } finally {
+      setIsFetchingFhir(false);
+    }
+  };
+
   return (
     <div className="health-records-page">
       <Card
         title="健康记录"
         extra={
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
-            添加记录
-          </Button>
+          <Space>
+            <Button type="default" icon={<CloudDownloadOutlined />} onClick={handleFetchFromFhir} loading={isFetchingFhir}>
+              从FHIR获取
+            </Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
+              添加记录
+            </Button>
+          </Space>
         }
       >
         <Table
@@ -254,4 +311,4 @@ const HealthRecordsPage: React.FC = () => {
   )
 }
 
-export default HealthRecordsPage 
+export default HealthRecordsPage

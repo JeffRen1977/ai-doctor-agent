@@ -63,4 +63,11 @@ export const dietAnalysisAPI = {
     const response = await api.get('/diet-analysis/recommendations')
     return response.data
   },
-} 
+}
+
+// Health Records (FHIR)
+export const getFhirPatientRecords = async (patientId: string) => {
+  // Using the existing 'api' axios instance
+  const response = await api.get(`/health-records/fhir/${patientId}`);
+  return response.data;
+}; 
