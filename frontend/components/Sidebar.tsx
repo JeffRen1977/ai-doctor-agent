@@ -13,10 +13,8 @@ import {
   LogoutOutlined,
   CameraOutlined,
   SettingOutlined,
-  GlobalOutlined,
 } from '@ant-design/icons'
 import { useAuthStore } from '@/stores/authStore'
-import { useLanguageStore } from '@/stores/languageStore'
 import { getTranslation } from '@/locales'
 import './Sidebar.css'
 
@@ -26,15 +24,8 @@ const Sidebar: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout } = useAuthStore()
-  const { language, setLanguage } = useLanguageStore()
 
-  const t = (key: string) => getTranslation(language, key)
-
-  const handleLanguageChange = (newLanguage: 'zh' | 'en') => {
-    setLanguage(newLanguage)
-    // 强制重新渲染
-    window.location.reload()
-  }
+  const t = (key: string) => getTranslation('en', key)
 
   const mainMenuItems = [
     {
@@ -165,27 +156,11 @@ const Sidebar: React.FC = () => {
                 }} 
               />
               <div className="user-details">
-                <span className="user-name">{user?.name || (language === 'zh' ? '用户' : 'User')}</span>
+                <span className="user-name">{user?.name || 'User'}</span>
                 <span className="user-role">{t('sidebar.user.role')}</span>
               </div>
             </div>
           </Dropdown>
-          
-          {/* 添加语言切换按钮 */}
-          <div className="language-switch-container">
-            <Button
-              type="text"
-              icon={<GlobalOutlined />}
-              size="small"
-              onClick={() => handleLanguageChange(language === 'zh' ? 'en' : 'zh')}
-              style={{ 
-                color: 'rgba(255, 255, 255, 0.7)',
-                marginTop: '8px'
-              }}
-            >
-              {language === 'zh' ? 'EN' : '中文'}
-            </Button>
-          </div>
         </div>
       </div>
     </Sider>
