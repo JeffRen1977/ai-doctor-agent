@@ -15,6 +15,7 @@ import {
   SettingOutlined,
 } from '@ant-design/icons'
 import { useAuthStore } from '@/stores/authStore'
+import { useLanguageStore } from '@/stores/languageStore'
 import { getTranslation } from '@/locales'
 import './Sidebar.css'
 
@@ -24,8 +25,9 @@ const Sidebar: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout } = useAuthStore()
+  const { language } = useLanguageStore()
 
-  const t = (key: string) => getTranslation('en', key)
+  const t = (key: string) => getTranslation(language, key)
 
   const mainMenuItems = [
     {
@@ -156,7 +158,7 @@ const Sidebar: React.FC = () => {
                 }} 
               />
               <div className="user-details">
-                <span className="user-name">{user?.name || 'User'}</span>
+                <span className="user-name">{user?.name || (language === 'zh' ? '用户' : 'User')}</span>
                 <span className="user-role">{t('sidebar.user.role')}</span>
               </div>
             </div>
