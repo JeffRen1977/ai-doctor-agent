@@ -3,7 +3,7 @@ const Joi = require('joi');
 const geminiService = require('../services/geminiService');
 const { authenticateToken, optionalAuth } = require('../middleware/auth');
 const { doc, setDoc, getDoc, updateDoc, arrayUnion, collection, query, where, orderBy, limit, getDocs } = require('firebase/firestore');
-const { db, isMock } = require('../config/firebase');
+const { db } = require('../config/firebase');
 
 const router = express.Router();
 
@@ -12,31 +12,9 @@ const messageSchema = Joi.object({
   message: Joi.string().min(1).max(1000).required()
 });
 
-// 模拟聊天历史存储
-const mockChatHistory = new Map();
-
 // 保存聊天消息到Firebase - 使用chatHistory集合，文档ID为用户邮箱
 async function saveChatMessage(userEmail, message, sender) {
   try {
-    if (isMock) {
-      // 模拟保存
-      if (!mockChatHistory.has(userEmail)) {
-        mockChatHistory.set(userEmail, []);
-      }
-      
-      const chatId = `mock-${Date.now()}`;
-      const chatMessage = {
-        id: chatId,
-        content: message,
-        sender,
-        timestamp: new Date(),
-        createdAt: new Date()
-      };
-      
-      mockChatHistory.get(userEmail).push(chatMessage);
-      return chatId;
-    }
-
     console.log('💾 保存聊天消息到chatHistory集合:', { userEmail, sender, messageLength: message.length });
     
     // 使用chatHistory集合，文档ID为用户邮箱
@@ -84,12 +62,6 @@ async function saveChatMessage(userEmail, message, sender) {
 // 获取用户聊天历史 - 从chatHistory集合获取
 async function getChatHistory(userEmail, limitCount = 50) {
   try {
-    if (isMock) {
-      // 模拟获取历史
-      const history = mockChatHistory.get(userEmail) || [];
-      return history.slice(-limitCount);
-    }
-
     console.log('🔍 从chatHistory集合查询用户聊天历史:', userEmail);
     
     // 从chatHistory集合获取用户的聊天历史文档
@@ -216,12 +188,6 @@ router.delete('/history', authenticateToken, async (req, res) => {
     const userEmail = req.user.email;
     console.log('🗑️  清除聊天历史，用户邮箱:', userEmail);
     
-    if (isMock) {
-      // 模拟清除
-      mockChatHistory.delete(userEmail);
-      return res.json({ message: '聊天历史已清除' });
-    }
-    
     // 清除用户的聊天历史文档（重置为空数组）
     const chatHistoryDocRef = doc(db, 'chatHistory', userEmail);
     await setDoc(chatHistoryDocRef, {
@@ -295,19 +261,6 @@ router.get('/stats', authenticateToken, async (req, res) => {
     const userEmail = req.user.email;
     console.log('📊 获取用户聊天统计信息:', userEmail);
     
-    if (isMock) {
-      const history = mockChatHistory.get(userEmail) || [];
-      const userMessages = history.filter(msg => msg.sender === 'user').length;
-      const aiMessages = history.filter(msg => msg.sender === 'assistant').length;
-      
-      return res.json({
-        totalMessages: history.length,
-        userMessages,
-        aiMessages,
-        lastActivity: history.length > 0 ? history[history.length - 1].timestamp : null
-      });
-    }
-    
     // 从chatHistory集合获取用户统计信息
     const chatHistoryDocRef = doc(db, 'chatHistory', userEmail);
     const chatHistoryDoc = await getDoc(chatHistoryDocRef);
@@ -349,17 +302,6 @@ router.get('/admin/all-users', authenticateToken, async (req, res) => {
     // }
     
     console.log('🔍 管理员获取所有用户聊天历史');
-    
-    if (isMock) {
-      const allUsers = Array.from(mockChatHistory.keys()).map(email => ({
-        email,
-        messageCount: mockChatHistory.get(email).length,
-        lastActivity: mockChatHistory.get(email).length > 0 ? 
-          mockChatHistory.get(email)[mockChatHistory.get(email).length - 1].timestamp : null
-      }));
-      
-      return res.json(allUsers);
-    }
     
     // 从chatHistory集合获取所有用户信息
     const chatHistoryCollection = collection(db, 'chatHistory');
@@ -403,11 +345,6 @@ router.delete('/admin/user/:email', authenticateToken, async (req, res) => {
     // }
     
     console.log('🗑️  管理员删除用户聊天历史:', email);
-    
-    if (isMock) {
-      mockChatHistory.delete(email);
-      return res.json({ message: `用户 ${email} 的聊天历史已删除` });
-    }
     
     // 删除用户的聊天历史文档
     const chatHistoryDocRef = doc(db, 'chatHistory', email);
