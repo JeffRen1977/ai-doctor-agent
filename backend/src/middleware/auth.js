@@ -6,6 +6,10 @@ const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
+  console.log('🔐 Auth middleware - Authorization header:', authHeader);
+  console.log('🔐 Auth middleware - Extracted token:', token ? `${token.substring(0, 20)}...` : 'none');
+  console.log('🔐 Auth middleware - JWT_SECRET:', process.env.JWT_SECRET ? `${process.env.JWT_SECRET.substring(0, 20)}...` : 'none');
+
   if (!token) {
     return res.status(401).json({ error: '未提供认证token' });
   }
@@ -26,6 +30,11 @@ const authenticateToken = async (req, res, next) => {
     next();
   } catch (error) {
     console.error('❌ Token验证错误:', error);
+    console.error('❌ Token验证错误详情:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
     return res.status(403).json({ error: '无效的token' });
   }
 };

@@ -199,3 +199,4 @@ await updateDoc(chatHistoryDocRef, {
 - Implement automatic cleanup for old messages
 - Archive long conversations
 - Maintain compliance with data retention policies
+

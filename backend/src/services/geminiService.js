@@ -4,7 +4,7 @@ class GeminiService {
   constructor() {
     // 初始化Gemini AI
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    this.model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    this.model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
     console.log('✅ Gemini AI 服务初始化成功');
   }
 

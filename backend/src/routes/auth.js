@@ -44,11 +44,13 @@ router.post('/register', async (req, res) => {
     }
 
     // 生成JWT token
+    console.log('🔐 Generating JWT token with secret:', process.env.JWT_SECRET ? `${process.env.JWT_SECRET.substring(0, 20)}...` : 'default');
     const token = jwt.sign(
       { userId: result.user.id, email: result.user.email },
       process.env.JWT_SECRET || 'your-secret-key',
       { expiresIn: '24h' }
     );
+    console.log('🔐 JWT token generated successfully, length:', token.length);
 
     // 返回用户信息和token
     res.status(201).json({
@@ -80,11 +82,13 @@ router.post('/login', async (req, res) => {
     }
 
     // 生成JWT token
+    console.log('🔐 Generating JWT token for login with secret:', process.env.JWT_SECRET ? `${process.env.JWT_SECRET.substring(0, 20)}...` : 'default');
     const token = jwt.sign(
       { userId: result.user.id, email: result.user.email },
       process.env.JWT_SECRET || 'your-secret-key',
       { expiresIn: '24h' }
     );
+    console.log('🔐 JWT token generated for login successfully, length:', token.length);
 
     // 返回用户信息和token
     res.json({
