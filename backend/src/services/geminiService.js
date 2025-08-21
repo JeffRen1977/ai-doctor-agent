@@ -75,6 +75,39 @@ class GeminiService {
     }
   }
 
+  // 图片分析（支持饮食分析）
+  async analyzeImageWithGemini(base64Image, prompt) {
+    try {
+      console.log('🤖 开始使用Gemini AI分析图片');
+      
+      // 创建图片数据
+      const imageData = {
+        inlineData: {
+          data: base64Image,
+          mimeType: 'image/jpeg' // 可以根据实际图片类型调整
+        }
+      };
+
+      // 生成内容（图片 + 提示词）
+      const result = await this.model.generateContent([prompt, imageData]);
+      const response = await result.response;
+      
+      console.log('✅ Gemini AI图片分析完成');
+      
+      return {
+        success: true,
+        analysis: response.text(),
+        recognizedFoods: [] // 可以在这里解析识别出的食物
+      };
+    } catch (error) {
+      console.error('❌ Gemini AI图片分析错误:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
   // 健康记录分析
   async analyzeHealthRecords(healthData) {
     try {
