@@ -83,8 +83,8 @@ class GeminiService {
     }
   }
 
-  // 图片分析（支持饮食分析）- 使用专门的图片模型
-  async analyzeImageWithGemini(base64Image, prompt) {
+  // 图片分析（支持饮食分析）- 使用专门的图片模型，带fallback到flash模型
+  async analyzeImageWithGemini(base64Image, prompt, retryCount = 0) {
     try {
       console.log('🤖 开始使用Gemini AI Pro分析图片');
       
@@ -96,19 +96,58 @@ class GeminiService {
         }
       };
 
-      // 使用专门的图片模型生成内容（图片 + 提示词）
-      const result = await this.imageModel.generateContent([prompt, imageData]);
-      const response = await result.response;
-      
-      console.log('✅ Gemini AI Pro图片分析完成');
-      
-      return {
-        success: true,
-        analysis: response.text(),
-        recognizedFoods: [] // 可以在这里解析识别出的食物
-      };
+      // 首先尝试使用Pro模型
+      try {
+        const result = await this.imageModel.generateContent([prompt, imageData]);
+        const response = await result.response;
+        
+        console.log('✅ Gemini AI Pro图片分析完成');
+        
+        return {
+          success: true,
+          analysis: response.text(),
+          recognizedFoods: [], // 可以在这里解析识别出的食物
+          modelUsed: 'gemini-1.5-pro'
+        };
+      } catch (proError) {
+        // 如果Pro模型失败（通常是配额限制），fallback到Flash模型
+        if (proError.status === 429 || proError.message.includes('quota') || proError.message.includes('Too Many Requests')) {
+          console.log('⚠️  Pro模型配额限制，fallback到Flash模型');
+          
+          try {
+            const result = await this.textModel.generateContent([prompt, imageData]);
+            const response = await result.response;
+            
+            console.log('✅ Gemini AI Flash图片分析完成（fallback）');
+            
+            return {
+              success: true,
+              analysis: response.text(),
+              recognizedFoods: [],
+              modelUsed: 'gemini-1.5-flash (fallback)'
+            };
+          } catch (flashError) {
+            console.error('❌ Flash模型也失败:', flashError.message);
+            
+            // 如果是配额问题且有重试次数，等待后重试
+            if ((flashError.status === 429 || flashError.message.includes('quota')) && retryCount < 2) {
+              const waitTime = Math.pow(2, retryCount) * 5; // 5s, 10s, 20s
+              console.log(`⏳ 等待 ${waitTime} 秒后重试...`);
+              
+              await new Promise(resolve => setTimeout(resolve, waitTime * 1000));
+              
+              return this.analyzeImageWithGemini(base64Image, prompt, retryCount + 1);
+            }
+            
+            throw new Error(`所有模型都失败: Pro(${proError.message}), Flash(${flashError.message})`);
+          }
+        } else {
+          // 如果不是配额问题，直接抛出Pro模型的错误
+          throw proError;
+        }
+      }
     } catch (error) {
-      console.error('❌ Gemini AI Pro图片分析错误:', error);
+      console.error('❌ Gemini AI图片分析错误:', error);
       return {
         success: false,
         error: error.message

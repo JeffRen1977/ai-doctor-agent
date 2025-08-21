@@ -206,7 +206,22 @@ router.post('/analyze', authenticateToken, upload.single('image'), async (req, r
     const geminiResult = await analyzeFoodImageWithGemini(imagePath, userEmail);
     
     if (!geminiResult.success) {
-      return res.status(500).json({ error: 'AI图片分析失败' });
+      // 检查是否是配额限制错误
+      if (geminiResult.error && geminiResult.error.includes('quota') || geminiResult.error.includes('Too Many Requests')) {
+        return res.status(429).json({ 
+          error: 'AI服务配额已用完，请稍后再试或升级您的账户',
+          details: '您已达到免费账户的每日/每分钟请求限制',
+          retryAfter: '建议等待几分钟后再试',
+          code: 'QUOTA_EXCEEDED'
+        });
+      }
+      
+      // 其他AI分析错误
+      return res.status(500).json({ 
+        error: 'AI图片分析失败',
+        details: geminiResult.error,
+        code: 'AI_ANALYSIS_FAILED'
+      });
     }
 
     // 构建分析结果
