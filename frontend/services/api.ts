@@ -99,8 +99,8 @@ export const wearablesAPI = {
   },
 
   // Sync all connected devices
-  syncDevices: async () => {
-    const response = await api.post('/wearables/sync');
+  syncDevices: async (useMock: boolean = false) => {
+    const response = await api.post('/wearables/sync', { useMock });
     return response.data;
   },
 
@@ -111,8 +111,20 @@ export const wearablesAPI = {
   },
 
   // Get wearable data summary
-  getSummary: async (days: number = 7) => {
-    const response = await api.get(`/wearables/summary?days=${days}`);
+  getSummary: async (days: number = 7, useMock: boolean = false) => {
+    const response = await api.get(`/wearables/summary?days=${days}&useMock=${useMock}`);
+    return response.data;
+  },
+
+  // Generate mock wearable data
+  generateMockData: async (deviceType: string = 'fitbit') => {
+    const response = await api.post('/wearables/mock/generate', { deviceType });
+    return response.data;
+  },
+
+  // Get mock health summary
+  getMockSummary: async () => {
+    const response = await api.get('/wearables/mock/summary');
     return response.data;
   }
 }; 

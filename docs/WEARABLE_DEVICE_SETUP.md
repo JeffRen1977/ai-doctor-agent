@@ -1,202 +1,318 @@
-# 🏃‍♂️ 可穿戴设备集成设置指南
+# 可穿戴设备集成指南
 
-本指南将帮助您设置Apple Watch和Fitbit等可穿戴设备的数据同步功能。
+## 📱 概述
 
-## 📱 支持的设备类型
+AI医生助理系统支持多种可穿戴设备的健康数据集成，包括Fitbit、Apple Health等主流平台。在没有真实设备连接的情况下，系统还提供模拟数据功能，让用户可以体验完整的健康数据分析功能。
+
+## 🔗 支持的设备类型
 
 ### 1. Fitbit 设备
-- ✅ Fitbit Versa, Sense, Charge, Inspire系列
-- ✅ 实时数据同步
-- ✅ 自动token刷新
-- ✅ 支持数据类型：活动、心率、睡眠、体重、营养
+- **支持型号**: 所有Fitbit智能手表和手环
+- **数据类型**: 步数、卡路里、心率、睡眠、体重等
+- **连接方式**: OAuth 2.0认证流程
+- **API版本**: Fitbit Web API v1.2
 
-### 2. Apple Watch / Apple Health
-- ✅ Apple Watch Series 3+
-- ✅ iPhone Health应用数据
-- ✅ CSV数据导入
-- ✅ 支持数据类型：活动、心率、睡眠、营养、身体指标
+### 2. Apple Health
+- **支持设备**: iPhone、Apple Watch
+- **数据类型**: 活动、心率、睡眠、营养、身体指标等
+- **连接方式**: HealthKit数据导出/导入
+- **数据格式**: CSV文件
 
-## 🔧 后端配置
+### 3. 通用设备
+- **支持范围**: 其他兼容的健康设备
+- **数据类型**: 基础健康指标
+- **连接方式**: 标准化数据格式
 
-### 1. 环境变量设置
+## 🎭 模拟数据功能
 
-在 `backend/.env` 文件中添加以下配置：
+### 功能特点
+- **实时生成**: 每次生成不同的模拟数据
+- **真实模拟**: 基于真实健康数据的统计规律
+- **完整覆盖**: 包含所有主要健康指标
+- **智能分析**: 提供健康洞察和建议
 
-```bash
-# Fitbit API配置
-FITBIT_CLIENT_ID="your-fitbit-client-id"
-FITBIT_CLIENT_SECRET="your-fitbit-client-secret"
+### 模拟数据类型
 
-# Apple HealthKit配置（未来使用）
-APPLE_HEALTHKIT_BUNDLE_ID="your-app-bundle-id"
-APPLE_HEALTHKIT_TEAM_ID="your-team-id"
-```
-
-### 2. Fitbit开发者账户设置
-
-1. 访问 [Fitbit开发者门户](https://dev.fitbit.com/)
-2. 创建新应用
-3. 设置OAuth 2.0配置：
-   - **Callback URL**: `http://localhost:8000/api/wearables/fitbit/callback`
-   - **OAuth 2.0 Scopes**: `activity heartrate sleep profile weight nutrition`
-4. 获取 `Client ID` 和 `Client Secret`
-
-### 3. 数据库结构
-
-系统会自动创建以下Firebase集合：
-
-```javascript
-// userWearables 集合
+#### Fitbit模拟数据
+```json
 {
-  "user@example.com": {
-    "userEmail": "user@example.com",
-    "fitbitTokens": {
-      "access_token": "...",
-      "refresh_token": "...",
-      "expires_in": 28800,
-      "user_id": "...",
-      "scope": "activity heartrate sleep profile weight nutrition",
-      "token_type": "Bearer",
-      "created_at": "2024-01-15T10:00:00.000Z"
-    },
-    "fitbitConnected": true,
-    "fitbitLastSync": "2024-01-15T10:00:00.000Z",
-    "fitbitData": {
-      "date": "2024-01-15",
-      "activity": { /* Fitbit活动数据 */ },
-      "heartRate": { /* 心率数据 */ },
-      "sleep": { /* 睡眠数据 */ },
-      "body": { /* 身体指标数据 */ },
-      "source": "fitbit",
-      "lastSync": "2024-01-15T10:00:00.000Z"
-    },
-    "appleConnected": false,
-    "appleLastSync": null,
-    "appleData": null,
-    "createdAt": "2024-01-15T10:00:00.000Z",
-    "updatedAt": "2024-01-15T10:00:00.000Z"
+  "activity": {
+    "summary": {
+      "steps": 6500,
+      "caloriesOut": 2100,
+      "activeMinutes": 45,
+      "distance": 5.2,
+      "floors": 8
+    }
+  },
+  "heartRate": {
+    "activities_heart": [...],
+    "activities_heart_intraday": {
+      "dataset": [...]
+    }
+  },
+  "sleep": {
+    "sleep": [{
+      "duration": 420,
+      "efficiency": 85,
+      "levels": {...}
+    }]
   }
 }
 ```
 
-## 🚀 前端使用
-
-### 1. 设备连接流程
-
-#### Fitbit连接：
-1. 用户点击"连接Fitbit"按钮
-2. 重定向到Fitbit授权页面
-3. 用户登录并授权应用
-4. 重定向回应用，完成连接
-5. 自动同步数据
-
-#### Apple Health连接：
-1. 用户从iPhone导出健康数据（CSV格式）
-2. 上传CSV文件到应用
-3. 系统解析并存储数据
-4. 显示数据摘要
-
-### 2. API端点
-
-```typescript
-// 获取设备状态
-GET /api/wearables/status
-
-// 开始Fitbit授权
-GET /api/wearables/fitbit/auth
-
-// 完成Fitbit授权
-POST /api/wearables/fitbit/complete-auth
-
-// 获取Fitbit数据
-GET /api/wearables/fitbit/data
-
-// 同步所有设备
-POST /api/wearables/sync
-
-// 上传Apple Health数据
-POST /api/wearables/apple/upload
-
-// 获取数据摘要
-GET /api/wearables/summary?days=7
+#### Apple Health模拟数据
+```json
+{
+  "activity": {
+    "steps": 6800,
+    "calories": 1950,
+    "distance": 5.4,
+    "activeEnergy": 450,
+    "exerciseMinutes": 35
+  },
+  "heartRate": {
+    "current": 72,
+    "resting": 58,
+    "average": 68,
+    "max": 145,
+    "min": 52
+  },
+  "nutrition": {
+    "water": 2200,
+    "fiber": 25,
+    "protein": 95,
+    "carbs": 250,
+    "fat": 65
+  }
+}
 ```
 
-## 📊 数据类型说明
+## 🚀 快速开始
 
-### Fitbit数据
-- **活动数据**: 步数、卡路里、距离、活跃分钟
-- **心率数据**: 静息心率、心率区间、心率变异性
-- **睡眠数据**: 睡眠时长、睡眠阶段、睡眠效率
-- **身体指标**: 体重、BMI、体脂率
-- **营养数据**: 水分摄入、卡路里摄入
+### 1. 生成模拟数据
+```typescript
+// 生成Fitbit模拟数据
+const fitbitMockData = await wearablesAPI.generateMockData('fitbit');
 
-### Apple Health数据
-- **活动数据**: 步数、卡路里、运动时长
-- **健康数据**: 心率、血压、血糖、体温
-- **身体指标**: 体重、身高、BMI
-- **睡眠数据**: 睡眠时长、睡眠质量
+// 生成Apple Health模拟数据
+const appleMockData = await wearablesAPI.generateMockData('apple');
+
+// 获取综合健康摘要
+const mockSummary = await wearablesAPI.getMockSummary();
+```
+
+### 2. 同步设备数据
+```typescript
+// 强制使用模拟数据
+const mockSync = await wearablesAPI.syncDevices(true);
+
+// 尝试真实同步（失败时自动回退到模拟数据）
+const realSync = await wearablesAPI.syncDevices(false);
+```
+
+### 3. 获取健康摘要
+```typescript
+// 强制使用模拟数据
+const mockSummary = await wearablesAPI.getSummary(7, true);
+
+// 自动检测（无真实数据时使用模拟数据）
+const autoSummary = await wearablesAPI.getSummary(7, false);
+```
+
+## 🔧 后端API接口
+
+### 模拟数据生成
+```http
+POST /api/wearables/mock/generate
+Content-Type: application/json
+Authorization: Bearer <token>
+
+{
+  "deviceType": "fitbit" // 或 "apple"
+}
+```
+
+### 模拟健康摘要
+```http
+GET /api/wearables/mock/summary
+Authorization: Bearer <token>
+```
+
+### 设备同步（支持模拟回退）
+```http
+POST /api/wearables/sync
+Content-Type: application/json
+Authorization: Bearer <token>
+
+{
+  "useMock": false // true强制使用模拟数据
+}
+```
+
+### 健康摘要（支持模拟回退）
+```http
+GET /api/wearables/summary?days=7&useMock=false
+Authorization: Bearer <token>
+```
+
+## 📊 数据结构和字段
+
+### 健康摘要结构
+```typescript
+interface HealthSummary {
+  date: string;
+  lastSync: string;
+  overview: {
+    steps: number;
+    calories: number;
+    activeMinutes: number;
+    sleepHours: number;
+    heartRate: number;
+  };
+  trends: {
+    weeklySteps: number[];
+    weeklyCalories: number[];
+    weeklySleep: number[];
+    weeklyHeartRate: number[];
+  };
+  insights: HealthInsight[];
+  recommendations: HealthRecommendation[];
+}
+```
+
+### 健康洞察结构
+```typescript
+interface HealthInsight {
+  type: 'warning' | 'positive' | 'info';
+  category: 'activity' | 'sleep' | 'heart' | 'nutrition';
+  title: string;
+  message: string;
+  priority: 'low' | 'medium' | 'high';
+}
+```
+
+### 健康建议结构
+```typescript
+interface HealthRecommendation {
+  category: 'activity' | 'sleep' | 'nutrition';
+  title: string;
+  description: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+  estimatedTime: string;
+}
+```
+
+## 🎯 使用场景
+
+### 1. 开发和测试
+- 前端界面开发和测试
+- API接口验证
+- 数据展示逻辑测试
+- 用户体验优化
+
+### 2. 演示和展示
+- 产品功能演示
+- 客户需求展示
+- 投资方演示
+- 团队内部展示
+
+### 3. 用户教育
+- 功能使用指导
+- 数据解读示例
+- 健康建议展示
+- 系统能力展示
 
 ## 🔒 安全考虑
 
-1. **OAuth 2.0认证**: 使用标准OAuth流程
-2. **Token存储**: 安全存储在Firebase中
-3. **用户隔离**: 每个用户只能访问自己的数据
-4. **数据加密**: 敏感数据在传输和存储时加密
-5. **权限控制**: 最小权限原则，只请求必要的数据
+### 数据隔离
+- 模拟数据与真实数据完全隔离
+- 用户权限验证
+- 数据访问日志记录
 
-## 🚨 故障排除
+### 隐私保护
+- 模拟数据不包含个人信息
+- 数据生成算法随机化
+- 符合GDPR和隐私法规
+
+## 📈 性能优化
+
+### 数据生成
+- 缓存常用数据结构
+- 异步数据生成
+- 批量数据操作
+
+### 存储优化
+- 数据压缩存储
+- 定期清理过期数据
+- 索引优化查询
+
+## 🚧 故障排除
 
 ### 常见问题
 
-1. **Fitbit授权失败**
-   - 检查Client ID和Secret是否正确
-   - 确认Callback URL设置正确
-   - 检查网络连接
+#### 1. 模拟数据生成失败
+```bash
+# 检查后端服务状态
+curl http://localhost:8000/api/health
 
-2. **数据同步失败**
-   - 检查token是否过期
-   - 确认用户已授权必要的数据权限
-   - 查看后端日志获取详细错误信息
-
-3. **Apple Health数据解析错误**
-   - 确认CSV格式正确
-   - 检查文件编码（推荐UTF-8）
-   - 验证数据列名是否匹配
-
-### 调试技巧
-
-1. 启用详细日志：
-```javascript
-console.log('🔍 调试信息:', data);
+# 检查Firebase连接
+curl http://localhost:8000/api/wearables/status
 ```
 
-2. 检查网络请求：
-   - 使用浏览器开发者工具
-   - 查看Network标签页
-   - 检查请求和响应
+#### 2. 数据同步异常
+```bash
+# 查看后端日志
+tail -f backend/logs/app.log
 
-3. 验证数据格式：
-   - 使用Postman测试API
-   - 检查JSON响应结构
-   - 验证数据类型
+# 检查认证状态
+curl -H "Authorization: Bearer <token>" http://localhost:8000/api/wearables/status
+```
 
-## 🔮 未来功能
+#### 3. 前端显示异常
+```bash
+# 检查浏览器控制台
+# 检查网络请求状态
+# 验证API响应格式
+```
 
-1. **实时数据同步**: WebSocket连接实现实时更新
-2. **更多设备支持**: Garmin、Samsung、小米等
-3. **数据分析**: 趋势分析、健康建议
-4. **智能提醒**: 基于数据的个性化提醒
-5. **数据导出**: 支持多种格式的数据导出
+### 调试技巧
+1. **启用详细日志**: 设置环境变量 `DEBUG=wearables:*`
+2. **检查数据流**: 使用浏览器开发者工具监控API调用
+3. **验证数据结构**: 检查Firebase中的数据格式
+4. **测试API端点**: 使用Postman或curl测试接口
 
-## 📞 技术支持
+## 🔮 未来扩展
 
-如果遇到问题，请：
+### 计划功能
+1. **更多设备支持**: Garmin、Samsung Health等
+2. **数据可视化**: 图表和趋势分析
+3. **机器学习**: 基于历史数据的健康预测
+4. **社交功能**: 朋友间健康数据分享
 
-1. 检查本文档的故障排除部分
-2. 查看后端控制台日志
-3. 检查浏览器开发者工具
-4. 联系开发团队并提供详细错误信息
+### 技术改进
+1. **实时数据同步**: WebSocket连接
+2. **离线支持**: 本地数据缓存
+3. **多语言支持**: 国际化界面
+4. **移动端优化**: 响应式设计
+
+## 📚 相关文档
+
+- [API文档](./API_DOCUMENTATION.md)
+- [部署指南](./DEPLOYMENT_GUIDE.md)
+- [开发指南](./DEVELOPMENT_GUIDE.md)
+- [项目总结](./PROJECT_SUMMARY.md)
+
+## 🤝 贡献指南
+
+欢迎提交Issue和Pull Request来改进可穿戴设备集成功能！
+
+### 开发规范
+1. **代码风格**: 遵循项目现有的代码风格
+2. **测试覆盖**: 新功能需要包含测试
+3. **文档更新**: 及时更新相关文档
+4. **性能考虑**: 注意代码性能优化
 
 ---
 
-**注意**: 本功能需要用户明确授权才能访问健康数据。请确保遵守相关隐私法规和平台政策。
+**可穿戴设备集成指南** - 让健康数据更智能，让生活更健康！ 📱✨

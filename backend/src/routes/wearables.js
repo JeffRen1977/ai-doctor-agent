@@ -112,33 +112,101 @@ router.get('/status', authenticateToken, async (req, res) => {
   }
 });
 
-// Sync data from all connected devices
+// Generate mock data for demonstration
+router.post('/mock/generate', authenticateToken, async (req, res) => {
+  try {
+    const userEmail = req.user.email;
+    const { deviceType = 'fitbit' } = req.body;
+    
+    console.log(`🔄 Generating mock ${deviceType} data for user:`, userEmail);
+    
+    const mockData = await wearableService.getMockWearableData(userEmail, deviceType);
+    
+    res.json({
+      success: true,
+      message: `Mock ${deviceType} data generated successfully`,
+      data: mockData
+    });
+  } catch (error) {
+    console.error('Error generating mock data:', error);
+    res.status(500).json({ error: 'Failed to generate mock data' });
+  }
+});
+
+// Get comprehensive mock health summary
+router.get('/mock/summary', authenticateToken, async (req, res) => {
+  try {
+    const userEmail = req.user.email;
+    
+    console.log(`📊 Generating mock health summary for user:`, userEmail);
+    
+    const mockSummary = await wearableService.getMockHealthSummary(userEmail);
+    
+    res.json({
+      success: true,
+      message: 'Mock health summary generated successfully',
+      data: mockSummary
+    });
+  } catch (error) {
+    console.error('Error generating mock summary:', error);
+    res.status(500).json({ error: 'Failed to generate mock summary' });
+  }
+});
+
+// Sync data from all connected devices (with mock fallback)
 router.post('/sync', authenticateToken, async (req, res) => {
   try {
     const userEmail = req.user.email;
+    const { useMock = false } = req.body;
     const results = {};
     
-    // Try to sync Fitbit data
+    if (useMock) {
+      // Generate mock data for demonstration
+      console.log(`🔄 Generating mock data for user:`, userEmail);
+      
+      const fitbitMockData = await wearableService.getMockWearableData(userEmail, 'fitbit');
+      const appleMockData = await wearableService.getMockWearableData(userEmail, 'apple');
+      
+      results.fitbit = { success: true, data: fitbitMockData, isMock: true };
+      results.apple = { success: true, data: appleMockData, isMock: true };
+      
+      res.json({
+        success: true,
+        message: 'Mock device sync completed successfully',
+        data: results
+      });
+      return;
+    }
+    
+    // Try to sync real Fitbit data
     try {
       const fitbitData = await wearableService.getFitbitData(userEmail);
-      results.fitbit = { success: true, data: fitbitData };
+      results.fitbit = { success: true, data: fitbitData, isMock: false };
     } catch (fitbitError) {
-      results.fitbit = { success: false, error: fitbitError.message };
+      console.log('Fitbit sync failed, generating mock data instead');
+      const fitbitMockData = await wearableService.getMockWearableData(userEmail, 'fitbit');
+      results.fitbit = { success: true, data: fitbitMockData, isMock: true, fallback: true };
     }
     
     // Try to sync Apple Health data (if available)
     try {
       const appleData = await wearableService.getUserWearableData(userEmail, 'apple');
       if (appleData) {
-        results.apple = { success: true, data: appleData };
+        results.apple = { success: true, data: appleData, isMock: false };
+      } else {
+        // Generate mock Apple Health data
+        const appleMockData = await wearableService.getMockWearableData(userEmail, 'apple');
+        results.apple = { success: true, data: appleMockData, isMock: true, fallback: true };
       }
     } catch (appleError) {
-      results.apple = { success: false, error: appleError.message };
+      console.log('Apple Health sync failed, generating mock data instead');
+      const appleMockData = await wearableService.getMockWearableData(userEmail, 'apple');
+      results.apple = { success: true, data: appleMockData, isMock: true, fallback: true };
     }
     
     res.json({
       success: true,
-      message: 'Device sync completed',
+      message: 'Device sync completed (with mock fallback)',
       data: results
     });
   } catch (error) {
@@ -170,24 +238,53 @@ router.post('/apple/upload', authenticateToken, async (req, res) => {
   }
 });
 
-// Get user's wearable data summary
+// Get user's wearable data summary (with mock data support)
 router.get('/summary', authenticateToken, async (req, res) => {
   try {
     const userEmail = req.user.email;
-    const { days = 7 } = req.query;
+    const { days = 7, useMock = false } = req.query;
+    
+    if (useMock) {
+      // Generate mock summary
+      const mockSummary = await wearableService.getMockHealthSummary(userEmail);
+      
+      res.json({
+        success: true,
+        message: 'Mock wearable data summary retrieved successfully',
+        data: mockSummary,
+        isMock: true
+      });
+      return;
+    }
     
     // Get data from all connected devices
     const fitbitData = await wearableService.getUserWearableData(userEmail, 'fitbit');
     const appleData = await wearableService.getUserWearableData(userEmail, 'apple');
     
-    // Process and summarize the data
+    // If no real data available, generate mock data
+    if (!fitbitData && !appleData) {
+      console.log('No real data available, generating mock summary');
+      const mockSummary = await wearableService.getMockHealthSummary(userEmail);
+      
+      res.json({
+        success: true,
+        message: 'Mock wearable data summary retrieved successfully (no real data available)',
+        data: mockSummary,
+        isMock: true,
+        fallback: true
+      });
+      return;
+    }
+    
+    // Process and summarize the real data
     const summary = {
       totalSteps: 0,
       totalCalories: 0,
       averageHeartRate: 0,
       totalSleepHours: 0,
       lastSync: null,
-      devices: []
+      devices: [],
+      isMock: false
     };
     
     if (fitbitData) {
@@ -200,8 +297,8 @@ router.get('/summary', authenticateToken, async (req, res) => {
         summary.totalCalories += fitbitData.activity.summary.caloriesOut || 0;
       }
       
-      if (fitbitData.heartRate?.activitiesHeart) {
-        const heartRates = fitbitData.heartRate.activitiesHeart
+      if (fitbitData.heartRate?.activities_heart) {
+        const heartRates = fitbitData.heartRate.activities_heart
           .filter(hr => hr.value?.restingHeartRate)
           .map(hr => hr.value.restingHeartRate);
         
@@ -210,8 +307,8 @@ router.get('/summary', authenticateToken, async (req, res) => {
         }
       }
       
-      if (fitbitData.sleep?.summary) {
-        summary.totalSleepHours += (fitbitData.sleep.summary.totalMinutesAsleep || 0) / 60;
+      if (fitbitData.sleep?.sleep?.[0]?.duration) {
+        summary.totalSleepHours += fitbitData.sleep.sleep[0].duration / 60;
       }
     }
     
@@ -222,7 +319,18 @@ router.get('/summary', authenticateToken, async (req, res) => {
       }
       
       // Extract summary data from Apple Health
-      // This would depend on the structure of your exported data
+      if (appleData.activity) {
+        summary.totalSteps += appleData.activity.steps || 0;
+        summary.totalCalories += appleData.activity.calories || 0;
+      }
+      
+      if (appleData.heartRate) {
+        summary.averageHeartRate = appleData.heartRate.current || 0;
+      }
+      
+      if (appleData.sleep) {
+        summary.totalSleepHours += appleData.sleep.total / 60;
+      }
     }
     
     res.json({

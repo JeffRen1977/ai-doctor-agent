@@ -39,6 +39,7 @@ interface WearableSummary {
   totalSleepHours: number;
   lastSync: string | null;
   devices: string[];
+  isMock?: boolean;
 }
 
 const DeviceSyncPage: React.FC = () => {
@@ -52,6 +53,7 @@ const DeviceSyncPage: React.FC = () => {
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState<string>('');
   const [selectedDays, setSelectedDays] = useState(7);
+  const [isMockData, setIsMockData] = useState(false);
 
   // Check for authorization code in URL params
   useEffect(() => {
@@ -90,6 +92,7 @@ const DeviceSyncPage: React.FC = () => {
       const response = await wearablesAPI.getSummary(selectedDays);
       if (response.success) {
         setSummary(response.data);
+        setIsMockData(response.data.isMock || false);
       }
     } catch (err: any) {
       console.error('Error loading summary:', err);
@@ -135,6 +138,7 @@ const DeviceSyncPage: React.FC = () => {
       const response = await wearablesAPI.syncDevices();
       if (response.success) {
         setSuccess('Device sync completed successfully!');
+        setIsMockData(response.data.fitbit?.isMock || response.data.apple?.isMock || false);
         // Reload data
         await loadDeviceStatus();
         await loadSummary();
@@ -143,6 +147,47 @@ const DeviceSyncPage: React.FC = () => {
       setError('Failed to sync devices');
     } finally {
       setIsSyncing(false);
+    }
+  };
+
+  const generateMockData = async () => {
+    try {
+      setIsLoading(true);
+      setError('');
+      setSuccess('');
+      
+      // Generate mock data for both devices
+      await Promise.all([
+        wearablesAPI.generateMockData('fitbit'),
+        wearablesAPI.generateMockData('apple')
+      ]);
+      
+      setSuccess('Mock data generated successfully!');
+      setIsMockData(true);
+      
+      // Reload data
+      await loadDeviceStatus();
+      await loadSummary();
+    } catch (err: any) {
+      setError('Failed to generate mock data');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadMockSummary = async () => {
+    try {
+      setIsLoading(true);
+      const response = await wearablesAPI.getMockSummary();
+      if (response.success) {
+        setSummary(response.data);
+        setIsMockData(true);
+        setSuccess('Mock health summary loaded successfully!');
+      }
+    } catch (err: any) {
+      setError('Failed to load mock summary');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -315,6 +360,41 @@ const DeviceSyncPage: React.FC = () => {
           </div>
         </div>
 
+        {/* Mock Data Section */}
+        <div className="mock-data-section">
+          <h2>🎭 模拟数据演示</h2>
+          <p className="mock-description">
+            在没有真实设备连接的情况下，您可以生成模拟数据来体验功能
+          </p>
+          
+          <div className="mock-actions">
+            <button 
+              className="mock-generate-btn"
+              onClick={generateMockData}
+              disabled={isLoading}
+            >
+              {isLoading ? <RefreshCw size={20} className="spinning" /> : <Activity size={20} />}
+              生成模拟数据
+            </button>
+            
+            <button 
+              className="mock-summary-btn"
+              onClick={loadMockSummary}
+              disabled={isLoading}
+            >
+              <TrendingUp size={20} />
+              加载模拟摘要
+            </button>
+          </div>
+          
+          {isMockData && (
+            <div className="mock-indicator">
+              <CheckCircle size={16} />
+              <span>当前显示的是模拟数据</span>
+            </div>
+          )}
+        </div>
+
         {/* Data Summary */}
         {summary && (
           <div className="data-summary-section">
@@ -363,7 +443,7 @@ const DeviceSyncPage: React.FC = () => {
             
             <div className="summary-meta">
               <p>数据来源: {summary.devices.join(', ')}</p>
-              <p>最后同步: {formatTime(summary.lastSync)}</p>
+              <p>最后同步: {formatTime(summary.lastSync || null)}</p>
             </div>
           </div>
         )}

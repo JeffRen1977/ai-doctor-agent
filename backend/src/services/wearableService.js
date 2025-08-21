@@ -328,6 +328,392 @@ async function processAppleHealthData(userEmail, healthData) {
   }
 }
 
+/**
+ * Generate mock wearable data for demonstration purposes
+ * This simulates real device data when no actual devices are connected
+ */
+function generateMockWearableData(deviceType, userEmail) {
+  const today = new Date();
+  const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+  
+  if (deviceType === 'fitbit') {
+    return generateMockFitbitData(today, yesterday);
+  } else if (deviceType === 'apple') {
+    return generateMockAppleHealthData(today, yesterday);
+  } else {
+    return generateMockGenericData(today, yesterday);
+  }
+}
+
+/**
+ * Generate mock Fitbit data
+ */
+function generateMockFitbitData(today, yesterday) {
+  const baseSteps = Math.floor(Math.random() * 3000) + 5000; // 5000-8000 steps
+  const baseCalories = Math.floor(Math.random() * 500) + 1800; // 1800-2300 calories
+  
+  return {
+    date: today.toISOString().slice(0, 10),
+    source: 'fitbit',
+    lastSync: new Date().toISOString(),
+    activity: {
+      summary: {
+        steps: baseSteps,
+        caloriesOut: baseCalories,
+        activeMinutes: Math.floor(Math.random() * 60) + 30,
+        distance: (baseSteps * 0.0008).toFixed(2), // Approximate distance
+        floors: Math.floor(Math.random() * 10) + 2,
+        elevation: Math.floor(Math.random() * 100) + 50
+      },
+      goals: {
+        steps: 10000,
+        caloriesOut: 2500,
+        activeMinutes: 60,
+        distance: 8.0,
+        floors: 10
+      }
+    },
+    heartRate: {
+      activities_heart: [{
+        dateTime: today.toISOString().slice(0, 10),
+        value: {
+          customHeartRateZones: [],
+          heartRateZones: [
+            { name: 'Out of Range', min: 0, max: 90, minutes: Math.floor(Math.random() * 60) + 30 },
+            { name: 'Fat Burn', min: 90, max: 120, minutes: Math.floor(Math.random() * 120) + 60 },
+            { name: 'Cardio', min: 120, max: 150, minutes: Math.floor(Math.random() * 60) + 30 },
+            { name: 'Peak', min: 150, max: 220, minutes: Math.floor(Math.random() * 30) + 10 }
+          ]
+        }
+      }],
+      activities_heart_intraday: {
+        dataset: generateMockHeartRateData(today)
+      }
+    },
+    sleep: {
+      sleep: [{
+        dateOfSleep: today.toISOString().slice(0, 10),
+        duration: Math.floor(Math.random() * 120) + 360, // 6-8 hours in minutes
+        efficiency: Math.floor(Math.random() * 20) + 80, // 80-100%
+        endTime: new Date(today.getTime() - Math.floor(Math.random() * 8) * 60 * 60 * 1000).toISOString(),
+        startTime: new Date(today.getTime() - (Math.floor(Math.random() * 8) + 6) * 60 * 60 * 1000).toISOString(),
+        levels: {
+          summary: {
+            deep: Math.floor(Math.random() * 60) + 60, // 1-2 hours
+            light: Math.floor(Math.random() * 120) + 180, // 3-5 hours
+            rem: Math.floor(Math.random() * 60) + 60, // 1-2 hours
+            wake: Math.floor(Math.random() * 30) + 15 // 15-45 minutes
+          }
+        }
+      }]
+    },
+    body: {
+      weight: [{
+        date: today.toISOString().slice(0, 10),
+        value: (Math.random() * 20 + 60).toFixed(1), // 60-80 kg
+        time: today.toISOString()
+      }]
+    }
+  };
+}
+
+/**
+ * Generate mock Apple Health data
+ */
+function generateMockAppleHealthData(today, yesterday) {
+  const baseSteps = Math.floor(Math.random() * 3000) + 5000;
+  const baseCalories = Math.floor(Math.random() * 500) + 1800;
+  
+  return {
+    date: today.toISOString().slice(0, 10),
+    source: 'apple_health',
+    lastSync: new Date().toISOString(),
+    activity: {
+      steps: baseSteps,
+      calories: baseCalories,
+      distance: (baseSteps * 0.0008).toFixed(2),
+      activeEnergy: Math.floor(Math.random() * 300) + 400,
+      exerciseMinutes: Math.floor(Math.random() * 60) + 30,
+      standHours: Math.floor(Math.random() * 8) + 8
+    },
+    heartRate: {
+      current: Math.floor(Math.random() * 40) + 60, // 60-100 bpm
+      resting: Math.floor(Math.random() * 20) + 50, // 50-70 bpm
+      average: Math.floor(Math.random() * 30) + 65, // 65-95 bpm
+      max: Math.floor(Math.random() * 40) + 140, // 140-180 bpm
+      min: Math.floor(Math.random() * 20) + 45 // 45-65 bpm
+    },
+    sleep: {
+      total: Math.floor(Math.random() * 120) + 360, // 6-8 hours
+      deep: Math.floor(Math.random() * 60) + 60,
+      light: Math.floor(Math.random() * 120) + 180,
+      rem: Math.floor(Math.random() * 60) + 60,
+      core: Math.floor(Math.random() * 60) + 120,
+      efficiency: Math.floor(Math.random() * 20) + 80
+    },
+    body: {
+      weight: (Math.random() * 20 + 60).toFixed(1),
+      bodyFat: (Math.random() * 10 + 15).toFixed(1),
+      bmi: (Math.random() * 5 + 22).toFixed(1),
+      height: (Math.random() * 20 + 165).toFixed(1)
+    },
+    nutrition: {
+      water: Math.floor(Math.random() * 1000) + 1500, // 1.5-2.5L
+      fiber: Math.floor(Math.random() * 20) + 15, // 15-35g
+      protein: Math.floor(Math.random() * 50) + 80, // 80-130g
+      carbs: Math.floor(Math.random() * 100) + 200, // 200-300g
+      fat: Math.floor(Math.random() * 30) + 50 // 50-80g
+    }
+  };
+}
+
+/**
+ * Generate mock generic wearable data
+ */
+function generateMockGenericData(today, yesterday) {
+  return {
+    date: today.toISOString().slice(0, 10),
+    source: 'generic_device',
+    lastSync: new Date().toISOString(),
+    activity: {
+      steps: Math.floor(Math.random() * 5000) + 5000,
+      calories: Math.floor(Math.random() * 800) + 1500,
+      distance: (Math.random() * 5 + 3).toFixed(2),
+      activeMinutes: Math.floor(Math.random() * 90) + 30
+    },
+    heartRate: {
+      current: Math.floor(Math.random() * 50) + 60,
+      average: Math.floor(Math.random() * 40) + 65,
+      max: Math.floor(Math.random() * 50) + 140,
+      min: Math.floor(Math.random() * 30) + 45
+    },
+    sleep: {
+      total: Math.floor(Math.random() * 120) + 360,
+      quality: Math.floor(Math.random() * 30) + 70
+    }
+  };
+}
+
+/**
+ * Generate mock heart rate data points throughout the day
+ */
+function generateMockHeartRateData(date) {
+  const data = [];
+  const baseHeartRate = 65;
+  
+  // Generate 24 hours of heart rate data
+  for (let hour = 0; hour < 24; hour++) {
+    for (let minute = 0; minute < 60; minute += 15) { // Every 15 minutes
+      const time = new Date(date);
+      time.setHours(hour, minute, 0, 0);
+      
+      // Simulate different heart rates throughout the day
+      let heartRate;
+      if (hour >= 6 && hour <= 8) {
+        // Morning - slightly elevated
+        heartRate = baseHeartRate + Math.floor(Math.random() * 20) + 10;
+      } else if (hour >= 12 && hour <= 14) {
+        // Lunch time - moderate
+        heartRate = baseHeartRate + Math.floor(Math.random() * 15) + 5;
+      } else if (hour >= 18 && hour <= 20) {
+        // Evening exercise - higher
+        heartRate = baseHeartRate + Math.floor(Math.random() * 30) + 20;
+      } else if (hour >= 22 || hour <= 5) {
+        // Night - lower
+        heartRate = baseHeartRate + Math.floor(Math.random() * 10) - 5;
+      } else {
+        // Normal hours
+        heartRate = baseHeartRate + Math.floor(Math.random() * 15);
+      }
+      
+      data.push({
+        time: time.toISOString().slice(11, 16), // HH:MM format
+        value: Math.max(40, Math.min(180, heartRate)) // Clamp between 40-180
+      });
+    }
+  }
+  
+  return data;
+}
+
+/**
+ * Get mock wearable data for a user
+ * This function provides mock data when no real device is connected
+ */
+async function getMockWearableData(userEmail, deviceType = 'fitbit') {
+  try {
+    console.log(`📱 Generating mock ${deviceType} data for user:`, userEmail);
+    
+    const mockData = generateMockWearableData(deviceType, userEmail);
+    
+    // Store the mock data in Firebase for consistency
+    await storeWearableData(userEmail, deviceType, mockData);
+    
+    console.log(`✅ Mock ${deviceType} data generated and stored for user:`, userEmail);
+    return mockData;
+    
+  } catch (error) {
+    console.error(`❌ Error generating mock ${deviceType} data:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Get comprehensive health summary from mock data
+ */
+async function getMockHealthSummary(userEmail) {
+  try {
+    console.log(`📊 Generating mock health summary for user:`, userEmail);
+    
+    const fitbitData = generateMockWearableData('fitbit', userEmail);
+    const appleData = generateMockWearableData('apple', userEmail);
+    
+    const summary = {
+      date: new Date().toISOString().slice(0, 10),
+      lastSync: new Date().toISOString(),
+      overview: {
+        steps: Math.max(fitbitData.activity.summary.steps, appleData.activity.steps),
+        calories: Math.max(fitbitData.activity.summary.caloriesOut, appleData.activity.calories),
+        activeMinutes: Math.max(fitbitData.activity.summary.activeMinutes, appleData.activity.exerciseMinutes),
+        sleepHours: (fitbitData.sleep.sleep[0].duration / 60).toFixed(1),
+        heartRate: appleData.heartRate.current
+      },
+      trends: {
+        weeklySteps: generateWeeklyTrend(7000, 12000),
+        weeklyCalories: generateWeeklyTrend(1800, 2500),
+        weeklySleep: generateWeeklyTrend(6, 8),
+        weeklyHeartRate: generateWeeklyTrend(60, 100)
+      },
+      insights: generateHealthInsights(fitbitData, appleData),
+      recommendations: generateHealthRecommendations(fitbitData, appleData)
+    };
+    
+    console.log(`✅ Mock health summary generated for user:`, userEmail);
+    return summary;
+    
+  } catch (error) {
+    console.error(`❌ Error generating mock health summary:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Generate weekly trend data
+ */
+function generateWeeklyTrend(min, max) {
+  const trends = [];
+  for (let i = 0; i < 7; i++) {
+    trends.push(Math.floor(Math.random() * (max - min)) + min);
+  }
+  return trends;
+}
+
+/**
+ * Generate health insights based on mock data
+ */
+function generateHealthInsights(fitbitData, appleData) {
+  const insights = [];
+  
+  // Steps analysis
+  const steps = Math.max(fitbitData.activity.summary.steps, appleData.activity.steps);
+  if (steps < 5000) {
+    insights.push({
+      type: 'warning',
+      category: 'activity',
+      title: 'Low Activity Level',
+      message: 'Your daily steps are below the recommended 10,000 steps. Consider taking more walks throughout the day.',
+      priority: 'medium'
+    });
+  } else if (steps > 12000) {
+    insights.push({
+      type: 'positive',
+      category: 'activity',
+      title: 'Excellent Activity Level',
+      message: 'Great job! You\'ve exceeded the daily step goal. Keep up the good work!',
+      priority: 'low'
+    });
+  }
+  
+  // Sleep analysis
+  const sleepHours = fitbitData.sleep.sleep[0].duration / 60;
+  if (sleepHours < 6) {
+    insights.push({
+      type: 'warning',
+      category: 'sleep',
+      title: 'Insufficient Sleep',
+      message: 'You\'re getting less than the recommended 7-9 hours of sleep. Consider improving your sleep hygiene.',
+      priority: 'high'
+    });
+  } else if (sleepHours > 9) {
+    insights.push({
+      type: 'info',
+      category: 'sleep',
+      title: 'Adequate Sleep',
+      message: 'You\'re getting sufficient sleep. This is great for your overall health and recovery.',
+      priority: 'low'
+    });
+  }
+  
+  // Heart rate analysis
+  const heartRate = appleData.heartRate.current;
+  if (heartRate > 100) {
+    insights.push({
+      type: 'warning',
+      category: 'heart',
+      title: 'Elevated Heart Rate',
+      message: 'Your current heart rate is elevated. This could be due to stress, exercise, or other factors.',
+      priority: 'medium'
+    });
+  }
+  
+  return insights;
+}
+
+/**
+ * Generate health recommendations based on mock data
+ */
+function generateHealthRecommendations(fitbitData, appleData) {
+  const recommendations = [];
+  
+  // Activity recommendations
+  const steps = Math.max(fitbitData.activity.summary.steps, appleData.activity.steps);
+  if (steps < 5000) {
+    recommendations.push({
+      category: 'activity',
+      title: 'Increase Daily Steps',
+      description: 'Try to reach at least 10,000 steps daily. Start with small goals like taking the stairs or walking during breaks.',
+      difficulty: 'easy',
+      estimatedTime: '30 minutes'
+    });
+  }
+  
+  // Sleep recommendations
+  const sleepHours = fitbitData.sleep.sleep[0].duration / 60;
+  if (sleepHours < 7) {
+    recommendations.push({
+      category: 'sleep',
+      title: 'Improve Sleep Quality',
+      description: 'Aim for 7-9 hours of sleep. Create a relaxing bedtime routine and avoid screens before bed.',
+      difficulty: 'medium',
+      estimatedTime: '1 hour'
+    });
+  }
+  
+  // Nutrition recommendations
+  const water = appleData.nutrition.water;
+  if (water < 2000) {
+    recommendations.push({
+      category: 'nutrition',
+      title: 'Increase Water Intake',
+      description: 'Drink at least 2 liters of water daily. Carry a water bottle and set reminders.',
+      difficulty: 'easy',
+      estimatedTime: 'Throughout the day'
+    });
+  }
+  
+  return recommendations;
+}
+
 module.exports = {
   getFitbitRedirectUri,
   getAppleHealthKitRedirectUri,
@@ -336,5 +722,9 @@ module.exports = {
   getUserWearableData,
   processAppleHealthData,
   storeUserWearableTokens,
-  getUserWearableTokens
+  getUserWearableTokens,
+  // New mock data functions
+  getMockWearableData,
+  getMockHealthSummary,
+  generateMockWearableData
 };
