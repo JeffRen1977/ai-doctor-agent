@@ -15,7 +15,7 @@ const messageSchema = Joi.object({
 // 模拟聊天历史存储
 const mockChatHistory = new Map();
 
-// 保存聊天消息到Firebase - 为每个用户创建一个文档
+// 保存聊天消息到Firebase - 使用chatHistory集合，文档ID为用户邮箱
 async function saveChatMessage(userEmail, message, sender) {
   try {
     if (isMock) {
@@ -37,11 +37,11 @@ async function saveChatMessage(userEmail, message, sender) {
       return chatId;
     }
 
-    console.log('💾 保存聊天消息:', { userEmail, sender, messageLength: message.length });
+    console.log('💾 保存聊天消息到chatHistory集合:', { userEmail, sender, messageLength: message.length });
     
-    // 创建或获取用户的聊天文档
-    const userChatDocRef = doc(db, 'userChats', userEmail);
-    const userChatDoc = await getDoc(userChatDocRef);
+    // 使用chatHistory集合，文档ID为用户邮箱
+    const chatHistoryDocRef = doc(db, 'chatHistory', userEmail);
+    const chatHistoryDoc = await getDoc(chatHistoryDocRef);
     
     const chatMessage = {
       id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -51,22 +51,27 @@ async function saveChatMessage(userEmail, message, sender) {
       createdAt: new Date()
     };
     
-    if (!userChatDoc.exists()) {
-      // 如果用户聊天文档不存在，创建一个新的
-      await setDoc(userChatDocRef, {
+    if (!chatHistoryDoc.exists()) {
+      // 如果用户聊天历史文档不存在，创建一个新的
+      await setDoc(chatHistoryDocRef, {
         userEmail,
         messages: [chatMessage],
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
+        totalMessages: 1
       });
-      console.log('✅ 创建新用户聊天文档:', userEmail);
+      console.log('✅ 创建新用户聊天历史文档:', userEmail);
     } else {
-      // 如果用户聊天文档存在，添加新消息到messages数组
-      await updateDoc(userChatDocRef, {
+      // 如果用户聊天历史文档存在，添加新消息到messages数组
+      const currentData = chatHistoryDoc.data();
+      const currentMessages = currentData.messages || [];
+      
+      await updateDoc(chatHistoryDocRef, {
         messages: arrayUnion(chatMessage),
-        updatedAt: new Date()
+        updatedAt: new Date(),
+        totalMessages: currentMessages.length + 1
       });
-      console.log('✅ 更新用户聊天文档:', userEmail);
+      console.log('✅ 更新用户聊天历史文档:', userEmail);
     }
     
     return chatMessage.id;
@@ -76,7 +81,7 @@ async function saveChatMessage(userEmail, message, sender) {
   }
 }
 
-// 获取用户聊天历史 - 从用户文档中获取
+// 获取用户聊天历史 - 从chatHistory集合获取
 async function getChatHistory(userEmail, limitCount = 50) {
   try {
     if (isMock) {
@@ -85,19 +90,19 @@ async function getChatHistory(userEmail, limitCount = 50) {
       return history.slice(-limitCount);
     }
 
-    console.log('🔍 查询用户聊天历史:', userEmail);
+    console.log('🔍 从chatHistory集合查询用户聊天历史:', userEmail);
     
-    // 获取用户的聊天文档
-    const userChatDocRef = doc(db, 'userChats', userEmail);
-    const userChatDoc = await getDoc(userChatDocRef);
+    // 从chatHistory集合获取用户的聊天历史文档
+    const chatHistoryDocRef = doc(db, 'chatHistory', userEmail);
+    const chatHistoryDoc = await getDoc(chatHistoryDocRef);
     
-    if (!userChatDoc.exists()) {
-      console.log('📊 用户聊天文档不存在，返回空历史');
+    if (!chatHistoryDoc.exists()) {
+      console.log('📊 用户聊天历史文档不存在，返回空历史');
       return [];
     }
     
-    const userChatData = userChatDoc.data();
-    const messages = userChatData.messages || [];
+    const chatHistoryData = chatHistoryDoc.data();
+    const messages = chatHistoryData.messages || [];
     
     // 按时间排序并限制数量
     const sortedMessages = messages
@@ -217,13 +222,14 @@ router.delete('/history', authenticateToken, async (req, res) => {
       return res.json({ message: '聊天历史已清除' });
     }
     
-    // 删除用户的聊天文档
-    const userChatDocRef = doc(db, 'userChats', userEmail);
-    await setDoc(userChatDocRef, {
+    // 清除用户的聊天历史文档（重置为空数组）
+    const chatHistoryDocRef = doc(db, 'chatHistory', userEmail);
+    await setDoc(chatHistoryDocRef, {
       userEmail,
       messages: [],
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
+      totalMessages: 0
     });
     
     res.json({ message: '聊天历史已清除' });
@@ -239,12 +245,13 @@ router.get('/test', authenticateToken, async (req, res) => {
     const userEmail = req.user.email;
     console.log('🔍 测试Firestore连接，用户邮箱:', userEmail);
     
-    // 尝试创建一个测试文档
-    const testRef = doc(collection(db, 'test'));
+    // 尝试创建一个测试文档到chatHistory集合
+    const testRef = doc(collection(db, 'chatHistory'));
     await setDoc(testRef, {
       userEmail,
       test: true,
-      timestamp: new Date()
+      timestamp: new Date(),
+      testType: 'connection-test'
     });
     
     // 尝试读取测试文档
@@ -280,6 +287,145 @@ router.get('/suggestions', optionalAuth, (req, res) => {
   ];
   
   res.json(suggestions);
+});
+
+// 获取用户聊天统计信息
+router.get('/stats', authenticateToken, async (req, res) => {
+  try {
+    const userEmail = req.user.email;
+    console.log('📊 获取用户聊天统计信息:', userEmail);
+    
+    if (isMock) {
+      const history = mockChatHistory.get(userEmail) || [];
+      const userMessages = history.filter(msg => msg.sender === 'user').length;
+      const aiMessages = history.filter(msg => msg.sender === 'assistant').length;
+      
+      return res.json({
+        totalMessages: history.length,
+        userMessages,
+        aiMessages,
+        lastActivity: history.length > 0 ? history[history.length - 1].timestamp : null
+      });
+    }
+    
+    // 从chatHistory集合获取用户统计信息
+    const chatHistoryDocRef = doc(db, 'chatHistory', userEmail);
+    const chatHistoryDoc = await getDoc(chatHistoryDocRef);
+    
+    if (!chatHistoryDoc.exists()) {
+      return res.json({
+        totalMessages: 0,
+        userMessages: 0,
+        aiMessages: 0,
+        lastActivity: null
+      });
+    }
+    
+    const chatHistoryData = chatHistoryDoc.data();
+    const messages = chatHistoryData.messages || [];
+    const userMessages = messages.filter(msg => msg.sender === 'user').length;
+    const aiMessages = messages.filter(msg => msg.sender === 'assistant').length;
+    
+    res.json({
+      totalMessages: messages.length,
+      userMessages,
+      aiMessages,
+      lastActivity: messages.length > 0 ? messages[messages.length - 1].timestamp : null,
+      createdAt: chatHistoryData.createdAt,
+      updatedAt: chatHistoryData.updatedAt
+    });
+  } catch (error) {
+    console.error('❌ 获取聊天统计信息错误:', error);
+    res.status(500).json({ error: '服务器内部错误' });
+  }
+});
+
+// 获取所有用户的聊天历史（管理员功能）
+router.get('/admin/all-users', authenticateToken, async (req, res) => {
+  try {
+    // 这里可以添加管理员权限检查
+    // if (!req.user.isAdmin) {
+    //   return res.status(403).json({ error: '需要管理员权限' });
+    // }
+    
+    console.log('🔍 管理员获取所有用户聊天历史');
+    
+    if (isMock) {
+      const allUsers = Array.from(mockChatHistory.keys()).map(email => ({
+        email,
+        messageCount: mockChatHistory.get(email).length,
+        lastActivity: mockChatHistory.get(email).length > 0 ? 
+          mockChatHistory.get(email)[mockChatHistory.get(email).length - 1].timestamp : null
+      }));
+      
+      return res.json(allUsers);
+    }
+    
+    // 从chatHistory集合获取所有用户信息
+    const chatHistoryCollection = collection(db, 'chatHistory');
+    const chatHistorySnapshot = await getDocs(chatHistoryCollection);
+    
+    const allUsers = chatHistorySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        email: doc.id,
+        messageCount: data.messages ? data.messages.length : 0,
+        lastActivity: data.messages && data.messages.length > 0 ? 
+          data.messages[data.messages.length - 1].timestamp : null,
+        createdAt: data.createdAt,
+        updatedAt: data.updatedAt
+      };
+    });
+    
+    // 按最后活动时间排序
+    allUsers.sort((a, b) => {
+      if (!a.lastActivity) return 1;
+      if (!b.lastActivity) return -1;
+      const timeA = a.lastActivity.toDate ? a.lastActivity.toDate() : new Date(a.lastActivity);
+      const timeB = b.lastActivity.toDate ? b.lastActivity.toDate() : new Date(b.lastActivity);
+      return timeB - timeA;
+    });
+    
+    res.json(allUsers);
+  } catch (error) {
+    console.error('❌ 获取所有用户聊天历史错误:', error);
+    res.status(500).json({ error: '服务器内部错误' });
+  }
+});
+
+// 删除特定用户的聊天历史（管理员功能）
+router.delete('/admin/user/:email', authenticateToken, async (req, res) => {
+  try {
+    const { email } = req.params;
+    // 这里可以添加管理员权限检查
+    // if (!req.user.isAdmin) {
+    //   return res.status(403).json({ error: '需要管理员权限' });
+    // }
+    
+    console.log('🗑️  管理员删除用户聊天历史:', email);
+    
+    if (isMock) {
+      mockChatHistory.delete(email);
+      return res.json({ message: `用户 ${email} 的聊天历史已删除` });
+    }
+    
+    // 删除用户的聊天历史文档
+    const chatHistoryDocRef = doc(db, 'chatHistory', email);
+    await setDoc(chatHistoryDocRef, {
+      userEmail: email,
+      messages: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      totalMessages: 0,
+      deletedAt: new Date(),
+      deletedBy: req.user.email
+    });
+    
+    res.json({ message: `用户 ${email} 的聊天历史已删除` });
+  } catch (error) {
+    console.error('❌ 删除用户聊天历史错误:', error);
+    res.status(500).json({ error: '服务器内部错误' });
+  }
 });
 
 module.exports = router; 
