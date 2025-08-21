@@ -13,6 +13,8 @@ import {
   Heart,
   Star
 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { dietAnalysisAPI } from '../services/api';
 import { useLanguageStore } from '@/stores/languageStore';
 import { getTranslation } from '@/locales';
@@ -437,7 +439,7 @@ const DietAnalysisPage: React.FC = () => {
               <div className="ai-analysis">
                 <h4>🤖 AI 分析结果</h4>
                 <div className="ai-analysis-content">
-                  <p>{analysisResult.aiAnalysis}</p>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{analysisResult.aiAnalysis}</ReactMarkdown>
                 </div>
               </div>
             )}
