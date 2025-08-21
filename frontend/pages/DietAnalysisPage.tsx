@@ -31,15 +31,26 @@ interface FoodItem {
 }
 
 interface DietAnalysis {
-  totalCalories: number;
-  totalCarbs: number;
-  totalProtein: number;
-  totalFat: number;
-  totalFiber: number;
-  averageGlycemicIndex: number;
-  estimatedBloodSugarImpact: string;
-  recommendations: string[];
-  diabetesRisk: 'low' | 'medium' | 'high';
+  // New structure from backend
+  imagePath?: string;
+  originalFilename?: string;
+  imageSize?: number;
+  aiAnalysis?: string;
+  recognizedFoods?: any[];
+  analysisType?: string;
+  userEmail?: string;
+  analysisTimestamp?: string;
+  
+  // Legacy structure (for backward compatibility)
+  totalCalories?: number;
+  totalCarbs?: number;
+  totalProtein?: number;
+  totalFat?: number;
+  totalFiber?: number;
+  averageGlycemicIndex?: number;
+  estimatedBloodSugarImpact?: string;
+  recommendations?: string[];
+  diabetesRisk?: 'low' | 'medium' | 'high';
 }
 
 const DietAnalysisPage: React.FC = () => {
@@ -179,15 +190,55 @@ const DietAnalysisPage: React.FC = () => {
       // Call backend API for diet analysis
       const response = await dietAnalysisAPI.analyzeDiet(selectedImage);
       
+      console.log('Diet analysis response:', response);
+      
       if (response.success) {
-        setRecognizedFoods(response.data.recognizedFoods);
-        setAnalysisResult(response.data.analysis);
+        // Handle the new data structure
+        const analysisData = response.data;
+        
+        // Set the analysis result with the new structure
+        setAnalysisResult({
+          imagePath: analysisData.imagePath,
+          originalFilename: analysisData.originalFilename,
+          imageSize: analysisData.imageSize,
+          aiAnalysis: analysisData.aiAnalysis,
+          recognizedFoods: analysisData.recognizedFoods || [],
+          analysisType: analysisData.analysisType || 'food-image-analysis',
+          userEmail: analysisData.userEmail,
+          analysisTimestamp: analysisData.analysisTimestamp || new Date().toISOString(),
+          
+          // Legacy fields (if available)
+          totalCalories: analysisData.totalCalories,
+          totalCarbs: analysisData.totalCarbs,
+          totalProtein: analysisData.totalProtein,
+          totalFat: analysisData.totalFat,
+          totalFiber: analysisData.totalFiber,
+          averageGlycemicIndex: analysisData.averageGlycemicIndex,
+          estimatedBloodSugarImpact: analysisData.estimatedBloodSugarImpact,
+          recommendations: analysisData.recommendations,
+          diabetesRisk: analysisData.diabetesRisk
+        });
+        
+        // Set recognized foods if available
+        if (analysisData.recognizedFoods && Array.isArray(analysisData.recognizedFoods)) {
+          setRecognizedFoods(analysisData.recognizedFoods);
+        }
+        
+        setError(''); // Clear any previous errors
       } else {
         setError(response.message || t('dietAnalysis.errors.analysisFailed'));
       }
     } catch (err: any) {
       console.error('Diet analysis error:', err);
-      setError(err.response?.data?.message || t('dietAnalysis.errors.analysisError'));
+      
+      // Handle specific error types
+      if (err.response?.status === 429) {
+        setError('AI服务配额已用完，请稍后再试或升级您的账户');
+      } else if (err.response?.data?.error) {
+        setError(err.response.data.error);
+      } else {
+        setError(t('dietAnalysis.errors.analysisError'));
+      }
     } finally {
       setIsAnalyzing(false);
     }
@@ -350,62 +401,118 @@ const DietAnalysisPage: React.FC = () => {
           <div className="analysis-results">
             <h3>{t('dietAnalysis.results.title')}</h3>
             
-            <div className="nutrition-summary">
-              <div className="nutrition-card">
-                <Flame size={24} />
-                <div>
-                  <h4>{t('dietAnalysis.nutrition.totalCalories')}</h4>
-                  <p>{analysisResult.totalCalories} kcal</p>
+            {/* AI Analysis Results */}
+            {analysisResult.aiAnalysis && (
+              <div className="ai-analysis">
+                <h4>🤖 AI 分析结果</h4>
+                <div className="ai-analysis-content">
+                  <p>{analysisResult.aiAnalysis}</p>
                 </div>
               </div>
-              <div className="nutrition-card">
-                <Droplets size={24} />
-                <div>
-                  <h4>{t('dietAnalysis.nutrition.totalCarbs')}</h4>
-                  <p>{analysisResult.totalCarbs}g</p>
+            )}
+            
+            {/* Legacy Nutrition Summary - Only show if data exists */}
+            {analysisResult.totalCalories && (
+              <div className="nutrition-summary">
+                <h4>📊 营养分析</h4>
+                <div className="nutrition-grid">
+                  {analysisResult.totalCalories && (
+                    <div className="nutrition-card">
+                      <Flame size={24} />
+                      <div>
+                        <h4>{t('dietAnalysis.nutrition.totalCalories')}</h4>
+                        <p>{analysisResult.totalCalories} kcal</p>
+                      </div>
+                    </div>
+                  )}
+                  {analysisResult.totalCarbs && (
+                    <div className="nutrition-card">
+                      <Droplets size={24} />
+                      <div>
+                        <h4>{t('dietAnalysis.nutrition.totalCarbs')}</h4>
+                        <p>{analysisResult.totalCarbs}g</p>
+                      </div>
+                    </div>
+                  )}
+                  {analysisResult.totalProtein && (
+                    <div className="nutrition-card">
+                      <Heart size={24} />
+                      <div>
+                        <h4>{t('dietAnalysis.nutrition.totalProtein')}</h4>
+                        <p>{analysisResult.totalProtein}g</p>
+                      </div>
+                    </div>
+                  )}
+                  {analysisResult.averageGlycemicIndex && (
+                    <div className="nutrition-card">
+                      <Clock size={24} />
+                      <div>
+                        <h4>{t('dietAnalysis.nutrition.averageGlycemicIndex')}</h4>
+                        <p>{analysisResult.averageGlycemicIndex}</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
-              <div className="nutrition-card">
-                <Heart size={24} />
-                <div>
-                  <h4>{t('dietAnalysis.nutrition.totalProtein')}</h4>
-                  <p>{analysisResult.totalProtein}g</p>
-                </div>
-              </div>
-              <div className="nutrition-card">
-                <Clock size={24} />
-                <div>
-                  <h4>{t('dietAnalysis.nutrition.averageGlycemicIndex')}</h4>
-                  <p>{analysisResult.averageGlycemicIndex}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="diabetes-analysis">
-              <h3>{t('dietAnalysis.diabetes.title')}</h3>
-              
-              <div className="risk-assessment">
-                <div className="risk-indicator" style={{ backgroundColor: getRiskColor(analysisResult.diabetesRisk) }}>
-                  <CheckCircle size={20} />
-                  <span>{t('dietAnalysis.diabetes.riskLevel')}: {getRiskText(analysisResult.diabetesRisk)}</span>
-                </div>
+            )}
+            
+            {/* Diabetes Analysis - Only show if data exists */}
+            {analysisResult.diabetesRisk && (
+              <div className="diabetes-analysis">
+                <h3>{t('dietAnalysis.diabetes.title')}</h3>
                 
-                <div className="blood-sugar-impact">
-                  <h4>{t('dietAnalysis.diabetes.bloodSugarImpact')}</h4>
-                  <p>{analysisResult.estimatedBloodSugarImpact}</p>
+                <div className="risk-assessment">
+                  <div className="risk-indicator" style={{ backgroundColor: getRiskColor(analysisResult.diabetesRisk) }}>
+                    <CheckCircle size={20} />
+                    <span>{t('dietAnalysis.diabetes.riskLevel')}: {getRiskText(analysisResult.diabetesRisk)}</span>
+                  </div>
+                  
+                  {analysisResult.estimatedBloodSugarImpact && (
+                    <div className="blood-sugar-impact">
+                      <h4>{t('dietAnalysis.diabetes.bloodSugarImpact')}</h4>
+                      <p>{analysisResult.estimatedBloodSugarImpact}</p>
+                    </div>
+                  )}
                 </div>
-              </div>
 
-              <div className="recommendations">
-                <h4>{t('dietAnalysis.diabetes.healthAdvice')}</h4>
-                <ul>
-                  {analysisResult.recommendations.map((rec, index) => (
-                    <li key={index}>
-                      <CheckCircle size={16} />
-                      {rec}
-                    </li>
-                  ))}
-                </ul>
+                {analysisResult.recommendations && analysisResult.recommendations.length > 0 && (
+                  <div className="recommendations">
+                    <h4>{t('dietAnalysis.diabetes.healthAdvice')}</h4>
+                    <ul>
+                      {analysisResult.recommendations.map((rec, index) => (
+                        <li key={index}>
+                          <CheckCircle size={16} />
+                          {rec}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* Analysis Metadata */}
+            <div className="analysis-metadata">
+              <h4>📋 分析信息</h4>
+              <div className="metadata-grid">
+                {analysisResult.analysisTimestamp && (
+                  <div className="metadata-item">
+                    <span className="label">分析时间:</span>
+                    <span className="value">{new Date(analysisResult.analysisTimestamp).toLocaleString()}</span>
+                  </div>
+                )}
+                {analysisResult.analysisType && (
+                  <div className="metadata-item">
+                    <span className="label">分析类型:</span>
+                    <span className="value">{analysisResult.analysisType}</span>
+                  </div>
+                )}
+                {analysisResult.imageSize && (
+                  <div className="metadata-item">
+                    <span className="label">图片大小:</span>
+                    <span className="value">{(analysisResult.imageSize / 1024).toFixed(1)} KB</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
