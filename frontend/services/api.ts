@@ -70,4 +70,49 @@ export const getFhirPatientRecords = async (patientId: string) => {
   // Using the existing 'api' axios instance
   const response = await api.get(`/health-records/fhir/${patientId}`);
   return response.data;
+};
+
+// Wearable devices API
+export const wearablesAPI = {
+  // Get device connection status
+  getStatus: async () => {
+    const response = await api.get('/wearables/status');
+    return response.data;
+  },
+
+  // Start Fitbit authorization
+  startFitbitAuth: async () => {
+    const response = await api.get('/wearables/fitbit/auth');
+    return response.data;
+  },
+
+  // Complete Fitbit authentication
+  completeFitbitAuth: async (code: string) => {
+    const response = await api.post('/wearables/fitbit/complete-auth', { code });
+    return response.data;
+  },
+
+  // Get Fitbit data
+  getFitbitData: async () => {
+    const response = await api.get('/wearables/fitbit/data');
+    return response.data;
+  },
+
+  // Sync all connected devices
+  syncDevices: async () => {
+    const response = await api.post('/wearables/sync');
+    return response.data;
+  },
+
+  // Upload Apple Health data
+  uploadAppleHealth: async (healthData: any) => {
+    const response = await api.post('/wearables/apple/upload', { healthData });
+    return response.data;
+  },
+
+  // Get wearable data summary
+  getSummary: async (days: number = 7) => {
+    const response = await api.get(`/wearables/summary?days=${days}`);
+    return response.data;
+  }
 }; 
