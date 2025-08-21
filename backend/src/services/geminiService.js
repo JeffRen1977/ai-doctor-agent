@@ -4,8 +4,16 @@ class GeminiService {
   constructor() {
     // 初始化Gemini AI
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    this.model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    
+    // 文本任务使用flash模型（更快、更经济）
+    this.textModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    
+    // 图片任务使用pro模型（更好的图片理解能力）
+    this.imageModel = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
+    
     console.log('✅ Gemini AI 服务初始化成功');
+    console.log('📝 文本模型: gemini-1.5-flash');
+    console.log('🖼️  图片模型: gemini-1.5-pro');
   }
 
   // 健康咨询对话
@@ -26,7 +34,7 @@ class GeminiService {
             请用中文回答，保持专业、友好和易懂。
             `;
 
-      const result = await this.model.generateContent(prompt);
+      const result = await this.textModel.generateContent(prompt);
       const response = await result.response;
       return {
         success: true,
@@ -60,7 +68,7 @@ class GeminiService {
             请用中文回答，保持专业和详细。
             `;
 
-      const result = await this.model.generateContent(prompt);
+      const result = await this.textModel.generateContent(prompt);
       const response = await result.response;
       return {
         success: true,
@@ -75,10 +83,10 @@ class GeminiService {
     }
   }
 
-  // 图片分析（支持饮食分析）
+  // 图片分析（支持饮食分析）- 使用专门的图片模型
   async analyzeImageWithGemini(base64Image, prompt) {
     try {
-      console.log('🤖 开始使用Gemini AI分析图片');
+      console.log('🤖 开始使用Gemini AI Pro分析图片');
       
       // 创建图片数据
       const imageData = {
@@ -88,11 +96,11 @@ class GeminiService {
         }
       };
 
-      // 生成内容（图片 + 提示词）
-      const result = await this.model.generateContent([prompt, imageData]);
+      // 使用专门的图片模型生成内容（图片 + 提示词）
+      const result = await this.imageModel.generateContent([prompt, imageData]);
       const response = await result.response;
       
-      console.log('✅ Gemini AI图片分析完成');
+      console.log('✅ Gemini AI Pro图片分析完成');
       
       return {
         success: true,
@@ -100,7 +108,7 @@ class GeminiService {
         recognizedFoods: [] // 可以在这里解析识别出的食物
       };
     } catch (error) {
-      console.error('❌ Gemini AI图片分析错误:', error);
+      console.error('❌ Gemini AI Pro图片分析错误:', error);
       return {
         success: false,
         error: error.message
@@ -126,7 +134,7 @@ class GeminiService {
             请用中文回答，保持专业和详细。
             `;
 
-      const result = await this.model.generateContent(prompt);
+      const result = await this.textModel.generateContent(prompt);
       const response = await result.response;
       return {
         success: true,
@@ -161,7 +169,7 @@ class GeminiService {
             注意：这仅供参考，不能替代专业医疗诊断。
             `;
 
-      const result = await this.model.generateContent(prompt);
+      const result = await this.textModel.generateContent(prompt);
       const response = await result.response;
       return {
         success: true,
@@ -195,7 +203,7 @@ class GeminiService {
             注意：这仅供参考，请咨询专业医生或药剂师。
             `;
 
-      const result = await this.model.generateContent(prompt);
+      const result = await this.textModel.generateContent(prompt);
       const response = await result.response;
       return {
         success: true,
