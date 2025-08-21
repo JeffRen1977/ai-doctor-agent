@@ -81,7 +81,7 @@ const DeviceSyncPage: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Error loading device status:', err);
-      setError('Failed to load device status');
+      setError(t('deviceSync.errors.loadStatusFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -91,8 +91,18 @@ const DeviceSyncPage: React.FC = () => {
     try {
       const response = await wearablesAPI.getSummary(selectedDays);
       if (response.success) {
-        setSummary(response.data);
-        setIsMockData(response.data.isMock || false);
+        // Ensure all required properties have default values
+        const safeSummary: WearableSummary = {
+          totalSteps: response.data.totalSteps || 0,
+          totalCalories: response.data.totalCalories || 0,
+          averageHeartRate: response.data.averageHeartRate || 0,
+          totalSleepHours: response.data.totalSleepHours || 0,
+          lastSync: response.data.lastSync || null,
+          devices: response.data.devices || [],
+          isMock: response.data.isMock || false
+        };
+        setSummary(safeSummary);
+        setIsMockData(safeSummary.isMock || false);
       }
     } catch (err: any) {
       console.error('Error loading summary:', err);
@@ -242,12 +252,12 @@ const DeviceSyncPage: React.FC = () => {
     return data;
   };
 
-  const formatDate = (dateString: string | null) => {
+  const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return 'Never';
     return new Date(dateString).toLocaleDateString();
   };
 
-  const formatTime = (dateString: string | null) => {
+  const formatTime = (dateString: string | null | undefined) => {
     if (!dateString) return 'Never';
     return new Date(dateString).toLocaleTimeString();
   };
@@ -257,7 +267,7 @@ const DeviceSyncPage: React.FC = () => {
       <div className="device-sync-page">
         <div className="loading-container">
           <RefreshCw className="loading-spinner" />
-          <p>Loading device status...</p>
+          <p>{t('deviceSync.loading')}</p>
         </div>
       </div>
     );
@@ -266,14 +276,14 @@ const DeviceSyncPage: React.FC = () => {
   return (
     <div className="device-sync-page">
       <div className="device-sync-header">
-        <h1>📱 设备同步</h1>
-        <p>连接您的可穿戴设备，同步健康数据</p>
+        <h1>{t('deviceSync.header.title')}</h1>
+        <p>{t('deviceSync.header.subtitle')}</p>
       </div>
 
       <div className="device-sync-container">
         {/* Device Status Cards */}
         <div className="device-status-section">
-          <h2>🔗 设备连接状态</h2>
+          <h2>{t('deviceSync.deviceStatus.title')}</h2>
           <div className="device-cards">
             {/* Fitbit Card */}
             <div className={`device-card ${deviceStatus?.fitbit.connected ? 'connected' : 'disconnected'}`}>
@@ -284,13 +294,13 @@ const DeviceSyncPage: React.FC = () => {
                 <h3>Fitbit</h3>
                 <p className="status">
                   {deviceStatus?.fitbit.connected ? (
-                    <><CheckCircle size={16} /> 已连接</>
+                    <><CheckCircle size={16} /> {t('deviceSync.deviceStatus.connected')}</>
                   ) : (
-                    <><XCircle size={16} /> 未连接</>
+                    <><XCircle size={16} /> {t('deviceSync.deviceStatus.disconnected')}</>
                   )}
                 </p>
                 <p className="last-sync">
-                  最后同步: {formatDate(deviceStatus?.fitbit.lastSync)}
+                  {t('deviceSync.deviceStatus.lastSync')}: {formatDate(deviceStatus?.fitbit.lastSync)}
                 </p>
               </div>
               <div className="device-actions">
@@ -301,7 +311,7 @@ const DeviceSyncPage: React.FC = () => {
                     disabled={isSyncing}
                   >
                     {isSyncing ? <RefreshCw size={16} className="spinning" /> : <RefreshCw size={16} />}
-                    同步
+                    {t('deviceSync.deviceStatus.sync')}
                   </button>
                 ) : (
                   <button 
@@ -309,7 +319,7 @@ const DeviceSyncPage: React.FC = () => {
                     onClick={startFitbitAuth}
                     disabled={isLoading}
                   >
-                    连接
+                    {t('deviceSync.deviceStatus.connect')}
                   </button>
                 )}
               </div>
@@ -324,13 +334,13 @@ const DeviceSyncPage: React.FC = () => {
                 <h3>Apple Health</h3>
                 <p className="status">
                   {deviceStatus?.apple.connected ? (
-                    <><CheckCircle size={16} /> 已连接</>
+                    <><CheckCircle size={16} /> {t('deviceSync.deviceStatus.connected')}</>
                   ) : (
-                    <><XCircle size={16} /> 未连接</>
+                    <><XCircle size={16} /> {t('deviceSync.deviceStatus.disconnected')}</>
                   )}
                 </p>
                 <p className="last-sync">
-                  最后同步: {formatDate(deviceStatus?.apple.lastSync)}
+                  {t('deviceSync.deviceStatus.lastSync')}: {formatDate(deviceStatus?.apple.lastSync)}
                 </p>
               </div>
               <div className="device-actions">
@@ -341,12 +351,12 @@ const DeviceSyncPage: React.FC = () => {
                     disabled={isSyncing}
                   >
                     {isSyncing ? <RefreshCw size={16} className="spinning" /> : <RefreshCw size={16} />}
-                    同步
+                    {t('deviceSync.deviceStatus.sync')}
                   </button>
                 ) : (
                   <label className="upload-btn">
                     <Upload size={16} />
-                    上传数据
+                    {t('deviceSync.deviceStatus.uploadData')}
                     <input
                       type="file"
                       accept=".csv,.txt"
@@ -362,9 +372,9 @@ const DeviceSyncPage: React.FC = () => {
 
         {/* Mock Data Section */}
         <div className="mock-data-section">
-          <h2>🎭 模拟数据演示</h2>
+          <h2>{t('deviceSync.mockData.title')}</h2>
           <p className="mock-description">
-            在没有真实设备连接的情况下，您可以生成模拟数据来体验功能
+            {t('deviceSync.mockData.description')}
           </p>
           
           <div className="mock-actions">
@@ -374,7 +384,7 @@ const DeviceSyncPage: React.FC = () => {
               disabled={isLoading}
             >
               {isLoading ? <RefreshCw size={20} className="spinning" /> : <Activity size={20} />}
-              生成模拟数据
+              {t('deviceSync.mockData.generateButton')}
             </button>
             
             <button 
@@ -383,14 +393,14 @@ const DeviceSyncPage: React.FC = () => {
               disabled={isLoading}
             >
               <TrendingUp size={20} />
-              加载模拟摘要
+              {t('deviceSync.mockData.loadSummaryButton')}
             </button>
           </div>
           
           {isMockData && (
             <div className="mock-indicator">
               <CheckCircle size={16} />
-              <span>当前显示的是模拟数据</span>
+              <span>{t('deviceSync.mockData.currentIndicator')}</span>
             </div>
           )}
         </div>
@@ -398,15 +408,15 @@ const DeviceSyncPage: React.FC = () => {
         {/* Data Summary */}
         {summary && (
           <div className="data-summary-section">
-            <h2>📊 健康数据摘要</h2>
+            <h2>{t('deviceSync.summary.title')}</h2>
             <div className="summary-cards">
               <div className="summary-card">
                 <div className="summary-icon">
                   <Activity size={24} />
                 </div>
                 <div className="summary-content">
-                  <h4>总步数</h4>
-                  <p className="summary-value">{summary.totalSteps.toLocaleString()}</p>
+                  <h4>{t('deviceSync.summary.totalSteps')}</h4>
+                  <p className="summary-value">{(summary.totalSteps || 0).toLocaleString()}</p>
                 </div>
               </div>
               
@@ -415,8 +425,8 @@ const DeviceSyncPage: React.FC = () => {
                   <Zap size={24} />
                 </div>
                 <div className="summary-content">
-                  <h4>消耗卡路里</h4>
-                  <p className="summary-value">{summary.totalCalories.toLocaleString()}</p>
+                  <h4>{t('deviceSync.summary.totalCalories')}</h4>
+                  <p className="summary-value">{(summary.totalCalories || 0).toLocaleString()}</p>
                 </div>
               </div>
               
@@ -425,8 +435,8 @@ const DeviceSyncPage: React.FC = () => {
                   <Heart size={24} />
                 </div>
                 <div className="summary-content">
-                  <h4>平均心率</h4>
-                  <p className="summary-value">{summary.averageHeartRate.toFixed(0)} bpm</p>
+                  <h4>{t('deviceSync.summary.averageHeartRate')}</h4>
+                  <p className="summary-value">{(summary.averageHeartRate || 0).toFixed(0)} bpm</p>
                 </div>
               </div>
               
@@ -435,22 +445,22 @@ const DeviceSyncPage: React.FC = () => {
                   <Clock size={24} />
                 </div>
                 <div className="summary-content">
-                  <h4>睡眠时长</h4>
-                  <p className="summary-value">{summary.totalSleepHours.toFixed(1)} 小时</p>
+                  <h4>{t('deviceSync.summary.totalSleepHours')}</h4>
+                  <p className="summary-value">{(summary.totalSleepHours || 0).toFixed(1)} {t('deviceSync.summary.hours')}</p>
                 </div>
               </div>
             </div>
             
             <div className="summary-meta">
-              <p>数据来源: {summary.devices.join(', ')}</p>
-              <p>最后同步: {formatTime(summary.lastSync || null)}</p>
+              <p>{t('deviceSync.summary.dataSource')}: {(summary.devices || []).join(', ')}</p>
+              <p>{t('deviceSync.summary.lastSync')}: {formatTime(summary.lastSync || null)}</p>
             </div>
           </div>
         )}
 
         {/* Manual Sync Section */}
         <div className="manual-sync-section">
-          <h2>🔄 手动同步</h2>
+          <h2>{t('deviceSync.manualSync.title')}</h2>
           <div className="sync-options">
             <button 
               className="sync-all-btn"
@@ -460,19 +470,19 @@ const DeviceSyncPage: React.FC = () => {
               {isSyncing ? (
                 <>
                   <RefreshCw size={20} className="spinning" />
-                  同步中...
+                  {t('deviceSync.manualSync.syncing')}
                 </>
               ) : (
                 <>
                   <RefreshCw size={20} />
-                  同步所有设备
+                  {t('deviceSync.manualSync.syncAllDevices')}
                 </>
               )}
             </button>
             
             <div className="sync-info">
-              <p>点击按钮同步所有已连接设备的最新数据</p>
-              <p>数据将自动保存到您的健康档案中</p>
+              <p>{t('deviceSync.manualSync.description')}</p>
+              <p>{t('deviceSync.manualSync.autoSave')}</p>
             </div>
           </div>
         </div>

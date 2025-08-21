@@ -267,6 +267,7 @@ export interface Translations {
     consultationType: string
     appointmentDate: string
     appointmentTime: string
+    notes: string
     confirmAppointment: string
     cancel: string
     edit: string
@@ -290,36 +291,23 @@ export interface Translations {
     pleaseRetry: string
     symptoms: string
     needs: string
-    doctors: {
-      zhang: string
-      li: string
-      wang: string
-    }
-    departments: {
-      cardiology: string
-      endocrinology: string
-      neurology: string
-    }
-    titles: {
-      chiefPhysician: string
-      associateChiefPhysician: string
-      attendingPhysician: string
-    }
-    specialties: {
-      hypertension: string
-      coronaryHeartDisease: string
-      arrhythmia: string
-      diabetes: string
-      thyroidDisease: string
-      obesity: string
-      headache: string
-      dizziness: string
-      epilepsy: string
-    }
-    notes: {
-      followUp: string
-      diabetesManagement: string
-    }
+    followUp: string
+    bloodPressureCheck: string
+    diabetesManagement: string
+    cardiology: string
+    endocrinology: string
+    neurology: string
+    hypertension: string
+    coronaryHeartDisease: string
+    arrhythmia: string
+    thyroidDisease: string
+    obesity: string
+    headache: string
+    dizziness: string
+    epilepsy: string
+    chiefPhysician: string
+    associateChiefPhysician: string
+    attendingPhysician: string
   }
   deviceSync: {
     title: string
@@ -328,6 +316,47 @@ export interface Translations {
     lastSync: string
     noDevices: string
     addDevice: string
+    header: {
+      title: string
+      subtitle: string
+    }
+    deviceStatus: {
+      title: string
+      connected: string
+      disconnected: string
+      lastSync: string
+      sync: string
+      connect: string
+      uploadData: string
+    }
+    summary: {
+      title: string
+      totalSteps: string
+      totalCalories: string
+      averageHeartRate: string
+      totalSleepHours: string
+      hours: string
+      dataSource: string
+      lastSync: string
+    }
+    mockData: {
+      title: string
+      description: string
+      generateButton: string
+      loadSummaryButton: string
+      currentIndicator: string
+    }
+    manualSync: {
+      title: string
+      syncAllDevices: string
+      syncing: string
+      description: string
+      autoSave: string
+    }
+    loading: string
+    errors: {
+      loadStatusFailed: string
+    }
   }
   emergency: {
     title: string
@@ -616,84 +645,72 @@ export const translations: Record<Language, Translations> = {
     },
     appointments: {
       title: '预约管理',
-      upcoming: '即将到来的预约',
-      past: '历史预约',
+      upcoming: '即将到来',
+      past: '历史记录',
       bookNew: '预约新医生',
       doctor: '医生',
       dateTime: '日期时间',
       type: '类型',
       status: '状态',
       actions: '操作',
-      noAppointments: '暂无预约记录',
-      calendar: '预约日历',
-      list: '预约列表',
+      noAppointments: '暂无预约',
+      calendar: '日历',
+      list: '列表',
       quickActions: '快速操作',
-      newAppointment: '新建预约',
-      onlineConsultation: '在线问诊',
+      newAppointment: '新预约',
+      onlineConsultation: '在线咨询',
       messageCenter: '消息中心',
       todayAppointments: '今日预约',
       doctorList: '医生列表',
       rating: '评分',
-      bookConsultation: '预约问诊',
-      notAvailable: '暂不可预约',
-      createAppointment: '新建预约',
+      bookConsultation: '预约咨询',
+      notAvailable: '不可用',
+      createAppointment: '创建预约',
       selectDoctor: '选择医生',
-      consultationType: '问诊类型',
+      consultationType: '咨询类型',
       appointmentDate: '预约日期',
       appointmentTime: '预约时间',
+      notes: '备注',
       confirmAppointment: '确认预约',
       cancel: '取消',
       edit: '编辑',
-            delete: '取消',
-      scheduled: '已预约',
+      delete: '删除',
+      scheduled: '已安排',
       completed: '已完成',
       cancelled: '已取消',
-      inPerson: '面诊',
-      videoConsultation: '视频问诊',
-      phoneConsultation: '电话问诊',
+      inPerson: '面对面',
+      videoConsultation: '视频咨询',
+      phoneConsultation: '电话咨询',
       pleaseSelectDoctor: '请选择医生',
-      pleaseSelectConsultationType: '请选择问诊类型',
-      pleaseSelectDate: '请选择预约日期',
-      pleaseSelectTime: '请选择预约时间',
-      pleaseDescribeSymptoms: '请描述您的症状或需求',
+      pleaseSelectConsultationType: '请选择咨询类型',
+      pleaseSelectDate: '请选择日期',
+      pleaseSelectTime: '请选择时间',
+      pleaseDescribeSymptoms: '请描述症状',
       appointmentCreatedSuccess: '预约创建成功！',
-      appointmentCreatedFailed: '预约创建失败，请重试',
+      appointmentCreatedFailed: '预约创建失败。',
       department: '科室',
       available: '可用',
       unavailable: '不可用',
       pleaseRetry: '请重试',
       symptoms: '症状',
       needs: '需求',
-      doctors: {
-        zhang: '张医生',
-        li: '李医生',
-        wang: '王医生'
-      },
-      departments: {
-        cardiology: '心血管科',
-        endocrinology: '内分泌科',
-        neurology: '神经内科'
-      },
-      titles: {
-        chiefPhysician: '主任医师',
-        associateChiefPhysician: '副主任医师',
-        attendingPhysician: '主治医师'
-      },
-      specialties: {
-        hypertension: '高血压',
-        coronaryHeartDisease: '冠心病',
-        arrhythmia: '心律失常',
-        diabetes: '糖尿病',
-        thyroidDisease: '甲状腺疾病',
-        obesity: '肥胖症',
-        headache: '头痛',
-        dizziness: '眩晕',
-        epilepsy: '癫痫'
-      },
-      notes: {
-        followUp: '复诊检查血压控制情况',
-        diabetesManagement: '糖尿病管理咨询'
-      }
+      followUp: '随访',
+      bloodPressureCheck: '血压检查',
+      diabetesManagement: '糖尿病管理',
+      cardiology: '心脏病科',
+      endocrinology: '内分泌科',
+      neurology: '神经科',
+      hypertension: '高血压',
+      coronaryHeartDisease: '冠心病',
+      arrhythmia: '心律失常',
+      thyroidDisease: '甲状腺疾病',
+      obesity: '肥胖',
+      headache: '头痛',
+      dizziness: '头晕',
+      epilepsy: '癫痫',
+      chiefPhysician: '主任医师',
+      associateChiefPhysician: '副主任医师',
+      attendingPhysician: '主治医师'
     },
     deviceSync: {
       title: '设备同步',
@@ -701,7 +718,48 @@ export const translations: Record<Language, Translations> = {
       syncNow: '立即同步',
       lastSync: '最后同步时间',
       noDevices: '暂无连接设备',
-      addDevice: '添加设备'
+      addDevice: '添加设备',
+      header: {
+        title: '设备同步',
+        subtitle: '同步您的健康数据'
+      },
+      deviceStatus: {
+        title: '设备状态',
+        connected: '已连接',
+        disconnected: '未连接',
+        lastSync: '最后同步',
+        sync: '同步中',
+        connect: '连接',
+        uploadData: '上传数据'
+      },
+      summary: {
+        title: '数据概览',
+        totalSteps: '总步数',
+        totalCalories: '总卡路里',
+        averageHeartRate: '平均心率',
+        totalSleepHours: '总睡眠时长',
+        hours: '小时',
+        dataSource: '数据来源',
+        lastSync: '最后同步'
+      },
+      mockData: {
+        title: '模拟数据',
+        description: '点击“生成模拟数据”按钮，模拟设备同步过程。',
+        generateButton: '生成模拟数据',
+        loadSummaryButton: '加载数据概览',
+        currentIndicator: '当前模拟状态'
+      },
+      manualSync: {
+        title: '手动同步',
+        syncAllDevices: '同步所有设备',
+        syncing: '正在同步...',
+        description: '手动触发所有已连接设备的同步。',
+        autoSave: '自动保存'
+      },
+      loading: '加载中...',
+      errors: {
+        loadStatusFailed: '加载设备状态失败'
+      }
     },
     emergency: {
       title: '紧急求助',
@@ -987,26 +1045,24 @@ export const translations: Record<Language, Translations> = {
       insights: 'Health Insights'
     },
     appointments: {
-      title: 'Appointment Management',
+      title: 'Appointments',
       upcoming: 'Upcoming Appointments',
       past: 'Past Appointments',
       bookNew: 'Book New Appointment',
       doctor: 'Doctor',
-      date: 'Date',
-      time: 'Time',
-      reason: 'Reason for Visit',
+      dateTime: 'Date & Time',
+      type: 'Type',
       status: 'Status',
+      actions: 'Actions',
       noAppointments: 'No appointments found',
       calendar: 'Calendar',
       list: 'List',
-      doctors: 'Doctor List',
       quickActions: 'Quick Actions',
       newAppointment: 'New Appointment',
       onlineConsultation: 'Online Consultation',
       messageCenter: 'Message Center',
       todayAppointments: 'Today\'s Appointments',
       doctorList: 'Doctor List',
-      specialties: 'Specialties',
       rating: 'Rating',
       bookConsultation: 'Book Consultation',
       notAvailable: 'Not Available',
@@ -1033,8 +1089,8 @@ export const translations: Record<Language, Translations> = {
       pleaseDescribeSymptoms: 'Please describe your symptoms',
       appointmentCreatedSuccess: 'Appointment created successfully!',
       appointmentCreatedFailed: 'Appointment creation failed.',
-             department: 'Department',
-       available: 'Available',
+      department: 'Department',
+      available: 'Available',
       unavailable: 'Unavailable',
       pleaseRetry: 'Please retry',
       symptoms: 'Symptoms',
@@ -1063,7 +1119,48 @@ export const translations: Record<Language, Translations> = {
       syncNow: 'Sync Now',
       lastSync: 'Last Sync',
       noDevices: 'No devices connected',
-      addDevice: 'Add Device'
+      addDevice: 'Add Device',
+      header: {
+        title: 'Device Sync',
+        subtitle: 'Sync Your Health Data'
+      },
+      deviceStatus: {
+        title: 'Device Status',
+        connected: 'Connected',
+        disconnected: 'Disconnected',
+        lastSync: 'Last Sync',
+        sync: 'Syncing',
+        connect: 'Connect',
+        uploadData: 'Upload Data'
+      },
+      summary: {
+        title: 'Data Overview',
+        totalSteps: 'Total Steps',
+        totalCalories: 'Total Calories',
+        averageHeartRate: 'Average Heart Rate',
+        totalSleepHours: 'Total Sleep Hours',
+        hours: 'Hours',
+        dataSource: 'Data Source',
+        lastSync: 'Last Sync'
+      },
+      mockData: {
+        title: 'Mock Data',
+        description: 'Click the "Generate Mock Data" button to simulate the device sync process.',
+        generateButton: 'Generate Mock Data',
+        loadSummaryButton: 'Load Data Overview',
+        currentIndicator: 'Current Mock Status'
+      },
+      manualSync: {
+        title: 'Manual Sync',
+        syncAllDevices: 'Sync All Devices',
+        syncing: 'Syncing...',
+        description: 'Manually trigger sync for all connected devices.',
+        autoSave: 'Auto Save'
+      },
+      loading: 'Loading...',
+      errors: {
+        loadStatusFailed: 'Failed to load device status'
+      }
     },
     emergency: {
       title: 'Emergency Help',
