@@ -187,17 +187,37 @@ const DietAnalysisPage: React.FC = () => {
     setError('');
 
     try {
+      console.log('🚀 开始分析饮食，上传图片:', selectedImage.name, selectedImage.size);
+      
       // Call backend API for diet analysis
       const response = await dietAnalysisAPI.analyzeDiet(selectedImage);
       
-      console.log('Diet analysis response:', response);
+      console.log('📡 后端API响应:', response);
+      console.log('📊 响应数据结构:', {
+        success: response.success,
+        message: response.message,
+        dataKeys: response.data ? Object.keys(response.data) : 'no data',
+        data: response.data
+      });
       
       if (response.success) {
         // Handle the new data structure
         const analysisData = response.data;
         
+        console.log('🔍 分析数据详情:', {
+          imagePath: analysisData.imagePath,
+          originalFilename: analysisData.originalFilename,
+          imageSize: analysisData.imageSize,
+          aiAnalysis: analysisData.aiAnalysis ? analysisData.aiAnalysis.substring(0, 100) + '...' : 'null',
+          recognizedFoods: analysisData.recognizedFoods,
+          analysisType: analysisData.analysisType,
+          userEmail: analysisData.userEmail,
+          analysisTimestamp: analysisData.analysisTimestamp,
+          analysis: analysisData.analysis
+        });
+        
         // Set the analysis result with the new structure
-        setAnalysisResult({
+        const resultToSet = {
           imagePath: analysisData.imagePath,
           originalFilename: analysisData.originalFilename,
           imageSize: analysisData.imageSize,
@@ -217,7 +237,10 @@ const DietAnalysisPage: React.FC = () => {
           estimatedBloodSugarImpact: analysisData.estimatedBloodSugarImpact,
           recommendations: analysisData.recommendations,
           diabetesRisk: analysisData.diabetesRisk
-        });
+        };
+        
+        console.log('🎯 设置分析结果到状态:', resultToSet);
+        setAnalysisResult(resultToSet);
         
         // Set recognized foods if available
         if (analysisData.recognizedFoods && Array.isArray(analysisData.recognizedFoods)) {
@@ -225,11 +248,19 @@ const DietAnalysisPage: React.FC = () => {
         }
         
         setError(''); // Clear any previous errors
+        console.log('✅ 饮食分析完成，结果已设置');
       } else {
+        console.error('❌ 后端返回失败:', response.message);
         setError(response.message || t('dietAnalysis.errors.analysisFailed'));
       }
     } catch (err: any) {
-      console.error('Diet analysis error:', err);
+      console.error('❌ 饮食分析错误:', err);
+      console.error('❌ 错误详情:', {
+        status: err.response?.status,
+        statusText: err.response?.statusText,
+        data: err.response?.data,
+        message: err.message
+      });
       
       // Handle specific error types
       if (err.response?.status === 429) {

@@ -205,6 +205,13 @@ router.post('/analyze', authenticateToken, upload.single('image'), async (req, r
     // 使用Gemini AI分析食物图片
     const geminiResult = await analyzeFoodImageWithGemini(imagePath, userEmail);
     
+    console.log('🔍 Gemini AI分析结果:', {
+      success: geminiResult.success,
+      analysis: geminiResult.analysis ? geminiResult.analysis.substring(0, 100) + '...' : 'null',
+      recognizedFoods: geminiResult.recognizedFoods,
+      error: geminiResult.error
+    });
+    
     if (!geminiResult.success) {
       // 检查是否是配额限制错误
       if (geminiResult.error && geminiResult.error.includes('quota') || geminiResult.error.includes('Too Many Requests')) {
@@ -236,9 +243,48 @@ router.post('/analyze', authenticateToken, upload.single('image'), async (req, r
       analysisTimestamp: new Date()
     };
 
+    console.log('🔍 构建的分析结果:', {
+      imagePath: analysisResult.imagePath,
+      originalFilename: analysisResult.originalFilename,
+      imageSize: analysisResult.imageSize,
+      aiAnalysisLength: analysisResult.aiAnalysis ? analysisResult.aiAnalysis.length : 0,
+      recognizedFoodsCount: analysisResult.recognizedFoods ? analysisResult.recognizedFoods.length : 0,
+      analysisType: analysisResult.analysisType,
+      userEmail: analysisResult.userEmail,
+      analysisTimestamp: analysisResult.analysisTimestamp
+    });
+
     // 保存分析结果到Firebase
     const analysisId = await saveDietAnalysis(userEmail, analysisResult);
     console.log('✅ 饮食分析结果已保存到Firebase:', analysisId);
+
+    // 构建响应数据
+    const responseData = {
+      analysisId,
+      // Return the complete analysis result structure
+      imagePath: req.file.filename,
+      originalFilename: req.file.originalname,
+      imageSize: req.file.size,
+      aiAnalysis: geminiResult.analysis,
+      recognizedFoods: geminiResult.recognizedFoods,
+      analysisType: 'image_analysis',
+      userEmail: userEmail,
+      analysisTimestamp: analysisResult.analysisTimestamp,
+      // Include the AI analysis text in the expected field
+      analysis: geminiResult.analysis
+    };
+
+    console.log('🔍 发送给前端的响应数据:', {
+      success: true,
+      message: '食物图片分析完成',
+      data: responseData
+    });
+
+    res.json({
+      success: true,
+      message: '食物图片分析完成',
+      data: responseData
+    });
 
     // 清理临时图片文件
     try {
@@ -247,17 +293,6 @@ router.post('/analyze', authenticateToken, upload.single('image'), async (req, r
     } catch (cleanupError) {
       console.warn('⚠️  清理临时图片文件失败:', cleanupError.message);
     }
-
-    res.json({
-      success: true,
-      message: '食物图片分析完成',
-      data: {
-        analysisId,
-        analysis: geminiResult.analysis,
-        recognizedFoods: geminiResult.recognizedFoods,
-        timestamp: analysisResult.analysisTimestamp
-      }
-    });
 
   } catch (error) {
     console.error('❌ 饮食分析错误:', error);
