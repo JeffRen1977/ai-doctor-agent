@@ -226,6 +226,10 @@ export interface Translations {
       uploadImageFirst: string
       analysisFailed: string
       analysisError: string
+      unauthorized: string
+      forbidden: string
+      rateLimit: string
+      networkError: string
     }
   }
   healthAnalytics: {
@@ -627,8 +631,12 @@ export const translations: Record<Language, Translations> = {
       errors: {
         selectValidImage: '请选择有效的图片文件',
         uploadImageFirst: '请先上传图片',
-        analysisFailed: '分析失败',
-        analysisError: '分析过程中出现错误'
+        analysisFailed: '分析失败，请重试',
+        analysisError: '分析过程中发生错误',
+        unauthorized: '认证失败，请重新登录',
+        forbidden: '访问被拒绝，请检查您的权限',
+        rateLimit: 'AI服务配额已用完，请稍后再试',
+        networkError: '网络连接错误，请检查您的网络连接'
       }
     },
     healthAnalytics: {
@@ -1028,8 +1036,12 @@ export const translations: Record<Language, Translations> = {
       errors: {
         selectValidImage: 'Please select a valid image file',
         uploadImageFirst: 'Please upload an image first',
-        analysisFailed: 'Analysis failed',
-        analysisError: 'An error occurred during analysis'
+        analysisFailed: 'Analysis failed, please try again',
+        analysisError: 'An error occurred during analysis',
+        unauthorized: 'Authentication failed, please login again',
+        forbidden: 'Access denied, please check your permissions',
+        rateLimit: 'AI service quota exceeded, please try again later',
+        networkError: 'Network connection error, please check your connection'
       }
     },
     healthAnalytics: {

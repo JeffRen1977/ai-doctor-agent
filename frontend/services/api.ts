@@ -9,6 +9,34 @@ const api = axios.create({
   },
 })
 
+// Token刷新函数
+const refreshToken = async () => {
+  try {
+    const userStr = localStorage.getItem('user')
+    if (!userStr) {
+      throw new Error('No user data found')
+    }
+    
+    const user = JSON.parse(userStr)
+    const response = await axios.post(`${API_BASE_URL}/auth/refresh-token`, {
+      userId: user.id,
+      email: user.email
+    })
+    
+    if (response.data.token) {
+      localStorage.setItem('token', response.data.token)
+      return response.data.token
+    }
+  } catch (error) {
+    console.error('Token refresh failed:', error)
+    // 清除无效的认证信息
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    window.location.href = '/login'
+    throw error
+  }
+}
+
 // 请求拦截器
 api.interceptors.request.use(
   (config) => {
@@ -26,11 +54,30 @@ api.interceptors.request.use(
 // 响应拦截器
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
+  async (error) => {
+    const originalRequest = error.config
+    
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true
+      
+      try {
+        // 尝试刷新token
+        const newToken = await refreshToken()
+        originalRequest.headers.Authorization = `Bearer ${newToken}`
+        return api(originalRequest)
+      } catch (refreshError) {
+        // 刷新失败，重定向到登录页
+        return Promise.reject(refreshError)
+      }
+    }
+    
+    if (error.response?.status === 403) {
+      // Token无效，清除认证信息并重定向
       localStorage.removeItem('token')
+      localStorage.removeItem('user')
       window.location.href = '/login'
     }
+    
     return Promise.reject(error)
   }
 )

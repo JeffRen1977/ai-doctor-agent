@@ -265,10 +265,24 @@ const DietAnalysisPage: React.FC = () => {
       });
       
       // Handle specific error types
-      if (err.response?.status === 429) {
-        setError('AI服务配额已用完，请稍后再试或升级您的账户');
+      if (err.response?.status === 401) {
+        setError(t('dietAnalysis.errors.unauthorized') || '认证失败，请重新登录');
+        // Redirect to login after a short delay
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 2000);
+      } else if (err.response?.status === 403) {
+        setError(t('dietAnalysis.errors.forbidden') || '访问被拒绝，请检查您的权限');
+        // Redirect to login after a short delay
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 2000);
+      } else if (err.response?.status === 429) {
+        setError(t('dietAnalysis.errors.rateLimit') || 'AI服务配额已用完，请稍后再试或升级您的账户');
       } else if (err.response?.data?.error) {
         setError(err.response.data.error);
+      } else if (err.message?.includes('Network Error')) {
+        setError(t('dietAnalysis.errors.networkError') || '网络连接错误，请检查您的网络连接');
       } else {
         setError(t('dietAnalysis.errors.analysisError'));
       }

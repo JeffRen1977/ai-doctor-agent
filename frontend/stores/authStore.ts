@@ -13,9 +13,10 @@ interface AuthState {
   login: (user: User) => void
   logout: () => void
   initAuth: () => void
+  refreshToken: () => Promise<boolean>
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isAuthenticated: false,
   login: (user) => {
@@ -30,6 +31,40 @@ export const useAuthStore = create<AuthState>((set) => ({
     localStorage.removeItem('token')
     localStorage.removeItem('user')
     set({ user: null, isAuthenticated: false })
+  },
+  // Token刷新方法
+  refreshToken: async () => {
+    try {
+      const userStr = localStorage.getItem('user')
+      if (!userStr) {
+        return false
+      }
+      
+      const user = JSON.parse(userStr)
+      const response = await fetch('/api/auth/refresh-token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          email: user.email
+        })
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        localStorage.setItem('token', data.token)
+        console.log('✅ Token refreshed successfully')
+        return true
+      } else {
+        console.error('❌ Token refresh failed')
+        return false
+      }
+    } catch (error) {
+      console.error('❌ Token refresh error:', error)
+      return false
+    }
   },
   // Initialize auth state from localStorage
   initAuth: () => {
@@ -47,6 +82,12 @@ export const useAuthStore = create<AuthState>((set) => ({
           const user = JSON.parse(userStr)
           console.log('Setting authenticated user:', user.name)
           set({ user, isAuthenticated: true })
+          
+          // 设置定时器，在token过期前1小时刷新
+          setTimeout(() => {
+            get().refreshToken()
+          }, 6 * 60 * 60 * 1000) // 6小时后刷新（7天token，提前1天刷新）
+          
         } catch (e) {
           console.error('Error parsing user data:', e)
           // If user data is corrupted, clear everything

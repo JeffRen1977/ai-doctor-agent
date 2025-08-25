@@ -48,7 +48,7 @@ router.post('/register', async (req, res) => {
     const token = jwt.sign(
       { userId: result.user.id, email: result.user.email },
       process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '24h' }
+      { expiresIn: '7d' }
     );
     console.log('🔐 JWT token generated successfully, length:', token.length);
 
@@ -81,12 +81,12 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: result.error });
     }
 
-    // 生成JWT token
+    // 生成JWT token - 延长到7天
     console.log('🔐 Generating JWT token for login with secret:', process.env.JWT_SECRET ? `${process.env.JWT_SECRET.substring(0, 20)}...` : 'default');
     const token = jwt.sign(
       { userId: result.user.id, email: result.user.email },
       process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '24h' }
+      { expiresIn: '7d' }
     );
     console.log('🔐 JWT token generated for login successfully, length:', token.length);
 
@@ -97,6 +97,40 @@ router.post('/login', async (req, res) => {
     });
   } catch (error) {
     console.error('登录错误:', error);
+    res.status(500).json({ error: '服务器内部错误' });
+  }
+});
+
+// Token刷新端点
+router.post('/refresh-token', async (req, res) => {
+  try {
+    const { userId, email } = req.body;
+    
+    if (!userId || !email) {
+      return res.status(400).json({ error: '缺少用户ID或邮箱' });
+    }
+
+    // 验证用户是否存在
+    const userResult = await firebaseService.getUserById(userId);
+    if (!userResult.success) {
+      return res.status(401).json({ error: '用户不存在' });
+    }
+
+    // 生成新的JWT token
+    const newToken = jwt.sign(
+      { userId, email },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '7d' }
+    );
+
+    console.log('🔐 Token refreshed successfully for user:', email);
+
+    res.json({
+      token: newToken,
+      message: 'Token refreshed successfully'
+    });
+  } catch (error) {
+    console.error('Token刷新错误:', error);
     res.status(500).json({ error: '服务器内部错误' });
   }
 });
