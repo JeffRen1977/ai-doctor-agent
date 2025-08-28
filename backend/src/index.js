@@ -65,15 +65,45 @@ app.use('/api/wearables', wearableRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', message: 'AI医生助理API服务运行正常' });
+  res.json({ 
+    status: 'OK', 
+    message: 'AI医生助理API服务运行正常',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
+// Debug endpoint to check file paths
+app.get('/api/debug', (req, res) => {
+  const frontendPath = path.join(__dirname, '../../frontend/dist');
+  const indexPath = path.join(__dirname, '../../frontend/dist/index.html');
+  
+  res.json({
+    currentDir: __dirname,
+    frontendPath: frontendPath,
+    indexPath: indexPath,
+    frontendExists: require('fs').existsSync(frontendPath),
+    indexExists: require('fs').existsSync(indexPath),
+    files: require('fs').readdirSync(path.dirname(frontendPath))
+  });
 });
 
 // Serve static files from the React app build
-app.use(express.static(path.join(__dirname, '../frontend/dist')));
+app.use(express.static(path.join(__dirname, '../../frontend/dist')));
 
 // Handle React routing, return all requests to React app
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
+  const indexPath = path.join(__dirname, '../../frontend/dist/index.html');
+  
+  if (require('fs').existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(404).json({ 
+      error: 'Frontend not found', 
+      path: indexPath,
+      currentDir: __dirname 
+    });
+  }
 });
 
 // 错误处理中间件

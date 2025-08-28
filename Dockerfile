@@ -16,6 +16,9 @@ COPY . .
 # Build the frontend
 RUN npm run build
 
+# Verify build output
+RUN ls -la dist/ && echo "Frontend build completed"
+
 # Production stage
 FROM node:18-alpine AS production
 
@@ -33,6 +36,11 @@ COPY --from=builder /app/dist ./frontend/dist
 
 # Copy backend source code
 COPY backend ./backend
+
+# Verify the final structure
+RUN ls -la && echo "=== Final structure ===" && \
+    ls -la frontend/ && echo "=== Frontend structure ===" && \
+    ls -la backend/ && echo "=== Backend structure ==="
 
 # Expose port
 EXPOSE $PORT
