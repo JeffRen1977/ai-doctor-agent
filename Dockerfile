@@ -13,7 +13,7 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Build the application
+# Build the frontend
 RUN npm run build
 
 # Production stage
@@ -28,11 +28,14 @@ COPY package*.json ./
 # Install only production dependencies
 RUN npm ci --only=production
 
-# Copy built application from builder stage
-COPY --from=builder /app/dist ./dist
+# Copy built frontend from builder stage to backend directory
+COPY --from=builder /app/dist ./frontend/dist
+
+# Copy backend source code
+COPY backend ./backend
 
 # Expose port
 EXPOSE $PORT
 
-# Start the application
-CMD ["npm", "start"]
+# Start the backend server (which will serve both API and frontend)
+CMD ["node", "backend/src/index.js"]
