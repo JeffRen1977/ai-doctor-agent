@@ -26,13 +26,16 @@
     "@typescript-eslint/parser": "^5.50.0",
     "@vitejs/plugin-react": "^3.1.0",
     "eslint": "^8.34.0",
-    "terser": "^5.43.1",
+    "serve": "^14.2.4",
+    "terser": "^5.28.1",
     "vite": "^4.1.0"
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "vite build",
+    "build:check": "tsc && vite build",
     "preview": "vite preview",
+    "start": "npx serve -s dist -l $PORT",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
   },
   "browserslist": {
