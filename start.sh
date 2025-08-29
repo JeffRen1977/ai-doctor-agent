@@ -1,29 +1,43 @@
 #!/bin/bash
 
-echo "🚀 启动AI医生助理系统..."
+echo "🚀 Starting AI Doctor Agent Backend..."
 
-# 检查Node.js是否安装
-if ! command -v node &> /dev/null; then
-    echo "❌ 错误: 未找到Node.js，请先安装Node.js"
+# Check if we're in the right directory
+echo "📍 Current directory: $(pwd)"
+echo "📁 Directory contents:"
+ls -la
+
+# Check if backend directory exists
+if [ ! -d "backend" ]; then
+    echo "❌ Backend directory not found!"
+    echo "📁 Available directories:"
+    ls -la
     exit 1
 fi
 
-# 检查npm是否安装
-if ! command -v npm &> /dev/null; then
-    echo "❌ 错误: 未找到npm，请先安装npm"
+# Check if frontend dist exists
+if [ ! -d "frontend/dist" ]; then
+    echo "❌ Frontend dist directory not found!"
+    echo "📁 Frontend contents:"
+    ls -la frontend/ || echo "Frontend directory not found"
     exit 1
 fi
 
-# 检查依赖是否安装
-if [ ! -d "node_modules" ]; then
-    echo "📦 安装依赖包..."
-    npm install
+# Check if backend source exists
+if [ ! -d "backend/src" ]; then
+    echo "❌ Backend src directory not found!"
+    echo "📁 Backend contents:"
+    ls -la backend/ || echo "Backend directory not found"
+    exit 1
 fi
 
-# 启动开发服务器
-echo "🌐 启动开发服务器..."
-echo "📍 访问地址: http://localhost:3000 (如果被占用会自动选择其他端口)"
-echo "🔄 按 Ctrl+C 停止服务器"
-echo ""
+echo "✅ All directories found, starting backend server..."
 
-npm run dev 
+# Start the backend server
+cd backend
+echo "📍 Now in backend directory: $(pwd)"
+echo "📁 Backend contents:"
+ls -la
+
+echo "🚀 Starting Node.js server..."
+node src/index.js 

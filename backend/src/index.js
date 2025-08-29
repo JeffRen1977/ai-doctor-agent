@@ -69,23 +69,40 @@ app.get('/api/health', (req, res) => {
     status: 'OK', 
     message: 'AI医生助理API服务运行正常',
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
+    environment: process.env.NODE_ENV || 'development',
+    uptime: process.uptime()
+  });
+});
+
+// Simple health check for Railway (no dependencies)
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    message: 'Service is running',
+    timestamp: new Date().toISOString()
   });
 });
 
 // Debug endpoint to check file paths
 app.get('/api/debug', (req, res) => {
-  const frontendPath = path.join(__dirname, '../../frontend/dist');
-  const indexPath = path.join(__dirname, '../../frontend/dist/index.html');
-  
-  res.json({
-    currentDir: __dirname,
-    frontendPath: frontendPath,
-    indexPath: indexPath,
-    frontendExists: require('fs').existsSync(frontendPath),
-    indexExists: require('fs').existsSync(indexPath),
-    files: require('fs').readdirSync(path.dirname(frontendPath))
-  });
+  try {
+    const frontendPath = path.join(__dirname, '../../frontend/dist');
+    const indexPath = path.join(__dirname, '../../frontend/dist/index.html');
+    
+    res.json({
+      currentDir: __dirname,
+      frontendPath: frontendPath,
+      indexPath: indexPath,
+      frontendExists: require('fs').existsSync(frontendPath),
+      indexExists: require('fs').existsSync(indexPath),
+      files: require('fs').readdirSync(path.dirname(frontendPath))
+    });
+  } catch (error) {
+    res.json({
+      error: error.message,
+      currentDir: __dirname
+    });
+  }
 });
 
 // Serve static files from the React app build

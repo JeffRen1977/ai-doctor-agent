@@ -31,11 +31,17 @@ COPY package*.json ./
 # Install only production dependencies
 RUN npm ci --only=production
 
-# Copy built frontend from builder stage to backend directory
+# Copy built frontend from builder stage
 COPY --from=builder /app/dist ./frontend/dist
 
 # Copy backend source code
 COPY backend ./backend
+
+# Copy startup script
+COPY start.sh ./start.sh
+
+# Make startup script executable
+RUN chmod +x start.sh
 
 # Verify the final structure
 RUN ls -la && echo "=== Final structure ===" && \
@@ -45,5 +51,5 @@ RUN ls -la && echo "=== Final structure ===" && \
 # Expose port
 EXPOSE $PORT
 
-# Start the backend server (which will serve both API and frontend)
-CMD ["node", "backend/src/index.js"]
+# Start using the startup script
+CMD ["./start.sh"]
