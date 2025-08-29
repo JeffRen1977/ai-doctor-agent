@@ -1,52 +1,38 @@
-# Build stage
+# Stage 1: Build
 FROM node:18-alpine AS builder
-
-# Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy all necessary files
+COPY package.json package-lock.json ./
+COPY vite.config.ts tsconfig.json tsconfig.node.json index.html ./
+COPY frontend ./frontend
+COPY backend ./backend
 
-# Install ALL dependencies (including dev dependencies needed for build)
-RUN npm ci
-
-# Copy source code
-COPY . .
+# Install all dependencies
+RUN npm install
 
 # Build the frontend
 RUN npm run build
 
-# Verify build output
-RUN ls -la dist/ && echo "Frontend build completed"
-
-# Production stage
-FROM node:18-alpine AS production
-
-# Set working directory
+# Stage 2: Production
+FROM node:18-alpine AS runner
 WORKDIR /app
 
-# Copy test server (no dependencies needed)
-COPY test-server.js ./
+ENV NODE_ENV production
 
-# Copy built frontend from builder stage
-COPY --from=builder /app/dist ./frontend/dist
+# Copy dependencies and package files
+COPY package.json package-lock.json ./
+RUN npm install --only=production
 
 # Copy backend source code
 COPY backend ./backend
 
-# Copy package files for backend dependencies
-COPY package*.json ./
+# Copy built frontend from the builder stage
+COPY --from=builder /app/dist ./dist
 
-# Install only production dependencies (for backend)
-RUN npm ci --only=production
+EXPOSE 3000
+ENV PORT 3000
+ENV HOSTNAME "0.0.0.0"
 
-# Verify the final structure
-RUN ls -la && echo "=== Final structure ===" && \
-    ls -la frontend/ && echo "=== Frontend structure ===" && \
-    ls -la backend/ && echo "=== Backend structure ==="
-
-# Expose port
-EXPOSE $PORT
-
-# Start using npm start (which runs test-server.js)
+# Start the backend server
 CMD ["npm", "start"]
