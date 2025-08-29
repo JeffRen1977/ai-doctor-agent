@@ -37,8 +37,11 @@ COPY --from=builder /app/dist ./frontend/dist
 # Copy backend source code
 COPY backend ./backend
 
-# Copy startup script
-COPY start.sh ./start.sh
+# Copy test server
+COPY test-server.js ./
+
+# Copy startup script (for debugging)
+COPY start.sh ./
 
 # Make startup script executable
 RUN chmod +x start.sh
@@ -51,5 +54,5 @@ RUN ls -la && echo "=== Final structure ===" && \
 # Expose port
 EXPOSE $PORT
 
-# Start using the startup script
-CMD ["./start.sh"]
+# Start using npm start (which runs test-server.js)
+CMD ["npm", "start"]
