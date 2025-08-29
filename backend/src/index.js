@@ -14,6 +14,13 @@ const wearableRoutes = require('./routes/wearables');
 const app = express();
 const PORT = process.env.PORT || 8000;
 
+// Add request logging middleware at the very beginning
+app.use((req, res, next) => {
+  console.log(`🌐 ${req.method} ${req.path} - ${req.ip} - ${req.get('User-Agent')}`);
+  console.log(`🔍 Request headers:`, req.headers);
+  next();
+});
+
 // --- Enhanced Logging ---
 console.log("--- Starting Server ---");
 console.log(`Node Environment: ${process.env.NODE_ENV || 'development'}`);
@@ -117,7 +124,33 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     memory: process.memoryUsage(),
-    env: process.env.NODE_ENV || 'development'
+    env: process.env.NODE_ENV || 'development',
+    requestInfo: {
+      ip: req.ip,
+      userAgent: req.get('User-Agent'),
+      headers: req.headers
+    }
+  });
+});
+
+// Test route to verify backend is accessible
+app.get('/test-backend', (req, res) => {
+  res.json({
+    message: 'Backend is working!',
+    timestamp: new Date().toISOString(),
+    serverInfo: {
+      nodeVersion: process.version,
+      platform: process.platform,
+      arch: process.arch,
+      uptime: process.uptime(),
+      memory: process.memoryUsage()
+    },
+    requestInfo: {
+      ip: req.ip,
+      userAgent: req.get('User-Agent'),
+      path: req.path,
+      method: req.method
+    }
   });
 });
 
