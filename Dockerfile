@@ -25,11 +25,8 @@ FROM node:18-alpine AS production
 # Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
-
-# Install only production dependencies
-RUN npm ci --only=production
+# Copy test server (no dependencies needed)
+COPY test-server.js ./
 
 # Copy built frontend from builder stage
 COPY --from=builder /app/dist ./frontend/dist
@@ -37,8 +34,11 @@ COPY --from=builder /app/dist ./frontend/dist
 # Copy backend source code
 COPY backend ./backend
 
-# Copy test server
-COPY test-server.js ./
+# Copy package files for backend dependencies
+COPY package*.json ./
+
+# Install only production dependencies (for backend)
+RUN npm ci --only=production
 
 # Copy startup script (for debugging)
 COPY start.sh ./
