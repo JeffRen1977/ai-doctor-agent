@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-// Railway-specific startup script
+// Railway-specific startup script - Updated: 2025-08-29 16:16 UTC
 console.log('🚀 Starting AI Doctor Agent for Railway...');
 
 // Force Railway configuration
