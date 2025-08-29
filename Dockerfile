@@ -40,12 +40,6 @@ COPY package*.json ./
 # Install only production dependencies (for backend)
 RUN npm ci --only=production
 
-# Copy startup script (for debugging)
-COPY start.sh ./
-
-# Make startup script executable
-RUN chmod +x start.sh
-
 # Verify the final structure
 RUN ls -la && echo "=== Final structure ===" && \
     ls -la frontend/ && echo "=== Frontend structure ===" && \
