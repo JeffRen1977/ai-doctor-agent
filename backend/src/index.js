@@ -14,6 +14,38 @@ const wearableRoutes = require('./routes/wearables');
 const app = express();
 const PORT = process.env.PORT || 8000;
 
+// --- Enhanced Logging ---
+console.log("--- Starting Server ---");
+console.log(`Node Environment: ${process.env.NODE_ENV || 'development'}`);
+console.log(`Port: ${PORT}`);
+console.log(`Current Directory: ${__dirname}`);
+
+// --- Path Verification ---
+const distPath = path.join(__dirname, '../../dist');
+const indexPath = path.join(distPath, 'index.html');
+console.log(`Serving static files from: ${distPath}`);
+console.log(`Expecting index.html at: ${indexPath}`);
+
+try {
+  const distExists = require('fs').existsSync(distPath);
+  const indexExists = require('fs').existsSync(indexPath);
+  console.log(`Does dist directory exist? ${distExists}`);
+  console.log(`Does index.html exist? ${indexExists}`);
+  if (!distExists || !indexExists) {
+    console.error("--- CRITICAL: Frontend build files not found! ---");
+    // Optional: list files for debugging
+    try {
+      const rootContents = require('fs').readdirSync(path.join(__dirname, '../..'));
+      console.log("Root directory contents:", rootContents);
+    } catch (e) {
+      console.error("Could not read root directory:", e.message);
+    }
+  }
+} catch (error) {
+  console.error("Error during path verification:", error.message);
+}
+// --- End Enhanced Logging ---
+
 // CORS configuration for Railway deployment
 const allowedOrigins = [
   'http://localhost:3000', // Local development
