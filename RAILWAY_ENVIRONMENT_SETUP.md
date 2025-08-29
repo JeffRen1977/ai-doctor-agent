@@ -1,120 +1,133 @@
-# Railway Environment Variables Setup Guide
+# Railway Environment Setup Guide
 
-## 🚀 **Essential Environment Variables for Railway Deployment**
+## 🚀 **Railway Configuration for AI Doctor Agent**
 
-### ⚠️ **CRITICAL: You MUST set these in Railway for your app to work!**
+### **1. Environment Variables to Set in Railway:**
 
----
+Go to your Railway project → Variables tab and add these:
 
-## 🔧 **How to Set Environment Variables in Railway:**
-
-1. **Go to Railway Dashboard**
-2. **Click on your service** (`ai-doctor-agent-production`)
-3. **Click "Variables" tab**
-4. **Add each variable** with its value
-5. **Click "Add"** after each one
-6. **Redeploy** your service
-
----
-
-## 📋 **Required Environment Variables:**
-
-### **1. Server Configuration**
+#### **Required Variables:**
 ```bash
-PORT=8000
+# JWT Configuration
+JWT_SECRET=your-super-secret-jwt-key-here
+
+# Firebase Configuration
+FIREBASE_API_KEY=your-firebase-api-key
+FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+FIREBASE_PROJECT_ID=your-project-id
+FIREBASE_STORAGE_BUCKET=your-project.appspot.com
+FIREBASE_MESSAGING_SENDER_ID=123456789
+FIREBASE_APP_ID=your-app-id
+
+# Gemini AI Configuration
+GEMINI_API_KEY=your-gemini-api-key
+
+# CORS Configuration
+FRONTEND_URL=https://ai-doctor-agent-production.up.railway.app
+
+# Node Environment
 NODE_ENV=production
 ```
 
-### **2. JWT Configuration (REQUIRED for authentication)**
+#### **Optional Variables:**
 ```bash
-JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
-```
-**⚠️ IMPORTANT:** Generate a strong random string for this!
+# Port (Railway sets this automatically)
+PORT=8000
 
-### **3. Firebase Configuration (REQUIRED for database)**
-```bash
-FIREBASE_PROJECT_ID=your-firebase-project-id
-FIREBASE_PRIVATE_KEY_ID=your-firebase-private-key-id
-FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYour Firebase Private Key Here\n-----END PRIVATE KEY-----\n"
-FIREBASE_CLIENT_EMAIL=your-firebase-client-email
-FIREBASE_CLIENT_ID=your-firebase-client-id
-FIREBASE_AUTH_URI=https://accounts.google.com/o/oauth2/auth
-FIREBASE_TOKEN_URI=https://oauth2.googleapis.com/token
-FIREBASE_AUTH_PROVIDER_X509_CERT_URL=https://www.googleapis.com/oauth2/v1/certs
-FIREBASE_CLIENT_X509_CERT_URL=your-firebase-client-x509-cert-url
+# Database (if using external database)
+MONGODB_URI=your-mongodb-connection-string
 ```
 
-### **4. Gemini AI Configuration (REQUIRED for AI features)**
-```bash
-GEMINI_API_KEY=your-gemini-api-key
+### **2. Railway Service Configuration:**
+
+#### **Build Settings:**
+- **Builder:** Dockerfile
+- **Dockerfile Path:** Dockerfile
+- **Build Command:** (auto-detected)
+
+#### **Deploy Settings:**
+- **Start Command:** `npm start`
+- **Health Check Path:** `/health`
+- **Health Check Timeout:** 300 seconds
+- **Restart Policy:** On Failure
+- **Max Retries:** 10
+
+### **3. Domain Configuration:**
+
+#### **Custom Domain (Optional):**
+- **Domain:** `ai-doctor-agent-production.up.railway.app`
+- **SSL:** Automatic (Railway handles this)
+
+### **4. Health Check Endpoints:**
+
+Your app provides these health check endpoints:
+
+- **`/health`** - Basic health check (Railway uses this)
+- **`/api/health`** - Detailed API health check
+- **`/api/debug`** - File system debugging
+
+### **5. Troubleshooting:**
+
+#### **If Health Checks Fail:**
+1. Check Railway logs for errors
+2. Verify environment variables are set
+3. Check if `/health` endpoint responds
+4. Verify Docker build completes successfully
+
+#### **If Frontend Doesn't Load:**
+1. Check `/api/debug` endpoint
+2. Verify frontend files are built
+3. Check file paths in logs
+4. Ensure CORS is configured correctly
+
+### **6. Expected Behavior:**
+
+After proper configuration:
+- ✅ **Health checks pass** (200 status)
+- ✅ **Frontend loads** at root URL
+- ✅ **API endpoints work** at `/api/*`
+- ✅ **Static assets serve** correctly
+- ✅ **SPA routing works** for all paths
+
+### **7. Monitoring:**
+
+#### **Railway Dashboard:**
+- **Deployments** - Build and deployment status
+- **Logs** - Real-time application logs
+- **Metrics** - Performance and usage data
+- **Variables** - Environment configuration
+
+#### **Application Logs:**
+Look for these success messages:
+```
+✅ Found frontend files at: /app/dist
+✅ Static files being served from: /app/dist
+✅ Serving index.html for route: /
+🚀 AI医生助理后端服务启动成功！
 ```
 
-### **5. CORS Configuration (Optional but recommended)**
+### **8. Quick Test Commands:**
+
 ```bash
-FRONTEND_URL=https://ai-doctor-agent-production.up.railway.app
+# Test health check
+curl https://ai-doctor-agent-production.up.railway.app/health
+
+# Test API health
+curl https://ai-doctor-agent-production.up.railway.app/api/health
+
+# Test debug endpoint
+curl https://ai-doctor-agent-production.up.railway.app/api/debug
+
+# Test frontend
+curl https://ai-doctor-agent-production.up.railway.app/
 ```
 
----
+## 🎯 **Next Steps:**
 
-## 🔑 **How to Get These Values:**
+1. **Set all environment variables** in Railway
+2. **Redeploy** your application
+3. **Check health checks** pass
+4. **Test frontend loading**
+5. **Verify API functionality**
 
-### **JWT_SECRET:**
-```bash
-# Generate a random string (run this in terminal)
-node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
-```
-
-### **Firebase Configuration:**
-1. Go to [Firebase Console](https://console.firebase.google.com/)
-2. Select your project
-3. Go to Project Settings → Service Accounts
-4. Click "Generate New Private Key"
-5. Download the JSON file
-6. Copy values from the JSON to Railway
-
-### **Gemini API Key:**
-1. Go to [Google AI Studio](https://makersuite.google.com/app/apikey)
-2. Create a new API key
-3. Copy the key to Railway
-
----
-
-## 🚨 **What Happens Without These Variables:**
-
-- ❌ **JWT_SECRET missing**: Users can't login/register
-- ❌ **Firebase missing**: No database access, app crashes
-- ❌ **Gemini missing**: AI chat and diet analysis won't work
-- ❌ **App will fail** to start or function properly
-
----
-
-## ✅ **After Setting Variables:**
-
-1. **Railway will automatically redeploy**
-2. **Your app will start successfully**
-3. **All features will work properly**
-4. **Healthcheck will pass**
-
----
-
-## 🎯 **Quick Setup Checklist:**
-
-- [ ] Set `JWT_SECRET` (generate random string)
-- [ ] Set all Firebase variables (from service account JSON)
-- [ ] Set `GEMINI_API_KEY` (from Google AI Studio)
-- [ ] Set `NODE_ENV=production`
-- [ ] Redeploy service
-- [ ] Test app functionality
-
----
-
-## 🔍 **Testing After Setup:**
-
-Visit your Railway domain and test:
-- ✅ User registration/login
-- ✅ Diet analysis
-- ✅ Chat functionality
-- ✅ Health records
-- ✅ Device sync
-
-**Your AI Doctor Agent will be fully functional once these variables are set!** 🎉
+Your app should work perfectly after this configuration! 🚀

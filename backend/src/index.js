@@ -21,28 +21,42 @@ console.log(`Port: ${PORT}`);
 console.log(`Current Directory: ${__dirname}`);
 
 // --- Path Verification ---
-const distPath = path.join(__dirname, '../../dist');
-const indexPath = path.join(distPath, 'index.html');
-console.log(`Serving static files from: ${distPath}`);
-console.log(`Expecting index.html at: ${indexPath}`);
+// Try multiple possible paths for frontend files
+const possibleDistPaths = [
+  path.join(__dirname, '../../dist'),           // From backend/src
+  path.join(__dirname, '../dist'),             // From backend
+  path.join(__dirname, '../../frontend/dist'), // Alternative path
+  path.join(__dirname, '../frontend/dist'),    // Alternative path
+  path.join(__dirname, 'dist'),               // Direct dist
+  path.join(__dirname, 'frontend/dist')       // Direct frontend/dist
+];
 
-try {
-  const distExists = require('fs').existsSync(distPath);
-  const indexExists = require('fs').existsSync(indexPath);
-  console.log(`Does dist directory exist? ${distExists}`);
-  console.log(`Does index.html exist? ${indexExists}`);
-  if (!distExists || !indexExists) {
-    console.error("--- CRITICAL: Frontend build files not found! ---");
-    // Optional: list files for debugging
-    try {
-      const rootContents = require('fs').readdirSync(path.join(__dirname, '../..'));
-      console.log("Root directory contents:", rootContents);
-    } catch (e) {
-      console.error("Could not read root directory:", e.message);
-    }
+let distPath = null;
+let indexPath = null;
+
+for (const testPath of possibleDistPaths) {
+  const testIndexPath = path.join(testPath, 'index.html');
+  if (require('fs').existsSync(testPath) && require('fs').existsSync(testIndexPath)) {
+    distPath = testPath;
+    indexPath = testIndexPath;
+    console.log(`✅ Found frontend files at: ${distPath}`);
+    break;
   }
-} catch (error) {
-  console.error("Error during path verification:", error.message);
+}
+
+if (!distPath) {
+  console.error("--- CRITICAL: Frontend build files not found! ---");
+  console.log("Searched paths:", possibleDistPaths);
+  // List available directories for debugging
+  try {
+    const rootContents = require('fs').readdirSync(path.join(__dirname, '../..'));
+    console.log("Root directory contents:", rootContents);
+  } catch (e) {
+    console.error("Could not read root directory:", e.message);
+  }
+} else {
+  console.log(`Serving static files from: ${distPath}`);
+  console.log(`Expecting index.html at: ${indexPath}`);
 }
 // --- End Enhanced Logging ---
 
@@ -141,19 +155,34 @@ app.get('/api/debug', (req, res) => {
 });
 
 // Serve static files from the React app build
-app.use(express.static(path.join(__dirname, '../../dist')));
+if (distPath) {
+  app.use(express.static(distPath));
+  console.log(`✅ Static files being served from: ${distPath}`);
+} else {
+  console.error("❌ Cannot serve static files - distPath not found");
+}
 
 // Handle React routing, return all requests to React app
 app.get('*', (req, res) => {
-  const indexPath = path.join(__dirname, '../../dist/index.html');
+  if (!distPath || !indexPath) {
+    return res.status(500).json({ 
+      error: 'Frontend not configured', 
+      message: 'Static file path not found',
+      searchedPaths: possibleDistPaths,
+      currentDir: __dirname 
+    });
+  }
   
   if (require('fs').existsSync(indexPath)) {
+    console.log(`✅ Serving index.html for route: ${req.path}`);
     res.sendFile(indexPath);
   } else {
+    console.error(`❌ index.html not found at: ${indexPath}`);
     res.status(404).json({ 
       error: 'Frontend not found', 
       path: indexPath,
-      currentDir: __dirname 
+      currentDir: __dirname,
+      searchedPaths: possibleDistPaths
     });
   }
 });
