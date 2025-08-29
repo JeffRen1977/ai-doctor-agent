@@ -193,8 +193,44 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: '服务器内部错误' });
 });
 
-app.listen(PORT, () => {
+// Start server with error handling
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 AI医生助理后端服务启动成功！`);
-  console.log(`📍 服务地址: http://localhost:${PORT}`);
-  console.log(`📊 健康检查: http://localhost:${PORT}/api/health`);
+  console.log(`📍 服务地址: http://0.0.0.0:${PORT}`);
+  console.log(`📍 外部访问: https://ai-doctor-agent-production.up.railway.app`);
+  console.log(`📊 健康检查: http://0.0.0.0:${PORT}/health`);
+  console.log(`🔍 环境: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🔍 端口: ${PORT}`);
+  console.log(`🔍 绑定地址: 0.0.0.0`);
+}).on('error', (error) => {
+  console.error(`❌ 服务器启动失败:`, error.message);
+  console.error(`❌ 错误代码:`, error.code);
+  console.error(`❌ 错误详情:`, error);
+  
+  if (error.code === 'EADDRINUSE') {
+    console.error(`❌ 端口 ${PORT} 已被占用`);
+  } else if (error.code === 'EACCES') {
+    console.error(`❌ 没有权限绑定到端口 ${PORT}`);
+  } else if (error.code === 'EINVAL') {
+    console.error(`❌ 无效的端口号: ${PORT}`);
+  }
+  
+  process.exit(1);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down gracefully');
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT received, shutting down gracefully');
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
 }); 
