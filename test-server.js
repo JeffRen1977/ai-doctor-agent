@@ -127,22 +127,66 @@ const server = http.createServer((req, res) => {
     try {
       const currentDir = __dirname;
       const parentDir = path.join(currentDir, '..');
+      const frontendDistPath = path.join(currentDir, 'frontend/dist');
+      const distPath = path.join(currentDir, 'dist');
       
       const fileInfo = {
         currentDirectory: currentDir,
         parentDirectory: parentDir,
+        frontendDistPath: frontendDistPath,
+        distPath: distPath,
         currentDirContents: fs.readdirSync(currentDir),
         parentDirContents: fs.readdirSync(parentDir),
-        frontendDistExists: fs.existsSync(path.join(currentDir, 'frontend/dist')),
-        distExists: fs.existsSync(path.join(currentDir, 'dist')),
-        frontendDistContents: fs.existsSync(path.join(currentDir, 'frontend/dist')) ? 
-          fs.readdirSync(path.join(currentDir, 'frontend/dist')) : 'Not found',
-        distContents: fs.existsSync(path.join(currentDir, 'dist')) ? 
-          fs.readdirSync(path.join(currentDir, 'dist')) : 'Not found'
+        frontendDistExists: fs.existsSync(frontendDistPath),
+        distExists: fs.existsSync(distPath),
+        frontendDistContents: fs.existsSync(frontendDistPath) ? fs.readdirSync(frontendDistPath) : 'Directory not found',
+        distContents: fs.existsSync(distPath) ? fs.readdirSync(distPath) : 'Directory not found',
+        requestedPath: pathname
       };
       
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(fileInfo));
+      res.end(JSON.stringify(fileInfo, null, 2));
+    } catch (error) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: error.message, stack: error.stack }));
+    }
+    return;
+  }
+  
+  // Asset test endpoint
+  if (pathname === '/test-asset') {
+    try {
+      const currentDir = __dirname;
+      const testAsset = '/assets/main-ce93f8d7.js'; // The exact asset that's failing
+      
+      const possiblePaths = [
+        path.join(currentDir, 'frontend/dist', testAsset),
+        path.join(currentDir, 'dist', testAsset),
+        path.join(currentDir, testAsset),
+        path.join(currentDir, '..', 'frontend/dist', testAsset),
+        path.join(currentDir, '..', 'dist', testAsset),
+        path.join(currentDir, 'frontend/dist', testAsset.substring(1)),
+        path.join(currentDir, 'dist', testAsset.substring(1)),
+        path.join(currentDir, testAsset.substring(1))
+      ];
+      
+      const assetTestResults = {
+        testAsset: testAsset,
+        currentDirectory: currentDir,
+        possiblePaths: possiblePaths,
+        pathChecks: possiblePaths.map(filePath => ({
+          path: filePath,
+          exists: fs.existsSync(filePath),
+          isFile: fs.existsSync(filePath) ? fs.statSync(filePath).isFile() : false,
+          size: fs.existsSync(filePath) ? fs.statSync(filePath).size : null
+        })),
+        currentDirContents: fs.readdirSync(currentDir),
+        frontendDistExists: fs.existsSync(path.join(currentDir, 'frontend/dist')),
+        distExists: fs.existsSync(path.join(currentDir, 'dist'))
+      };
+      
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(assetTestResults, null, 2));
     } catch (error) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: error.message, stack: error.stack }));
@@ -341,70 +385,122 @@ const server = http.createServer((req, res) => {
   console.log(`🔍 Looking for static file: ${pathname}`);
   
   try {
-    // Try multiple possible locations for static files
-    const possiblePaths = [
-      path.join(__dirname, 'frontend/dist', pathname),
-      path.join(__dirname, 'dist', pathname),
-      path.join(__dirname, pathname),
-      path.join(__dirname, '..', 'frontend/dist', pathname),
-      path.join(__dirname, '..', 'dist', pathname)
-    ];
-    
-    let fileFound = false;
-    for (const filePath of possiblePaths) {
-      try {
-        if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
-          console.log(`✅ Found static file at: ${filePath}`);
-          serveStaticFile(res, filePath);
-          fileFound = true;
-          break;
-        }
-      } catch (pathError) {
-        console.log(`⚠️ Error checking path ${filePath}:`, pathError.message);
-        continue;
-      }
-    }
-    
-    if (!fileFound) {
-      console.log(`❌ Static file not found in any location: ${pathname}`);
-      console.log(`🔍 Searched paths:`, possiblePaths);
+    // Handle asset paths (CSS, JS, images, etc.)
+    if (pathname.startsWith('/assets/') || pathname.startsWith('/icon-') || pathname.endsWith('.css') || pathname.endsWith('.js') || pathname.endsWith('.png') || pathname.endsWith('.svg')) {
+      console.log(`🎯 Asset file requested: ${pathname}`);
       
-      // If file not found, serve index.html for SPA routing
-      const indexPath = path.join(__dirname, 'frontend/dist/index.html');
-      const altIndexPaths = [
-        path.join(__dirname, 'dist/index.html'),
-        path.join(__dirname, 'index.html'),
-        path.join(__dirname, '..', 'frontend/dist/index.html'),
-        path.join(__dirname, '..', 'dist/index.html')
+      // Try multiple possible locations for static files
+      const possiblePaths = [
+        path.join(__dirname, 'frontend/dist', pathname),
+        path.join(__dirname, 'dist', pathname),
+        path.join(__dirname, pathname),
+        path.join(__dirname, '..', 'frontend/dist', pathname),
+        path.join(__dirname, '..', 'dist', pathname),
+        // Also try without leading slash
+        path.join(__dirname, 'frontend/dist', pathname.substring(1)),
+        path.join(__dirname, 'dist', pathname.substring(1)),
+        path.join(__dirname, pathname.substring(1))
       ];
       
-      let indexFound = false;
-      for (const altIndexPath of altIndexPaths) {
+      console.log(`🔍 Searching for asset in paths:`, possiblePaths);
+      
+      let fileFound = false;
+      for (const filePath of possiblePaths) {
         try {
-          if (fs.existsSync(altIndexPath)) {
-            console.log(`✅ Serving index.html for SPA routing from: ${altIndexPath}`);
-            serveStaticFile(res, altIndexPath);
-            indexFound = true;
+          if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+            console.log(`✅ Found asset file at: ${filePath}`);
+            serveStaticFile(res, filePath);
+            fileFound = true;
             break;
           }
-        } catch (indexError) {
-          console.log(`⚠️ Error checking index path ${altIndexPath}:`, indexError.message);
+        } catch (pathError) {
+          console.log(`⚠️ Error checking asset path ${filePath}:`, pathError.message);
           continue;
         }
       }
       
-      if (!indexFound) {
-        console.log(`❌ index.html not available for SPA routing`);
+      if (!fileFound) {
+        console.log(`❌ Asset file not found: ${pathname}`);
+        console.log(`🔍 Searched paths:`, possiblePaths);
+        
+        // Return 404 for missing assets instead of trying to serve index.html
         res.writeHead(404, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
-          error: 'Not found',
+          error: 'Asset not found',
           path: pathname,
-          message: 'File not found and index.html not available',
+          message: 'Static asset file not found',
           searchedPaths: possiblePaths,
-          indexPaths: [indexPath, ...altIndexPaths],
           currentDir: __dirname,
           availableFiles: fs.readdirSync(__dirname).slice(0, 10)
         }));
+        return;
+      }
+    } else {
+      // For non-asset paths, try to serve the file or fall back to index.html
+      const possiblePaths = [
+        path.join(__dirname, 'frontend/dist', pathname),
+        path.join(__dirname, 'dist', pathname),
+        path.join(__dirname, pathname),
+        path.join(__dirname, '..', 'frontend/dist', pathname),
+        path.join(__dirname, '..', 'dist', pathname)
+      ];
+      
+      let fileFound = false;
+      for (const filePath of possiblePaths) {
+        try {
+          if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+            console.log(`✅ Found static file at: ${filePath}`);
+            serveStaticFile(res, filePath);
+            fileFound = true;
+            break;
+          }
+        } catch (pathError) {
+          console.log(`⚠️ Error checking path ${filePath}:`, pathError.message);
+          continue;
+        }
+      }
+      
+      if (!fileFound) {
+        console.log(`❌ Static file not found in any location: ${pathname}`);
+        console.log(`🔍 Searched paths:`, possiblePaths);
+        
+        // If file not found, serve index.html for SPA routing
+        const indexPath = path.join(__dirname, 'frontend/dist/index.html');
+        const altIndexPaths = [
+          path.join(__dirname, 'dist/index.html'),
+          path.join(__dirname, 'index.html'),
+          path.join(__dirname, '..', 'frontend/dist/index.html'),
+          path.join(__dirname, '..', 'dist/index.html')
+        ];
+        
+        let indexFound = false;
+        for (const altIndexPath of altIndexPaths) {
+          try {
+            if (fs.existsSync(altIndexPath)) {
+              console.log(`✅ Serving index.html for SPA routing from: ${altIndexPath}`);
+              serveStaticFile(res, altIndexPath);
+              indexFound = true;
+              break;
+            }
+          } catch (indexError) {
+            console.log(`⚠️ Error checking index path ${altIndexPath}:`, indexError.message);
+            continue;
+          }
+        }
+        
+        if (!indexFound) {
+          console.log(`❌ index.html not available for SPA routing`);
+          res.writeHead(404, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            error: 'Not found',
+            path: pathname,
+            message: 'File not found and index.html not available',
+            searchedPaths: possiblePaths,
+            indexPaths: [indexPath, ...altIndexPaths],
+            currentDir: __dirname,
+            availableFiles: fs.readdirSync(__dirname).slice(0, 10)
+          }));
+        }
       }
     }
   } catch (error) {
