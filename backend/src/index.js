@@ -63,6 +63,18 @@ app.use('/api/health-records', healthRecordsRoutes);
 app.use('/api/diet-analysis', dietAnalysisRoutes);
 app.use('/api/wearables', wearableRoutes);
 
+// Basic health check for Railway (works immediately)
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    message: 'Service is running',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    memory: process.memoryUsage(),
+    env: process.env.NODE_ENV || 'development'
+  });
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ 
@@ -71,15 +83,6 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
     uptime: process.uptime()
-  });
-});
-
-// Simple health check for Railway (no dependencies)
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    message: 'Service is running',
-    timestamp: new Date().toISOString()
   });
 });
 

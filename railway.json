@@ -5,9 +5,9 @@
     "dockerfilePath": "Dockerfile"
   },
   "deploy": {
-    "startCommand": "./start.sh",
+    "startCommand": "node test-server.js",
     "healthcheckPath": "/health",
-    "healthcheckTimeout": 900,
+    "healthcheckTimeout": 300,
     "restartPolicyType": "on_failure",
     "restartPolicyMaxRetries": 10
   }
