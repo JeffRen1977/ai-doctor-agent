@@ -1,54 +1,36 @@
-# Railway-optimized Dockerfile for AI Doctor Agent
-FROM node:18-alpine AS base
-
-# Install dependencies only when needed
-FROM base AS deps
-# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
-RUN apk add --no-cache libc6-compat
+# Stage 1: Build the frontend
+FROM node:18-alpine AS frontend-builder
 WORKDIR /app
-
-# Install dependencies based on the preferred package manager
-COPY package.json package-lock.json* ./
-RUN npm ci --only=production
-
-# Rebuild the source code only when needed
-FROM base AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-
-# Build the application
+COPY package.json package-lock.json ./
+COPY vite.config.ts tsconfig.json tsconfig.node.json index.html ./
+COPY frontend ./frontend
+RUN npm install
 RUN npm run build
 
-# Production image, copy all the files and run the app
-FROM base AS runner
+# Stage 2: Prepare backend dependencies
+FROM node:18-alpine AS backend-deps
+WORKDIR /app
+COPY backend/package.json backend/package-lock.json ./
+RUN npm install --only=production
+
+# Stage 3: Final production image
+FROM node:18-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV production
-# Uncomment the following line in case you want to disable telemetry during runtime.
-# ENV NEXT_TELEMETRY_DISABLED 1
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+# Copy backend dependencies
+COPY --from=backend-deps /app/node_modules ./node_modules
 
-# Copy the public folder
-COPY --from=builder /app/frontend/public ./public
+# Copy backend source code
+COPY backend/src ./src
 
-# Set the correct permission for prerender cache
-RUN mkdir .next
-RUN chown nextjs:nodejs .next
-
-# Automatically leverage output traces to reduce image size
-# https://nextjs.org/docs/advanced-features/output-file-tracing
-COPY --from=builder --chown=nextjs:nodejs /app/dist ./dist
-
-USER nextjs
+# Copy built frontend
+COPY --from=frontend-builder /app/dist ./dist
 
 EXPOSE 3000
-
 ENV PORT 3000
-# set hostname to localhost
 ENV HOSTNAME "0.0.0.0"
 
-# Start the application
-CMD ["npm", "start"]
+# Start the backend server
+CMD ["node", "src/index.js"]
