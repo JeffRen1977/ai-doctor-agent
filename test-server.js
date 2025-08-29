@@ -150,6 +150,41 @@ const server = http.createServer((req, res) => {
     return;
   }
   
+  // Simple HTML test endpoint
+  if (pathname === '/test-html') {
+    const testHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test HTML</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+    </style>
+</head>
+<body>
+    <h1>Test HTML Response</h1>
+    <p class="success">✅ HTML is working!</p>
+    <p class="info">Current directory: ${__dirname}</p>
+    <p class="info">Requested path: ${pathname}</p>
+    <h2>File System Check:</h2>
+    <div id="fileInfo">Loading...</div>
+    
+    <script>
+        // Test JavaScript execution
+        console.log('JavaScript is working!');
+        document.getElementById('fileInfo').innerHTML = 'JavaScript executed successfully!';
+    </script>
+</body>
+</html>`;
+    
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+    res.end(testHtml);
+    return;
+  }
+  
   // Simple file test endpoint
   if (pathname === '/test-file') {
     try {
@@ -215,24 +250,89 @@ const server = http.createServer((req, res) => {
         }
         
         if (!found) {
-          res.writeHead(404, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({
-            error: 'Frontend not found',
-            message: 'index.html not found in any expected location',
-            searchedPaths: [indexPath, ...altPaths],
-            currentDir: __dirname,
-            availableFiles: fs.readdirSync(__dirname).slice(0, 10)
-          }));
+          console.log(`❌ index.html not found in any location, serving fallback HTML`);
+          // Serve a fallback HTML with debugging info
+          const fallbackHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Doctor Agent - Debug Mode</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .info { color: #17a2b8; }
+        .warning { color: #ffc107; }
+        .debug-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .endpoint { background: #f8f9fa; padding: 10px; margin: 5px 0; border-radius: 3px; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 AI Doctor Agent - Debug Mode</h1>
+        <p class="warning">⚠️ Frontend files not found. Running in debug mode.</p>
+        
+        <div class="debug-section">
+            <h2>🔍 Debug Information</h2>
+            <p><strong>Current Directory:</strong> <span class="info">${__dirname}</span></p>
+            <p><strong>Timestamp:</strong> <span class="info">${new Date().toISOString()}</span></p>
+        </div>
+        
+        <div class="debug-section">
+            <h2>🔧 Debug Endpoints</h2>
+            <div class="endpoint">/health - Health check</div>
+            <div class="endpoint">/test - Test endpoint</div>
+            <div class="endpoint">/test-html - HTML test</div>
+            <div class="endpoint">/test-file - File system test</div>
+            <div class="endpoint">/debug - File structure debug</div>
+            <div class="endpoint">/files - Complete file listing</div>
+        </div>
+        
+        <div class="debug-section">
+            <h2>📁 File System Status</h2>
+            <p>Checking for frontend files...</p>
+            <div id="fileStatus">Loading...</div>
+        </div>
+        
+        <div class="debug-section">
+            <h2>🚀 Next Steps</h2>
+            <ol>
+                <li>Check the debug endpoints above</li>
+                <li>Verify file locations in Railway logs</li>
+                <li>Ensure frontend build completed successfully</li>
+                <li>Check Dockerfile file copying</li>
+            </ol>
+        </div>
+    </div>
+    
+    <script>
+        // Test JavaScript execution
+        console.log('Debug mode JavaScript working!');
+        
+        // Check file system status
+        fetch('/files')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('fileStatus').innerHTML = 
+                    '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+            })
+            .catch(error => {
+                document.getElementById('fileStatus').innerHTML = 
+                    '<p class="error">Error fetching file status: ' + error.message + '</p>';
+            });
+    </script>
+</body>
+</html>`;
+          
+          res.writeHead(200, { 'Content-Type': 'text/html' });
+          res.end(fallbackHtml);
         }
       }
     } catch (error) {
       console.error(`❌ Error serving root:`, error);
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({
-        error: 'Internal server error',
-        message: error.message,
-        stack: error.stack
-      }));
+      res.writeHead(500, { 'Content-Type': 'text/html' });
+      res.end(`<h1>Server Error</h1><p>Error: ${error.message}</p><pre>${error.stack}</pre>`);
     }
     return;
   }
