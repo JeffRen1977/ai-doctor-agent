@@ -20,6 +20,9 @@ WORKDIR /app
 
 ENV NODE_ENV production
 
+# Copy startup script
+COPY start-railway.js ./
+
 # Copy dependencies and package files
 COPY package.json package-lock.json ./
 RUN npm install --only=production
@@ -30,9 +33,9 @@ COPY backend ./backend
 # Copy built frontend from the builder stage
 COPY --from=builder /app/dist ./dist
 
-EXPOSE 3000
-ENV PORT 3000
+# Railway will set PORT environment variable
+EXPOSE $PORT
 ENV HOSTNAME "0.0.0.0"
 
-# Start the backend server
-CMD ["npm", "start"]
+# Start using the Railway startup script
+CMD ["node", "start-railway.js"]
