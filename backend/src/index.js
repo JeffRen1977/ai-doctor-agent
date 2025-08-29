@@ -14,6 +14,15 @@ const wearableRoutes = require('./routes/wearables');
 const app = express();
 const PORT = process.env.PORT || 8000;
 
+// Railway-specific configuration
+console.log("=== RAILWAY CONFIGURATION ===");
+console.log(`PORT from env: ${process.env.PORT}`);
+console.log(`NODE_ENV: ${process.env.NODE_ENV}`);
+console.log(`Final PORT: ${PORT}`);
+console.log(`Current working directory: ${process.cwd()}`);
+console.log(`__dirname: ${__dirname}`);
+console.log("================================");
+
 // Add request logging middleware at the very beginning
 app.use((req, res, next) => {
   console.log(`🌐 ${req.method} ${req.path} - ${req.ip} - ${req.get('User-Agent')}`);
@@ -115,6 +124,27 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/health-records', healthRecordsRoutes);
 app.use('/api/diet-analysis', dietAnalysisRoutes);
 app.use('/api/wearables', wearableRoutes);
+
+// Railway-specific root endpoint
+app.get('/', (req, res) => {
+  res.json({
+    message: 'AI Doctor Agent Backend is Running!',
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    railway: {
+      port: PORT,
+      env: process.env.NODE_ENV || 'development',
+      nodeVersion: process.version,
+      platform: process.platform
+    },
+    endpoints: {
+      health: '/health',
+      testBackend: '/test-backend',
+      apiHealth: '/api/health',
+      debug: '/api/debug'
+    }
+  });
+});
 
 // Basic health check for Railway (works immediately)
 app.get('/health', (req, res) => {
@@ -235,6 +265,19 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`🔍 环境: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔍 端口: ${PORT}`);
   console.log(`🔍 绑定地址: 0.0.0.0`);
+  console.log(`🔍 进程ID: ${process.pid}`);
+  console.log(`🔍 工作目录: ${process.cwd()}`);
+  
+  // Test if we can actually bind to the port
+  const address = server.address();
+  console.log(`🔍 服务器绑定信息:`, address);
+  
+  // Verify the server is listening
+  if (server.listening) {
+    console.log(`✅ 服务器正在监听端口 ${PORT}`);
+  } else {
+    console.error(`❌ 服务器未在监听端口 ${PORT}`);
+  }
 }).on('error', (error) => {
   console.error(`❌ 服务器启动失败:`, error.message);
   console.error(`❌ 错误代码:`, error.code);
@@ -246,6 +289,8 @@ const server = app.listen(PORT, '0.0.0.0', () => {
     console.error(`❌ 没有权限绑定到端口 ${PORT}`);
   } else if (error.code === 'EINVAL') {
     console.error(`❌ 无效的端口号: ${PORT}`);
+  } else if (error.code === 'EADDRNOTAVAIL') {
+    console.error(`❌ 地址不可用: 0.0.0.0:${PORT}`);
   }
   
   process.exit(1);
