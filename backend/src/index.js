@@ -142,6 +142,21 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Cache busting endpoint
+app.get('/cache-bust', (req, res) => {
+  res.json({
+    timestamp: new Date().toISOString(),
+    version: 'v2.0.0',
+    cacheBust: Date.now(),
+    message: 'Cache busting endpoint - use this to verify fresh content',
+    headers: {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    }
+  });
+});
+
 // Test route to verify backend is accessible
 app.get('/test-backend', (req, res) => {
   res.json({
@@ -319,7 +334,7 @@ app.get('/api/debug', (req, res) => {
 
 // Serve static files from the React app build
 if (distPath) {
-  // Configure static file serving with proper MIME types
+  // Configure static file serving with proper MIME types and cache control
   app.use(express.static(distPath, {
     setHeaders: (res, path, stat) => {
       // Set proper MIME types for different file types
@@ -335,8 +350,26 @@ if (distPath) {
         res.set('Content-Type', 'image/x-icon');
       }
       
+      // Set cache control headers to prevent caching issues
+      if (path.endsWith('.html')) {
+        // HTML files should never be cached to ensure fresh content
+        res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.set('Pragma', 'no-cache');
+        res.set('Expires', '0');
+      } else if (path.endsWith('.js') || path.endsWith('.css')) {
+        // JS and CSS files can be cached but with version-based invalidation
+        res.set('Cache-Control', 'public, max-age=31536000'); // 1 year
+        res.set('ETag', `"${stat.size}-${stat.mtime.getTime()}"`);
+      } else if (path.endsWith('.png') || path.endsWith('.jpg') || path.endsWith('.jpeg') || path.endsWith('.gif') || path.endsWith('.svg') || path.endsWith('.ico')) {
+        // Images can be cached for a long time
+        res.set('Cache-Control', 'public, max-age=31536000'); // 1 year
+      } else {
+        // Default cache control for other files
+        res.set('Cache-Control', 'public, max-age=86400'); // 1 day
+      }
+      
       // Log static file requests for debugging
-      console.log(`📁 Serving static file: ${path} (${res.get('Content-Type')})`);
+      console.log(`📁 Serving static file: ${path} (${res.get('Content-Type')}) - Cache: ${res.get('Cache-Control')}`);
     }
   }));
   console.log(`✅ Static files being served from: ${distPath}`);
@@ -384,6 +417,35 @@ function findMainCssFile() {
   }
 }
 
+// Specific route for index.html to ensure fresh content
+app.get('/', (req, res) => {
+  if (!distPath || !indexPath) {
+    return res.status(500).json({ 
+      error: 'Frontend not configured', 
+      message: 'Static file path not found',
+      searchedPaths: possibleDistPaths,
+      currentDir: __dirname 
+    });
+  }
+  
+  if (require('fs').existsSync(indexPath)) {
+    console.log(`✅ Serving fresh index.html for root route`);
+    // Set headers to prevent caching of HTML
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    res.sendFile(indexPath);
+  } else {
+    console.error(`❌ index.html not found at: ${indexPath}`);
+    res.status(404).json({ 
+      error: 'Frontend not found', 
+      path: indexPath,
+      currentDir: __dirname,
+      searchedPaths: possibleDistPaths
+    });
+  }
+});
+
 // IMPORTANT: Handle React routing AFTER static files - return all requests to React app
 // This route should only handle non-static file requests
 app.get('*', (req, res) => {
@@ -404,6 +466,10 @@ app.get('*', (req, res) => {
   
   if (require('fs').existsSync(indexPath)) {
     console.log(`✅ Serving index.html for route: ${req.path}`);
+    // Set headers to prevent caching of HTML
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
     res.sendFile(indexPath);
   } else {
     console.error(`❌ index.html not found at: ${indexPath}`);
