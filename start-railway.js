@@ -5,11 +5,17 @@ console.log('🚀 Starting AI Doctor Agent for Railway...');
 
 // Force Railway configuration
 process.env.NODE_ENV = process.env.NODE_ENV || 'production';
-process.env.PORT = process.env.PORT || 8000;
+
+// Railway should set PORT, but let's be more explicit
+if (!process.env.PORT) {
+  console.log('⚠️ PORT not set by Railway, using default 8000');
+  process.env.PORT = 8000;
+}
 
 console.log('=== RAILWAY STARTUP CONFIGURATION ===');
 console.log(`NODE_ENV: ${process.env.NODE_ENV}`);
-console.log(`PORT: ${process.env.PORT}`);
+console.log(`PORT from env: ${process.env.PORT}`);
+console.log(`Final PORT: ${process.env.PORT}`);
 console.log(`Working Directory: ${process.cwd()}`);
 console.log(`Node Version: ${process.version}`);
 console.log(`Platform: ${process.platform}`);
