@@ -168,7 +168,7 @@ app.get('/test-static', (req, res) => {
   try {
     const mainJsFile = findMainJsFile();
     const mainCssFile = findMainCssFile();
-    const testIcon = path.join(distPath, 'icon-192x192.png');
+    const testIcon = path.join(distPath, 'icon.svg');
     
     // Get detailed file structure
     let assetsContents = [];
@@ -272,7 +272,7 @@ app.get('/test-css', (req, res) => {
 
 app.get('/test-icon', (req, res) => {
   try {
-    const iconFile = path.join(distPath, 'icon-192x192.png');
+    const iconFile = path.join(distPath, 'icon.svg');
     if (require('fs').existsSync(iconFile)) {
       res.set('Content-Type', 'image/png');
       res.sendFile(iconFile);
@@ -327,8 +327,10 @@ if (distPath) {
         res.set('Content-Type', 'application/javascript');
       } else if (path.endsWith('.css')) {
         res.set('Content-Type', 'text/css');
-      } else if (path.endsWith('.png') || path.endsWith('.jpg') || path.endsWith('.jpeg') || path.endsWith('.gif') || path.endsWith('.svg')) {
+      } else if (path.endsWith('.png') || path.endsWith('.jpg') || path.endsWith('.jpeg') || path.endsWith('.gif')) {
         res.set('Content-Type', `image/${path.split('.').pop()}`);
+      } else if (path.endsWith('.svg')) {
+        res.set('Content-Type', 'image/svg+xml');
       } else if (path.endsWith('.ico')) {
         res.set('Content-Type', 'image/x-icon');
       }
@@ -382,8 +384,15 @@ function findMainCssFile() {
   }
 }
 
-// Handle React routing, return all requests to React app
+// IMPORTANT: Handle React routing AFTER static files - return all requests to React app
+// This route should only handle non-static file requests
 app.get('*', (req, res) => {
+  // Skip if this is a static file request (should be handled by express.static above)
+  if (req.path.startsWith('/assets/') || req.path.startsWith('/icon') || req.path.startsWith('/manifest.json') || req.path.startsWith('/sw.js')) {
+    console.log(`⚠️ Static file request caught by catch-all route: ${req.path}`);
+    return res.status(404).json({ error: 'Static file not found' });
+  }
+  
   if (!distPath || !indexPath) {
     return res.status(500).json({ 
       error: 'Frontend not configured', 
