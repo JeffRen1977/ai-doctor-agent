@@ -8,7 +8,9 @@
     "dev:frontend": "vite",
     "dev:backend": "nodemon backend/src/index.js",
     "build": "vite build",
-    "start": "node backend/src/index.js",
+    "start": "node start-railway.js",
+    "start:railway": "node start-railway.js",
+    "start:backend": "node backend/src/index.js",
     "lint": "eslint frontend --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
   },
   "dependencies": {

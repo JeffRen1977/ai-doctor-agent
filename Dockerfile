@@ -37,5 +37,5 @@ COPY --from=builder /app/dist ./dist
 EXPOSE $PORT
 ENV HOSTNAME "0.0.0.0"
 
-# Start using the Railway startup script
-CMD ["node", "start-railway.js"]
+# Start using npm start (which runs start-railway.js)
+CMD ["npm", "start"]
