@@ -125,27 +125,6 @@ app.use('/api/health-records', healthRecordsRoutes);
 app.use('/api/diet-analysis', dietAnalysisRoutes);
 app.use('/api/wearables', wearableRoutes);
 
-// Railway-specific root endpoint
-app.get('/', (req, res) => {
-  res.json({
-    message: 'AI Doctor Agent Backend is Running!',
-    status: 'OK',
-    timestamp: new Date().toISOString(),
-    railway: {
-      port: PORT,
-      env: process.env.NODE_ENV || 'development',
-      nodeVersion: process.version,
-      platform: process.platform
-    },
-    endpoints: {
-      health: '/health',
-      testBackend: '/test-backend',
-      apiHealth: '/api/health',
-      debug: '/api/debug'
-    }
-  });
-});
-
 // Basic health check for Railway (works immediately)
 app.get('/health', (req, res) => {
   res.json({ 
