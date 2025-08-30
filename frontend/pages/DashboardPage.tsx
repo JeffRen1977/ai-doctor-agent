@@ -13,7 +13,8 @@ import {
   Typography,
   Space,
   Divider,
-  Badge
+  Badge,
+  Grid
 } from 'antd';
 import { 
   HeartOutlined, 
@@ -30,6 +31,7 @@ import { useLanguageStore } from '@/stores/languageStore';
 import { getTranslation } from '@/locales';
 
 const { Title, Text } = Typography;
+const { useBreakpoint } = Grid;
 
 interface HealthMetric {
   name: string;
@@ -50,6 +52,7 @@ interface Reminder {
 
 const DashboardPage: React.FC = () => {
   const { language } = useLanguageStore();
+  const screens = useBreakpoint();
   
   const t = (key: string) => getTranslation(language, key);
 
@@ -105,24 +108,6 @@ const DashboardPage: React.FC = () => {
     }
   };
 
-  const getStatusText = (status: string) => {
-    if (language === 'zh') {
-      switch (status) {
-        case 'normal': return '正常';
-        case 'warning': return '注意';
-        case 'danger': return '异常';
-        default: return '正常';
-      }
-    } else {
-      switch (status) {
-        case 'normal': return 'Normal';
-        case 'warning': return 'Warning';
-        case 'danger': return 'Danger';
-        default: return 'Normal';
-      }
-    }
-  };
-
   const handleReminderComplete = (id: string) => {
     setReminders(prev => 
       prev.map(reminder => 
@@ -133,80 +118,63 @@ const DashboardPage: React.FC = () => {
     );
   };
 
+  // Responsive column spans
+  const getColSpan = (defaultSpan: number) => {
+    if (screens.xs) return 24; // Mobile: full width
+    if (screens.sm) return 12; // Small tablet: half width
+    if (screens.md) return defaultSpan; // Medium: original span
+    return defaultSpan; // Large: original span
+  };
+
+  const getQuickActionSpan = () => {
+    if (screens.xs) return 12; // Mobile: 2 columns
+    if (screens.sm) return 8; // Small tablet: 3 columns
+    if (screens.md) return 6; // Medium: 4 columns
+    return 6; // Large: 4 columns
+  };
+
   return (
-    <div style={{ padding: '24px' }}>
-      <Title level={2}>{t('dashboard.title')}</Title>
-      
-      {/* 健康概览卡片 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
-        <Col span={6}>
-          <Card>
-            <Statistic
-              title={language === 'zh' ? '今日步数' : 'Today Steps'}
-              value={8234}
-              suffix={language === 'zh' ? '步' : 'steps'}
-              prefix={<HeartOutlined style={{ color: '#1890ff' }} />}
-            />
-            <Progress percent={82} size="small" />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic
-              title={language === 'zh' ? '睡眠时长' : 'Sleep Duration'}
-              value={7.5}
-              suffix={language === 'zh' ? '小时' : 'hours'}
-              prefix={<MedicineBoxOutlined style={{ color: '#52c41a' }} />}
-            />
-            <Progress percent={75} size="small" />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic
-              title={language === 'zh' ? '水分摄入' : 'Water Intake'}
-              value={1.8}
-              suffix="L"
-              prefix={<CalendarOutlined style={{ color: '#722ed1' }} />}
-            />
-            <Progress percent={90} size="small" />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic
-              title={language === 'zh' ? '卡路里消耗' : 'Calories Burned'}
-              value={1250}
-              suffix="kcal"
-              prefix={<BellOutlined style={{ color: '#fa8c16' }} />}
-            />
-            <Progress percent={65} size="small" />
-          </Card>
-        </Col>
-      </Row>
+    <div style={{ padding: screens.xs ? '12px' : '24px' }}>
+      <Title level={screens.xs ? 3 : 2} style={{ marginBottom: '24px', textAlign: screens.xs ? 'center' : 'left' }}>
+        {t('dashboard.title')}
+      </Title>
 
       {/* 健康指标 */}
       <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
-        <Col span={12}>
-          <Card title={language === 'zh' ? '关键健康指标' : 'Key Health Metrics'} extra={<Button type="link">{language === 'zh' ? '查看详情' : 'View Details'}</Button>}>
+        <Col xs={24} sm={12} md={12} lg={12}>
+          <Card title={language === 'zh' ? '健康指标' : 'Health Metrics'} size={screens.xs ? 'small' : 'default'}>
             {healthMetrics.map((metric, index) => (
               <div key={index} style={{ marginBottom: '16px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Text>{metric.name}</Text>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <Text strong>{metric.name}</Text>
                   <Space>
-                    <Text strong>{metric.value} {metric.unit}</Text>
                     <Tag color={getStatusColor(metric.status)}>
-                      {getStatusText(metric.status)}
+                      {metric.status === 'normal' ? (language === 'zh' ? '正常' : 'Normal') :
+                       metric.status === 'warning' ? (language === 'zh' ? '警告' : 'Warning') :
+                       (language === 'zh' ? '危险' : 'Danger')}
                     </Tag>
                     <Text>{getTrendIcon(metric.trend)}</Text>
                   </Space>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={{ fontSize: screens.xs ? '16px' : '20px', fontWeight: 'bold' }}>
+                    {metric.value} {metric.unit}
+                  </Text>
+                  <Progress 
+                    percent={metric.status === 'normal' ? 80 : metric.status === 'warning' ? 60 : 40} 
+                    size={screens.xs ? 'small' : 'default'}
+                    strokeColor={getStatusColor(metric.status)}
+                    showInfo={false}
+                  />
                 </div>
               </div>
             ))}
           </Card>
         </Col>
-        <Col span={12}>
-          <Card title={language === 'zh' ? '今日提醒' : 'Today Reminders'} extra={<Button type="link">{language === 'zh' ? '管理提醒' : 'Manage Reminders'}</Button>}>
+        <Col xs={24} sm={12} md={12} lg={12}>
+          <Card title={language === 'zh' ? '今日提醒' : 'Today Reminders'} 
+                extra={<Button type="link" size={screens.xs ? 'small' : 'default'}>{language === 'zh' ? '管理提醒' : 'Manage Reminders'}</Button>}
+                size={screens.xs ? 'small' : 'default'}>
             <List
               dataSource={reminders.filter(r => !r.completed)}
               renderItem={(item) => (
@@ -230,10 +198,11 @@ const DashboardPage: React.FC = () => {
                           <FileTextOutlined />
                         }
                         style={{ backgroundColor: '#1890ff' }}
+                        size={screens.xs ? 'small' : 'default'}
                       />
                     }
-                    title={item.title}
-                    description={`${item.time} - ${item.description}`}
+                    title={<Text style={{ fontSize: screens.xs ? '14px' : '16px' }}>{item.title}</Text>}
+                    description={<Text style={{ fontSize: screens.xs ? '12px' : '14px' }}>{`${item.time} - ${item.description}`}</Text>}
                   />
                 </List.Item>
               )}
@@ -245,47 +214,47 @@ const DashboardPage: React.FC = () => {
       {/* 快速操作 */}
       <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
         <Col span={24}>
-          <Card title={t('dashboard.quickActions.title')}>
+          <Card title={t('dashboard.quickActions.title')} size={screens.xs ? 'small' : 'default'}>
             <Row gutter={[16, 16]}>
-              <Col span={6}>
+              <Col xs={12} sm={8} md={6} lg={6}>
                 <Button 
                   type="primary" 
-                  size="large" 
+                  size={screens.xs ? 'middle' : 'large'} 
                   icon={<MessageOutlined />}
                   block
                   onClick={() => window.location.href = '/chat'}
                 >
-                  {t('dashboard.quickActions.chat')}
+                  {screens.xs ? (language === 'zh' ? '聊天' : 'Chat') : t('dashboard.quickActions.chat')}
                 </Button>
               </Col>
-              <Col span={6}>
+              <Col xs={12} sm={8} md={6} lg={6}>
                 <Button 
-                  size="large" 
+                  size={screens.xs ? 'middle' : 'large'} 
                   icon={<CalendarOutlined />}
                   block
                   onClick={() => window.location.href = '/appointments'}
                 >
-                  {t('dashboard.quickActions.appointment')}
+                  {screens.xs ? (language === 'zh' ? '预约' : 'Appt') : t('dashboard.quickActions.appointment')}
                 </Button>
               </Col>
-              <Col span={6}>
+              <Col xs={12} sm={8} md={6} lg={6}>
                 <Button 
-                  size="large" 
+                  size={screens.xs ? 'middle' : 'large'} 
                   icon={<FileTextOutlined />}
                   block
                   onClick={() => window.location.href = '/health-records'}
                 >
-                  {t('dashboard.quickActions.records')}
+                  {screens.xs ? (language === 'zh' ? '记录' : 'Records') : t('dashboard.quickActions.records')}
                 </Button>
               </Col>
-              <Col span={6}>
+              <Col xs={12} sm={8} md={6} lg={6}>
                 <Button 
-                  size="large" 
+                  size={screens.xs ? 'middle' : 'large'} 
                   icon={<SyncOutlined />}
                   block
                   onClick={() => window.location.href = '/devices'}
                 >
-                  {t('dashboard.quickActions.analysis')}
+                  {screens.xs ? (language === 'zh' ? '设备' : 'Devices') : t('dashboard.quickActions.analysis')}
                 </Button>
               </Col>
             </Row>
@@ -295,10 +264,15 @@ const DashboardPage: React.FC = () => {
 
       {/* 健康趋势图 - 使用简单的进度条替代复杂图表 */}
       <Row gutter={[16, 16]}>
-        <Col span={12}>
-          <Card title={language === 'zh' ? '心率趋势 (7天)' : 'Heart Rate Trend (7 days)'}>
-            <div style={{ padding: '20px 0' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+        <Col xs={24} sm={24} md={12} lg={12}>
+          <Card title={language === 'zh' ? '心率趋势 (7天)' : 'Heart Rate Trend (7 days)'} size={screens.xs ? 'small' : 'default'}>
+            <div style={{ padding: screens.xs ? '10px 0' : '20px 0' }}>
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                marginBottom: '8px',
+                fontSize: screens.xs ? '10px' : '14px'
+              }}>
                 <Text>{language === 'zh' ? '周一' : 'Mon'}</Text>
                 <Text>{language === 'zh' ? '周二' : 'Tue'}</Text>
                 <Text>{language === 'zh' ? '周三' : 'Wed'}</Text>
@@ -307,7 +281,12 @@ const DashboardPage: React.FC = () => {
                 <Text>{language === 'zh' ? '周六' : 'Sat'}</Text>
                 <Text>{language === 'zh' ? '周日' : 'Sun'}</Text>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end', height: '100px' }}>
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'end', 
+                height: screens.xs ? '60px' : '100px' 
+              }}>
                 <div style={{ width: '12%', height: '60%', backgroundColor: '#1890ff', borderRadius: '2px' }}></div>
                 <div style={{ width: '12%', height: '80%', backgroundColor: '#1890ff', borderRadius: '2px' }}></div>
                 <div style={{ width: '12%', height: '50%', backgroundColor: '#1890ff', borderRadius: '2px' }}></div>
@@ -317,15 +296,22 @@ const DashboardPage: React.FC = () => {
                 <div style={{ width: '12%', height: '60%', backgroundColor: '#1890ff', borderRadius: '2px' }}></div>
               </div>
               <div style={{ textAlign: 'center', marginTop: '8px' }}>
-                <Text type="secondary">{language === 'zh' ? '平均心率: 72 bpm' : 'Average Heart Rate: 72 bpm'}</Text>
+                <Text type="secondary" style={{ fontSize: screens.xs ? '12px' : '14px' }}>
+                  {language === 'zh' ? '平均心率: 72 bpm' : 'Average Heart Rate: 72 bpm'}
+                </Text>
               </div>
             </div>
           </Card>
         </Col>
-        <Col span={12}>
-          <Card title={language === 'zh' ? '血压记录 (7天)' : 'Blood Pressure Record (7 days)'}>
-            <div style={{ padding: '20px 0' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+        <Col xs={24} sm={24} md={12} lg={12}>
+          <Card title={language === 'zh' ? '血压记录 (7天)' : 'Blood Pressure Record (7 days)'} size={screens.xs ? 'small' : 'default'}>
+            <div style={{ padding: screens.xs ? '10px 0' : '20px 0' }}>
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                marginBottom: '8px',
+                fontSize: screens.xs ? '10px' : '14px'
+              }}>
                 <Text>{language === 'zh' ? '周一' : 'Mon'}</Text>
                 <Text>{language === 'zh' ? '周二' : 'Tue'}</Text>
                 <Text>{language === 'zh' ? '周三' : 'Wed'}</Text>
@@ -334,7 +320,12 @@ const DashboardPage: React.FC = () => {
                 <Text>{language === 'zh' ? '周六' : 'Sat'}</Text>
                 <Text>{language === 'zh' ? '周日' : 'Sun'}</Text>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end', height: '100px' }}>
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'end', 
+                height: screens.xs ? '60px' : '100px' 
+              }}>
                 <div style={{ width: '12%', height: '60%', backgroundColor: '#52c41a', borderRadius: '2px' }}></div>
                 <div style={{ width: '12%', height: '55%', backgroundColor: '#52c41a', borderRadius: '2px' }}></div>
                 <div style={{ width: '12%', height: '65%', backgroundColor: '#52c41a', borderRadius: '2px' }}></div>
@@ -344,7 +335,9 @@ const DashboardPage: React.FC = () => {
                 <div style={{ width: '12%', height: '60%', backgroundColor: '#52c41a', borderRadius: '2px' }}></div>
               </div>
               <div style={{ textAlign: 'center', marginTop: '8px' }}>
-                <Text type="secondary">{language === 'zh' ? '平均血压: 120/80 mmHg' : 'Average BP: 120/80 mmHg'}</Text>
+                <Text type="secondary" style={{ fontSize: screens.xs ? '12px' : '14px' }}>
+                  {language === 'zh' ? '平均血压: 120/80 mmHg' : 'Average BP: 120/80 mmHg'}
+                </Text>
               </div>
             </div>
           </Card>
@@ -360,7 +353,7 @@ const DashboardPage: React.FC = () => {
         icon={<ExclamationCircleOutlined />}
         action={
           <Button 
-            size="small" 
+            size={screens.xs ? 'small' : 'default'} 
             danger 
             onClick={() => window.location.href = '/emergency'}
           >

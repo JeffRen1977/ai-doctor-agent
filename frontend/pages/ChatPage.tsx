@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Input, Button, Card, Space, message } from 'antd'
+import { Input, Button, Card, Space, message, Grid } from 'antd'
 import { SendOutlined, ClearOutlined } from '@ant-design/icons'
 import { useChatStore, Message } from '@/stores/chatStore'
 import { chatService } from '@/services/chatService'
@@ -9,6 +9,7 @@ import { getTranslation } from '@/locales'
 import './ChatPage.css'
 
 const { TextArea } = Input
+const { useBreakpoint } = Grid
 
 const ChatPage: React.FC = () => {
   const [inputValue, setInputValue] = useState('')
@@ -16,6 +17,7 @@ const ChatPage: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const { messages, addMessage, updateMessage, clearMessages } = useChatStore()
   const { language } = useLanguageStore()
+  const screens = useBreakpoint()
 
   const t = (key: string) => getTranslation(language, key)
 
@@ -84,45 +86,86 @@ const ChatPage: React.FC = () => {
   }
 
   return (
-    <div className="chat-page">
+    <div className="chat-page" style={{ padding: screens.xs ? '8px' : '24px', height: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Card
         title={t('chat.title')}
         extra={
-          <Space>
+          <Space size={screens.xs ? 'small' : 'middle'}>
             <Button
               icon={<ClearOutlined />}
               onClick={handleClear}
               disabled={messages.length === 0}
+              size={screens.xs ? 'small' : 'default'}
             >
-              {language === 'zh' ? '清空记录' : 'Clear History'}
+              {screens.xs ? (language === 'zh' ? '清空' : 'Clear') : (language === 'zh' ? '清空记录' : 'Clear History')}
             </Button>
           </Space>
         }
-        className="chat-card"
+        style={{ 
+          flex: 1, 
+          display: 'flex', 
+          flexDirection: 'column',
+          marginBottom: screens.xs ? '8px' : '16px'
+        }}
+        bodyStyle={{ 
+          flex: 1, 
+          display: 'flex', 
+          flexDirection: 'column',
+          padding: screens.xs ? '8px' : '16px'
+        }}
+        size={screens.xs ? 'small' : 'default'}
       >
-        <div className="chat-container">
-          <div className="messages-container">
-            {messages.length === 0 ? (
-              <div className="empty-state">
-                <p>👋 {language === 'zh' ? '您好！我是您的AI医生助理' : 'Hello! I am your AI doctor assistant'}</p>
-                <p>{t('chat.placeholder')}</p>
-              </div>
-            ) : (
-              messages.map((message) => (
-                <ChatMessage key={message.id} message={message} />
-              ))
-            )}
-            <div ref={messagesEndRef} />
-          </div>
+        {/* Messages Container */}
+        <div 
+          style={{ 
+            flex: 1, 
+            overflowY: 'auto', 
+            marginBottom: '16px',
+            padding: screens.xs ? '4px' : '8px',
+            maxHeight: screens.xs ? 'calc(100vh - 200px)' : 'calc(100vh - 300px)'
+          }}
+        >
+          {messages.length === 0 ? (
+            <div style={{ 
+              textAlign: 'center', 
+              padding: '40px 20px',
+              color: '#999',
+              fontSize: screens.xs ? '14px' : '16px'
+            }}>
+              {language === 'zh' 
+                ? '开始与AI医生对话，描述您的症状或健康问题'
+                : 'Start a conversation with AI Doctor, describe your symptoms or health concerns'
+              }
+            </div>
+          ) : (
+            messages.map((message) => (
+              <ChatMessage 
+                key={message.id} 
+                message={message} 
+                style={{ marginBottom: screens.xs ? '8px' : '12px' }}
+              />
+            ))
+          )}
+          <div ref={messagesEndRef} />
+        </div>
 
-          <div className="input-container">
+        {/* Input Area */}
+        <div style={{ 
+          borderTop: '1px solid #f0f0f0', 
+          paddingTop: '16px',
+          backgroundColor: '#fff'
+        }}>
+          <Space.Compact style={{ width: '100%' }} size={screens.xs ? 'small' : 'middle'}>
             <TextArea
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder={t('chat.placeholder')}
-              autoSize={{ minRows: 2, maxRows: 4 }}
-              disabled={sending}
+              placeholder={language === 'zh' ? '描述您的症状或健康问题...' : 'Describe your symptoms or health concerns...'}
+              autoSize={{ minRows: 1, maxRows: 4 }}
+              style={{ 
+                fontSize: screens.xs ? '14px' : '16px',
+                resize: 'none'
+              }}
             />
             <Button
               type="primary"
@@ -130,10 +173,29 @@ const ChatPage: React.FC = () => {
               onClick={handleSend}
               loading={sending}
               disabled={!inputValue.trim()}
+              style={{ 
+                height: screens.xs ? '32px' : 'auto',
+                minWidth: screens.xs ? '60px' : '80px'
+              }}
             >
-              {t('chat.sendButton')}
+              {screens.xs ? (language === 'zh' ? '发送' : 'Send') : (language === 'zh' ? '发送消息' : 'Send')}
             </Button>
-          </div>
+          </Space.Compact>
+          
+          {/* Mobile-friendly tips */}
+          {screens.xs && (
+            <div style={{ 
+              marginTop: '8px', 
+              fontSize: '12px', 
+              color: '#999',
+              textAlign: 'center'
+            }}>
+              {language === 'zh' 
+                ? '💡 提示：按回车键快速发送消息'
+                : '💡 Tip: Press Enter to send message quickly'
+              }
+            </div>
+          )}
         </div>
       </Card>
     </div>
