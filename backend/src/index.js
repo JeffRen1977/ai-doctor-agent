@@ -191,10 +191,30 @@ app.get('/test-static', (req, res) => {
     const testCss = path.join(distPath, 'assets/index-83669fd6.css');
     const testIcon = path.join(distPath, 'icon-192x192.png');
     
+    // Get detailed file structure
+    let assetsContents = [];
+    let distContents = [];
+    
+    try {
+      if (distPath) {
+        distContents = require('fs').readdirSync(distPath);
+        
+        // Check assets subdirectory
+        const assetsPath = path.join(distPath, 'assets');
+        if (require('fs').existsSync(assetsPath)) {
+          assetsContents = require('fs').readdirSync(assetsPath);
+        }
+      }
+    } catch (dirError) {
+      console.error('Error reading directories:', dirError.message);
+    }
+    
     res.json({
       message: 'Static file test',
       timestamp: new Date().toISOString(),
       distPath: distPath,
+      distContents: distContents,
+      assetsContents: assetsContents,
       testFiles: {
         jsFile: {
           path: testFile,
@@ -212,7 +232,11 @@ app.get('/test-static', (req, res) => {
           size: require('fs').existsSync(testIcon) ? require('fs').statSync(testIcon).size : null
         }
       },
-      distContents: distPath ? require('fs').readdirSync(distPath) : 'No dist path'
+      fileSearch: {
+        jsFiles: assetsContents.filter(file => file.endsWith('.js')),
+        cssFiles: assetsContents.filter(file => file.endsWith('.css')),
+        imageFiles: assetsContents.filter(file => /\.(png|jpg|jpeg|gif|svg|ico)$/.test(file))
+      }
     });
   } catch (error) {
     res.json({
