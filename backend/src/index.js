@@ -184,6 +184,44 @@ app.get('/test-backend', (req, res) => {
   });
 });
 
+// Static file test endpoint
+app.get('/test-static', (req, res) => {
+  try {
+    const testFile = path.join(distPath, 'assets/main-ce93f8d7.js');
+    const testCss = path.join(distPath, 'assets/index-83669fd6.css');
+    const testIcon = path.join(distPath, 'icon-192x192.png');
+    
+    res.json({
+      message: 'Static file test',
+      timestamp: new Date().toISOString(),
+      distPath: distPath,
+      testFiles: {
+        jsFile: {
+          path: testFile,
+          exists: require('fs').existsSync(testFile),
+          size: require('fs').existsSync(testFile) ? require('fs').statSync(testFile).size : null
+        },
+        cssFile: {
+          path: testCss,
+          exists: require('fs').existsSync(testCss),
+          size: require('fs').existsSync(testCss) ? require('fs').statSync(testCss).size : null
+        },
+        iconFile: {
+          path: testIcon,
+          exists: require('fs').existsSync(testIcon),
+          size: require('fs').existsSync(testIcon) ? require('fs').statSync(testIcon).size : null
+        }
+      },
+      distContents: distPath ? require('fs').readdirSync(distPath) : 'No dist path'
+    });
+  } catch (error) {
+    res.json({
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ 
@@ -219,7 +257,24 @@ app.get('/api/debug', (req, res) => {
 
 // Serve static files from the React app build
 if (distPath) {
-  app.use(express.static(distPath));
+  // Configure static file serving with proper MIME types
+  app.use(express.static(distPath, {
+    setHeaders: (res, path, stat) => {
+      // Set proper MIME types for different file types
+      if (path.endsWith('.js')) {
+        res.set('Content-Type', 'application/javascript');
+      } else if (path.endsWith('.css')) {
+        res.set('Content-Type', 'text/css');
+      } else if (path.endsWith('.png') || path.endsWith('.jpg') || path.endsWith('.jpeg') || path.endsWith('.gif') || path.endsWith('.svg')) {
+        res.set('Content-Type', `image/${path.split('.').pop()}`);
+      } else if (path.endsWith('.ico')) {
+        res.set('Content-Type', 'image/x-icon');
+      }
+      
+      // Log static file requests for debugging
+      console.log(`📁 Serving static file: ${path} (${res.get('Content-Type')})`);
+    }
+  }));
   console.log(`✅ Static files being served from: ${distPath}`);
 } else {
   console.error("❌ Cannot serve static files - distPath not found");
