@@ -3,6 +3,17 @@
 // Railway-specific startup script - Updated: 2025-08-29 16:16 UTC
 console.log('🚀 Starting AI Doctor Agent for Railway...');
 
+// Check Node.js version compatibility
+const nodeVersion = process.version;
+const majorVersion = parseInt(nodeVersion.slice(1).split('.')[0]);
+if (majorVersion < 20) {
+  console.error(`❌ Node.js version ${nodeVersion} is not supported. Firebase requires Node.js 20 or higher.`);
+  console.error(`Current version: ${nodeVersion}`);
+  console.error(`Required version: >=20.0.0`);
+  process.exit(1);
+}
+console.log(`✅ Node.js version ${nodeVersion} is compatible with Firebase`);
+
 // Force Railway configuration
 process.env.NODE_ENV = process.env.NODE_ENV || 'production';
 
@@ -77,6 +88,14 @@ try {
   console.log('✅ Helmet module available');
 } catch (error) {
   console.error('❌ Helmet module not available:', error.message);
+}
+
+// Test Firebase compatibility
+try {
+  require('firebase');
+  console.log('✅ Firebase module available');
+} catch (error) {
+  console.error('❌ Firebase module not available:', error.message);
 }
 
 // Start the backend
