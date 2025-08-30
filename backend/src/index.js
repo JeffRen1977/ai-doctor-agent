@@ -39,10 +39,10 @@ console.log(`Current Directory: ${__dirname}`);
 // --- Path Verification ---
 // Try multiple possible paths for frontend files
 const possibleDistPaths = [
-  path.join(__dirname, '../../dist'),           // From backend/src
-  path.join(__dirname, '../dist'),             // From backend
-  path.join(__dirname, '../../frontend/dist'), // Alternative path
-  path.join(__dirname, '../frontend/dist'),    // Alternative path
+  path.join(__dirname, '../dist'),             // From backend (Docker container structure)
+  path.join(__dirname, '../../dist'),          // From backend/src (alternative)
+  path.join(__dirname, '../../frontend/dist'), // Frontend dist (development)
+  path.join(__dirname, '../frontend/dist'),    // Frontend dist (alternative)
   path.join(__dirname, 'dist'),               // Direct dist
   path.join(__dirname, 'frontend/dist')       // Direct frontend/dist
 ];
