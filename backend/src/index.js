@@ -187,8 +187,8 @@ app.get('/test-backend', (req, res) => {
 // Static file test endpoint
 app.get('/test-static', (req, res) => {
   try {
-    const testFile = path.join(distPath, 'assets/main-ce93f8d7.js');
-    const testCss = path.join(distPath, 'assets/index-83669fd6.css');
+    const mainJsFile = findMainJsFile();
+    const mainCssFile = findMainCssFile();
     const testIcon = path.join(distPath, 'icon-192x192.png');
     
     // Get detailed file structure
@@ -215,16 +215,22 @@ app.get('/test-static', (req, res) => {
       distPath: distPath,
       distContents: distContents,
       assetsContents: assetsContents,
+      dynamicFiles: {
+        mainJsFile: mainJsFile,
+        mainCssFile: mainCssFile,
+        mainJsExists: mainJsFile ? require('fs').existsSync(path.join(distPath, mainJsFile)) : false,
+        mainCssExists: mainCssFile ? require('fs').existsSync(path.join(distPath, mainCssFile)) : false
+      },
       testFiles: {
         jsFile: {
-          path: testFile,
-          exists: require('fs').existsSync(testFile),
-          size: require('fs').existsSync(testFile) ? require('fs').statSync(testFile).size : null
+          path: mainJsFile ? path.join(distPath, mainJsFile) : 'Not found',
+          exists: mainJsFile ? require('fs').existsSync(path.join(distPath, mainJsFile)) : false,
+          size: mainJsFile && require('fs').existsSync(path.join(distPath, mainJsFile)) ? require('fs').statSync(path.join(distPath, mainJsFile)).size : null
         },
         cssFile: {
-          path: testCss,
-          exists: require('fs').existsSync(testCss),
-          size: require('fs').existsSync(testCss) ? require('fs').statSync(testCss).size : null
+          path: mainCssFile ? path.join(distPath, mainCssFile) : 'Not found',
+          exists: mainCssFile ? require('fs').existsSync(path.join(distPath, mainCssFile)) : false,
+          size: mainCssFile && require('fs').existsSync(path.join(distPath, mainCssFile)) ? require('fs').statSync(path.join(distPath, mainCssFile)).size : null
         },
         iconFile: {
           path: testIcon,
@@ -249,12 +255,17 @@ app.get('/test-static', (req, res) => {
 // Direct asset test endpoints
 app.get('/test-js', (req, res) => {
   try {
-    const jsFile = path.join(distPath, 'assets/main-ce93f8d7.js');
-    if (require('fs').existsSync(jsFile)) {
+    const mainJsFile = findMainJsFile();
+    if (!mainJsFile) {
+      return res.status(404).json({ error: 'No main JS file found' });
+    }
+    
+    const jsFilePath = path.join(distPath, mainJsFile);
+    if (require('fs').existsSync(jsFilePath)) {
       res.set('Content-Type', 'application/javascript');
-      res.sendFile(jsFile);
+      res.sendFile(jsFilePath);
     } else {
-      res.status(404).json({ error: 'JS file not found', path: jsFile });
+      res.status(404).json({ error: 'JS file not found', path: jsFilePath });
     }
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -263,12 +274,17 @@ app.get('/test-js', (req, res) => {
 
 app.get('/test-css', (req, res) => {
   try {
-    const cssFile = path.join(distPath, 'assets/index-83669fd6.css');
-    if (require('fs').existsSync(cssFile)) {
+    const mainCssFile = findMainCssFile();
+    if (!mainCssFile) {
+      return res.status(404).json({ error: 'No main CSS file found' });
+    }
+    
+    const cssFilePath = path.join(distPath, mainCssFile);
+    if (require('fs').existsSync(cssFilePath)) {
       res.set('Content-Type', 'text/css');
-      res.sendFile(cssFile);
+      res.sendFile(cssFilePath);
     } else {
-      res.status(404).json({ error: 'CSS file not found', path: cssFile });
+      res.status(404).json({ error: 'CSS file not found', path: cssFilePath });
     }
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -345,6 +361,46 @@ if (distPath) {
   console.log(`✅ Static files being served from: ${distPath}`);
 } else {
   console.error("❌ Cannot serve static files - distPath not found");
+}
+
+// Helper function to find main JavaScript file
+function findMainJsFile() {
+  try {
+    if (!distPath) return null;
+    
+    const assetsPath = path.join(distPath, 'assets');
+    if (!require('fs').existsSync(assetsPath)) return null;
+    
+    const assetsContents = require('fs').readdirSync(assetsPath);
+    const jsFiles = assetsContents.filter(file => file.endsWith('.js'));
+    
+    // Find the main JavaScript file (usually starts with 'main-')
+    const mainJsFile = jsFiles.find(file => file.startsWith('main-'));
+    return mainJsFile ? path.join('assets', mainJsFile) : null;
+  } catch (error) {
+    console.error('Error finding main JS file:', error.message);
+    return null;
+  }
+}
+
+// Helper function to find main CSS file
+function findMainCssFile() {
+  try {
+    if (!distPath) return null;
+    
+    const assetsPath = path.join(distPath, 'assets');
+    if (!require('fs').existsSync(assetsPath)) return null;
+    
+    const assetsContents = require('fs').readdirSync(assetsPath);
+    const cssFiles = assetsContents.filter(file => file.endsWith('.css'));
+    
+    // Find the main CSS file (usually starts with 'index-')
+    const mainCssFile = cssFiles.find(file => file.startsWith('index-'));
+    return mainCssFile ? path.join('assets', mainCssFile) : null;
+  } catch (error) {
+    console.error('Error finding main CSS file:', error.message);
+    return null;
+  }
 }
 
 // Handle React routing, return all requests to React app
