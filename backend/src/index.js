@@ -222,6 +222,49 @@ app.get('/test-static', (req, res) => {
   }
 });
 
+// Direct asset test endpoints
+app.get('/test-js', (req, res) => {
+  try {
+    const jsFile = path.join(distPath, 'assets/main-ce93f8d7.js');
+    if (require('fs').existsSync(jsFile)) {
+      res.set('Content-Type', 'application/javascript');
+      res.sendFile(jsFile);
+    } else {
+      res.status(404).json({ error: 'JS file not found', path: jsFile });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/test-css', (req, res) => {
+  try {
+    const cssFile = path.join(distPath, 'assets/index-83669fd6.css');
+    if (require('fs').existsSync(cssFile)) {
+      res.set('Content-Type', 'text/css');
+      res.sendFile(cssFile);
+    } else {
+      res.status(404).json({ error: 'CSS file not found', path: cssFile });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/test-icon', (req, res) => {
+  try {
+    const iconFile = path.join(distPath, 'icon-192x192.png');
+    if (require('fs').existsSync(iconFile)) {
+      res.set('Content-Type', 'image/png');
+      res.sendFile(iconFile);
+    } else {
+      res.status(404).json({ error: 'Icon file not found', path: iconFile });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ 
