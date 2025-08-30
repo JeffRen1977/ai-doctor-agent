@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1890ff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#096dd9;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="240" fill="url(#grad1)" stroke="#ffffff" stroke-width="16"/>
+  
+  <!-- Medical cross -->
+  <rect x="200" y="120" width="112" height="32" rx="16" fill="#ffffff"/>
+  <rect x="232" y="88" width="48" height="112" rx="24" fill="#ffffff"/>
+  
+  <!-- AI/Neural network dots -->
+  <circle cx="120" cy="120" r="8" fill="#ffffff" opacity="0.8"/>
+  <circle cx="120" cy="200" r="8" fill="#ffffff" opacity="0.8"/>
+  <circle cx="120" cy="280" r="8" fill="#ffffff" opacity="0.8"/>
+  <circle cx="120" cy="360" r="8" fill="#ffffff" opacity="0.8"/>
+  
+  <circle cx="200" cy="120" r="6" fill="#ffffff" opacity="0.6"/>
+  <circle cx="200" cy="200" r="6" fill="#ffffff" opacity="0.6"/>
+  <circle cx="200" cy="280" r="6" fill="#ffffff" opacity="0.6"/>
+  <circle cx="200" cy="360" r="6" fill="#ffffff" opacity="0.6"/>
+  
+  <circle cx="280" cy="120" r="6" fill="#ffffff" opacity="0.6"/>
+  <circle cx="280" cy="200" r="6" fill="#ffffff" opacity="0.6"/>
+  <circle cx="280" cy="280" r="6" fill="#ffffff" opacity="0.6"/>
+  <circle cx="280" cy="360" r="6" fill="#ffffff" opacity="0.6"/>
+  
+  <circle cx="360" cy="120" r="8" fill="#ffffff" opacity="0.8"/>
+  <circle cx="360" cy="200" r="8" fill="#ffffff" opacity="0.8"/>
+  <circle cx="360" cy="280" r="8" fill="#ffffff" opacity="0.8"/>
+  <circle cx="360" cy="360" r="8" fill="#ffffff" opacity="0.8"/>
+  
+  <!-- Connection lines -->
+  <line x1="128" y1="120" x2="194" y2="120" stroke="#ffffff" stroke-width="2" opacity="0.4"/>
+  <line x1="128" y1="200" x2="194" y2="200" stroke="#ffffff" stroke-width="2" opacity="0.4"/>
+  <line x1="128" y1="280" x2="194" y2="280" stroke="#ffffff" stroke-width="2" opacity="0.4"/>
+  <line x1="128" y1="360" x2="194" y2="360" stroke="#ffffff" stroke-width="2" opacity="0.4"/>
+  
+  <line x1="206" y1="120" x2="272" y2="120" stroke="#ffffff" stroke-width="2" opacity="0.4"/>
+  <line x1="206" y1="200" x2="272" y2="200" stroke="#ffffff" stroke-width="2" opacity="0.4"/>
+  <line x1="206" y1="280" x2="272" y2="280" stroke="#ffffff" stroke-width="2" opacity="0.4"/>
+  <line x1="206" y1="360" x2="272" y2="360" stroke="#ffffff" stroke-width="2" opacity="0.4"/>
+  
+  <line x1="286" y1="120" x2="352" y2="120" stroke="#ffffff" stroke-width="2" opacity="0.4"/>
+  <line x1="286" y1="200" x2="352" y2="200" stroke="#ffffff" stroke-width="2" opacity="0.4"/>
+  <line x1="286" y1="280" x2="352" y2="280" stroke="#ffffff" stroke-width="2" opacity="0.4"/>
+  <line x1="286" y1="360" x2="352" y2="360" stroke="#ffffff" stroke-width="2" opacity="0.4"/>
+</svg>
