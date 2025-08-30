@@ -11,6 +11,8 @@
     "start": "node start-railway.js",
     "start:railway": "node start-railway.js",
     "start:backend": "node backend/src/index.js",
+    "test:minimal": "node test-minimal-server.js",
+    "test:backend": "node test-backend-start.js",
     "lint": "eslint frontend --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
   },
   "dependencies": {
