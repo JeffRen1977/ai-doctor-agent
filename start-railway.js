@@ -90,12 +90,27 @@ try {
   console.error('❌ Helmet module not available:', error.message);
 }
 
-// Test Firebase compatibility
+// Test Firebase compatibility with better error handling
 try {
-  require('firebase');
+  const firebase = require('firebase');
   console.log('✅ Firebase module available');
 } catch (error) {
   console.error('❌ Firebase module not available:', error.message);
+  
+  // Try alternative Firebase imports
+  try {
+    const { initializeApp } = require('firebase/app');
+    console.log('✅ Firebase app module available');
+  } catch (appError) {
+    console.error('❌ Firebase app module not available:', appError.message);
+  }
+  
+  try {
+    const { getAuth } = require('firebase/auth');
+    console.log('✅ Firebase auth module available');
+  } catch (authError) {
+    console.error('❌ Firebase auth module not available:', authError.message);
+  }
 }
 
 // Start the backend
@@ -113,7 +128,7 @@ try {
   let backendStarted = false;
   for (const backendPath of possibleBackendPaths) {
     try {
-      if (fs.existsSync(backendPath)) {
+      if (require('fs').existsSync(backendPath)) {
         console.log(`✅ Found backend at: ${backendPath}`);
         require(backendPath);
         backendStarted = true;
