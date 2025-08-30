@@ -26,8 +26,8 @@ COPY start-railway.js ./
 # Copy dependencies and package files
 COPY package.json package-lock.json ./
 
-# Install production dependencies (using modern npm syntax)
-RUN npm ci --omit=dev
+# Install production dependencies (using npm install for better compatibility)
+RUN npm install --omit=dev
 
 # Copy backend source code
 COPY backend ./backend
