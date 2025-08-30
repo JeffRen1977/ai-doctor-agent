@@ -356,10 +356,14 @@ if (distPath) {
         res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
         res.set('Pragma', 'no-cache');
         res.set('Expires', '0');
+        // Add version header for cache busting
+        res.set('X-Version', Date.now().toString());
       } else if (path.endsWith('.js') || path.endsWith('.css')) {
         // JS and CSS files can be cached but with version-based invalidation
         res.set('Cache-Control', 'public, max-age=31536000'); // 1 year
         res.set('ETag', `"${stat.size}-${stat.mtime.getTime()}"`);
+        // Add version header for cache busting
+        res.set('X-Version', Date.now().toString());
       } else if (path.endsWith('.png') || path.endsWith('.jpg') || path.endsWith('.jpeg') || path.endsWith('.gif') || path.endsWith('.svg') || path.endsWith('.ico')) {
         // Images can be cached for a long time
         res.set('Cache-Control', 'public, max-age=31536000'); // 1 year
@@ -369,7 +373,7 @@ if (distPath) {
       }
       
       // Log static file requests for debugging
-      console.log(`📁 Serving static file: ${path} (${res.get('Content-Type')}) - Cache: ${res.get('Cache-Control')}`);
+      console.log(`📁 Serving static file: ${path} (${res.get('Content-Type')}) - Cache: ${res.get('Cache-Control')} - Version: ${res.get('X-Version')}`);
     }
   }));
   console.log(`✅ Static files being served from: ${distPath}`);
