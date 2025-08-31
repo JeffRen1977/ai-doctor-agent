@@ -146,7 +146,7 @@ app.get('/health', (req, res) => {
 app.get('/cache-bust', (req, res) => {
   res.json({
     timestamp: new Date().toISOString(),
-    version: 'v2.0.0',
+    version: 'v4.0.0',
     cacheBust: Date.now(),
     message: 'Cache busting endpoint - use this to verify fresh content',
     headers: {
@@ -155,6 +155,70 @@ app.get('/cache-bust', (req, res) => {
       'Expires': '0'
     }
   });
+});
+
+// Force cache clear endpoint
+app.get('/force-clear-cache', (req, res) => {
+  res.set({
+    'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+    'Pragma': 'no-cache',
+    'Expires': '0',
+    'X-Cache-Clear': 'forced',
+    'X-Timestamp': Date.now().toString()
+  });
+  
+  res.json({
+    success: true,
+    timestamp: new Date().toISOString(),
+    message: 'Cache clear headers set - browser should clear cache',
+    instructions: 'This endpoint sets headers that force browsers to clear their cache',
+    cacheControl: 'no-cache, no-store, must-revalidate, max-age=0'
+  });
+});
+
+// Health check with cache status
+app.get('/health-cache', (req, res) => {
+  res.set({
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'X-Cache-Status': 'monitoring',
+    'X-Server-Time': new Date().toISOString()
+  });
+  
+  res.json({
+    status: 'OK',
+    cacheStatus: 'monitoring',
+    timestamp: new Date().toISOString(),
+    cacheHeaders: {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    },
+    recommendations: [
+      'If experiencing white screen, visit /force-clear-cache',
+      'Check browser console for cache-related errors',
+      'Ensure service worker is updated to v4'
+    ]
+  });
+});
+
+// Cache fix page route
+app.get('/cache-fix', (req, res) => {
+  const cacheFixPath = path.join(distPath, 'cache-fix.html');
+  if (require('fs').existsSync(cacheFixPath)) {
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+      'X-Cache-Fix': 'available'
+    });
+    res.sendFile(cacheFixPath);
+  } else {
+    res.status(404).json({ 
+      error: 'Cache fix page not found',
+      searchedPath: cacheFixPath,
+      distPath: distPath
+    });
+  }
 });
 
 // Test route to verify backend is accessible
@@ -350,26 +414,29 @@ if (distPath) {
         res.set('Content-Type', 'image/x-icon');
       }
       
-      // Set cache control headers to prevent caching issues
+      // Set aggressive cache control headers to prevent white screen issues
       if (path.endsWith('.html')) {
-        // HTML files should never be cached to ensure fresh content
-        res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+        // HTML files should NEVER be cached to ensure fresh content
+        res.set('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0, s-maxage=0');
         res.set('Pragma', 'no-cache');
         res.set('Expires', '0');
-        // Add version header for cache busting
+        res.set('Last-Modified', new Date().toUTCString());
         res.set('X-Version', Date.now().toString());
+        res.set('X-Cache-Control', 'HTML-NO-CACHE');
       } else if (path.endsWith('.js') || path.endsWith('.css')) {
-        // JS and CSS files can be cached but with version-based invalidation
-        res.set('Cache-Control', 'public, max-age=31536000'); // 1 year
-        res.set('ETag', `"${stat.size}-${stat.mtime.getTime()}"`);
-        // Add version header for cache busting
+        // JS and CSS files with aggressive cache busting
+        res.set('Cache-Control', 'public, max-age=0, must-revalidate');
+        res.set('ETag', `"${stat.size}-${stat.mtime.getTime()}-${Date.now()}"`);
         res.set('X-Version', Date.now().toString());
+        res.set('X-Cache-Control', 'ASSET-REVALIDATE');
       } else if (path.endsWith('.png') || path.endsWith('.jpg') || path.endsWith('.jpeg') || path.endsWith('.gif') || path.endsWith('.svg') || path.endsWith('.ico')) {
-        // Images can be cached for a long time
-        res.set('Cache-Control', 'public, max-age=31536000'); // 1 year
+        // Images with moderate caching
+        res.set('Cache-Control', 'public, max-age=3600, must-revalidate'); // 1 hour
+        res.set('X-Version', Date.now().toString());
       } else {
         // Default cache control for other files
-        res.set('Cache-Control', 'public, max-age=86400'); // 1 day
+        res.set('Cache-Control', 'public, max-age=300, must-revalidate'); // 5 minutes
+        res.set('X-Version', Date.now().toString());
       }
       
       // Log static file requests for debugging
