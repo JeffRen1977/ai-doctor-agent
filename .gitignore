@@ -96,4 +96,8 @@ jspm_packages/
 .dynamodb/
 
 # TernJS port file
-.tern-port 
+.tern-port
+
+# Firebase service account keys (sensitive files)
+backend/src/config/*-firebase-adminsdk-*.json
+backend/src/config/firebase-service-account.json 
