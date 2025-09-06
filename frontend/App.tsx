@@ -1,7 +1,8 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { Layout } from 'antd'
 import Sidebar from './components/Sidebar'
+import MobileApp from './components/MobileApp'
 import DashboardPage from './pages/DashboardPage'
 import ChatPage from './pages/ChatPage'
 import HealthRecordsPage from './pages/HealthRecordsPage'
@@ -21,6 +22,27 @@ const { Content } = Layout
 function App() {
   const { isAuthenticated, initAuth } = useAuthStore()
   const { initLanguage, refreshLanguage, language } = useLanguageStore()
+  const [isMobile, setIsMobile] = useState(false)
+
+  // 检测设备类型
+  useEffect(() => {
+    const checkDevice = () => {
+      const isMobileDevice = window.innerWidth <= 768 || 
+        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+      console.log('📱 Device detection:', {
+        width: window.innerWidth,
+        userAgent: navigator.userAgent,
+        isMobileDevice
+      })
+      setIsMobile(isMobileDevice)
+    }
+
+    // 延迟检测，确保DOM完全加载
+    setTimeout(checkDevice, 100)
+    window.addEventListener('resize', checkDevice)
+    
+    return () => window.removeEventListener('resize', checkDevice)
+  }, [])
 
   // Initialize authentication state and language settings on component mount
   useEffect(() => {
@@ -52,12 +74,22 @@ function App() {
     }
   }, [refreshLanguage])
 
-  console.log('🌐 Current language:', language, 'Authenticated:', isAuthenticated)
+  console.log('🌐 Current language:', language, 'Authenticated:', isAuthenticated, 'IsMobile:', isMobile)
 
   if (!isAuthenticated) {
+    console.log('🔐 User not authenticated, showing login page')
     return <LoginPage />
   }
 
+  // 移动端使用移动端布局
+  if (isMobile) {
+    console.log('📱 Mobile device detected, showing MobileApp')
+    return <MobileApp />
+  }
+
+  console.log('🖥️ Desktop device detected, showing desktop layout')
+
+  // 桌面端使用原有布局
   return (
     <Layout style={{ height: '100vh' }}>
       <Sidebar />

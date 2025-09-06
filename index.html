@@ -38,6 +38,107 @@
         });
       }
     </script>
+
+    <!-- Mobile Debug Console -->
+    <script>
+      // 检测移动设备
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      
+      if (isMobile) {
+        // 创建移动端调试面板
+        const debugPanel = document.createElement('div');
+        debugPanel.id = 'mobile-debug-panel';
+        debugPanel.style.cssText = `
+          position: fixed;
+          top: 10px;
+          right: 10px;
+          width: 300px;
+          max-height: 400px;
+          background: rgba(0,0,0,0.8);
+          color: white;
+          font-family: monospace;
+          font-size: 12px;
+          padding: 10px;
+          border-radius: 5px;
+          z-index: 9999;
+          overflow-y: auto;
+          display: none;
+        `;
+        
+        const toggleBtn = document.createElement('button');
+        toggleBtn.textContent = '🐛';
+        toggleBtn.style.cssText = `
+          position: fixed;
+          top: 10px;
+          right: 10px;
+          width: 40px;
+          height: 40px;
+          background: #1890ff;
+          color: white;
+          border: none;
+          border-radius: 50%;
+          font-size: 20px;
+          z-index: 10000;
+          cursor: pointer;
+        `;
+        
+        let logs = [];
+        const maxLogs = 50;
+        
+        // 重写console.log
+        const originalLog = console.log;
+        console.log = function(...args) {
+          originalLog.apply(console, args);
+          logs.push({
+            type: 'log',
+            message: args.join(' '),
+            time: new Date().toLocaleTimeString()
+          });
+          if (logs.length > maxLogs) logs.shift();
+          updateDebugPanel();
+        };
+        
+        // 重写console.error
+        const originalError = console.error;
+        console.error = function(...args) {
+          originalError.apply(console, args);
+          logs.push({
+            type: 'error',
+            message: args.join(' '),
+            time: new Date().toLocaleTimeString()
+          });
+          if (logs.length > maxLogs) logs.shift();
+          updateDebugPanel();
+        };
+        
+        function updateDebugPanel() {
+          if (debugPanel.style.display === 'block') {
+            debugPanel.innerHTML = logs.map(log => 
+              `<div style="color: ${log.type === 'error' ? '#ff4d4f' : '#52c41a'}; margin: 2px 0;">
+                [${log.time}] ${log.message}
+              </div>`
+            ).join('');
+          }
+        }
+        
+        toggleBtn.onclick = function() {
+          if (debugPanel.style.display === 'none') {
+            debugPanel.style.display = 'block';
+            updateDebugPanel();
+          } else {
+            debugPanel.style.display = 'none';
+          }
+        };
+        
+        document.body.appendChild(debugPanel);
+        document.body.appendChild(toggleBtn);
+        
+        // 添加一些初始日志
+        console.log('📱 Mobile debug console initialized');
+        console.log('🌐 User Agent:', navigator.userAgent);
+        console.log('📏 Screen size:', window.innerWidth + 'x' + window.innerHeight);
+      }
+    </script>
     
     <title>AI Doctor Agent</title>
   </head>

@@ -74,7 +74,7 @@ router.post('/login', async (req, res) => {
 
     const { email, password } = value;
 
-    // 登录用户
+    // 使用Firebase认证
     const result = await firebaseService.loginUser(email, password);
     
     if (!result.success) {

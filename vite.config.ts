@@ -4,7 +4,14 @@ import path from 'path'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react({
+      fastRefresh: false,
+      babel: {
+        plugins: []
+      }
+    })
+  ],
   root: '.', // Set root to current directory
   publicDir: 'frontend/public', // Set public directory
   resolve: {
@@ -14,6 +21,7 @@ export default defineConfig({
   },
   server: {
     port: 3000,
+    host: true, // 允许外部访问，支持移动端调试
     proxy: {
       '/api': {
         target: 'http://localhost:8000',
@@ -44,8 +52,20 @@ export default defineConfig({
         drop_debugger: true,
       },
     },
+    // 移动端优化
+    target: ['es2015', 'chrome58', 'firefox57', 'safari11'],
+    cssCodeSplit: true,
+    chunkSizeWarningLimit: 1000,
   },
   define: {
     'process.env.NODE_ENV': '"production"',
+  },
+  // PWA 支持
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'antd', '@ant-design/icons'],
+  },
+  // 移动端性能优化
+  esbuild: {
+    target: 'es2015',
   },
 }) 

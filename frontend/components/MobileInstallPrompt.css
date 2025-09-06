@@ -1,0 +1,156 @@
+.mobile-install-modal .ant-modal-content {
+  padding: 0;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.install-prompt-card {
+  border: none;
+  box-shadow: none;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.install-prompt-card .ant-card-body {
+  padding: 24px;
+}
+
+.install-prompt-content {
+  text-align: center;
+}
+
+.install-icon {
+  font-size: 48px;
+  color: white;
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 80px;
+  height: 80px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  margin: 0 auto 16px;
+}
+
+.install-title {
+  color: white !important;
+  margin-bottom: 12px !important;
+  font-weight: 600;
+}
+
+.install-description {
+  color: rgba(255, 255, 255, 0.9) !important;
+  margin-bottom: 16px;
+  display: block;
+  line-height: 1.5;
+}
+
+.install-benefits {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 24px 0;
+  text-align: left;
+}
+
+.install-benefits li {
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 8px;
+  font-size: 14px;
+  line-height: 1.4;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.install-actions {
+  width: 100%;
+}
+
+.install-button {
+  background: white;
+  border: none;
+  color: #667eea;
+  font-weight: 600;
+  height: 48px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease;
+}
+
+.install-button:hover {
+  background: #f8f9ff;
+  color: #5a6fd8;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+
+.dismiss-button {
+  color: rgba(255, 255, 255, 0.8);
+  height: 40px;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.dismiss-button:hover {
+  color: white;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* 动画效果 */
+.mobile-install-modal {
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.install-prompt-card {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* 移动端优化 */
+@media (max-width: 480px) {
+  .mobile-install-modal .ant-modal {
+    margin: 16px;
+    max-width: calc(100vw - 32px);
+  }
+  
+  .install-prompt-card .ant-card-body {
+    padding: 20px;
+  }
+  
+  .install-icon {
+    font-size: 40px;
+    width: 70px;
+    height: 70px;
+  }
+  
+  .install-title {
+    font-size: 18px !important;
+  }
+  
+  .install-benefits li {
+    font-size: 13px;
+  }
+}
+

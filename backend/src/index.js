@@ -79,7 +79,10 @@ if (!distPath) {
 // CORS configuration for Railway deployment
 const allowedOrigins = [
   'http://localhost:3000', // Local development
+  'http://localhost:3001', // Vite dev server (alternative port)
   'http://localhost:5173', // Vite dev server
+  'http://10.17.99.248:3000', // Network access for mobile testing
+  'http://10.17.99.248:3001', // Network access for mobile testing (alternative port)
   'https://*.railway.app', // Railway domains
   process.env.FRONTEND_URL // Custom frontend URL if set
 ].filter(Boolean);

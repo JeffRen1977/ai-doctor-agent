@@ -1,0 +1,253 @@
+.mobile-app {
+  min-height: 100vh;
+  background: #f5f5f5;
+}
+
+.mobile-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 56px;
+  background: white;
+  border-bottom: 1px solid #e8e8e8;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.mobile-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.mobile-menu-button {
+  color: #1890ff;
+  font-size: 18px;
+  padding: 8px;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+.mobile-menu-button:hover {
+  background: #f0f8ff;
+  color: #40a9ff;
+}
+
+.mobile-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #262626;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mobile-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.offline-indicator {
+  color: #ff4d4f;
+  font-size: 12px;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+.mobile-content {
+  margin-top: 56px;
+  margin-bottom: 60px;
+  min-height: calc(100vh - 116px);
+  padding: 0;
+  background: #f5f5f5;
+}
+
+.mobile-bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: white;
+  border-top: 1px solid #e8e8e8;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  z-index: 1000;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.nav-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: #8c8c8c;
+  font-size: 12px;
+  transition: all 0.3s ease;
+  min-width: 60px;
+}
+
+.nav-button .anticon {
+  font-size: 20px;
+  margin-bottom: 4px;
+}
+
+.nav-button:hover {
+  color: #1890ff;
+  background: #f0f8ff;
+}
+
+.nav-button.active {
+  color: #1890ff;
+  background: #f0f8ff;
+}
+
+.nav-button.active .anticon {
+  transform: scale(1.1);
+}
+
+.offline-banner {
+  position: fixed;
+  top: 56px;
+  left: 0;
+  right: 0;
+  background: #fff2e8;
+  color: #d46b08;
+  text-align: center;
+  padding: 8px;
+  font-size: 14px;
+  z-index: 999;
+  border-bottom: 1px solid #ffd591;
+}
+
+/* 平板适配 */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .mobile-header {
+    height: 64px;
+    padding: 0 24px;
+  }
+  
+  .mobile-title {
+    font-size: 20px;
+  }
+  
+  .mobile-content {
+    margin-top: 64px;
+  }
+  
+  .mobile-bottom-nav {
+    height: 64px;
+  }
+  
+  .nav-button {
+    font-size: 14px;
+    min-width: 80px;
+  }
+  
+  .nav-button .anticon {
+    font-size: 22px;
+  }
+}
+
+/* 大屏设备隐藏移动端导航 */
+@media (min-width: 1025px) {
+  .mobile-header,
+  .mobile-bottom-nav {
+    display: none;
+  }
+  
+  .mobile-content {
+    margin-top: 0;
+    margin-bottom: 0;
+    min-height: 100vh;
+  }
+}
+
+/* 横屏适配 */
+@media (orientation: landscape) and (max-height: 500px) {
+  .mobile-header {
+    height: 48px;
+  }
+  
+  .mobile-title {
+    font-size: 16px;
+  }
+  
+  .mobile-content {
+    margin-top: 48px;
+    margin-bottom: 48px;
+    min-height: calc(100vh - 96px);
+  }
+  
+  .mobile-bottom-nav {
+    height: 48px;
+  }
+  
+  .nav-button {
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+  
+  .nav-button .anticon {
+    font-size: 18px;
+    margin-bottom: 2px;
+  }
+}
+
+/* 安全区域适配 (iPhone X 等) */
+@supports (padding: max(0px)) {
+  .mobile-header {
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+  }
+  
+  .mobile-bottom-nav {
+    padding-left: max(0px, env(safe-area-inset-left));
+    padding-right: max(0px, env(safe-area-inset-right));
+    padding-bottom: max(0px, env(safe-area-inset-bottom));
+  }
+  
+  .mobile-content {
+    margin-bottom: calc(60px + max(0px, env(safe-area-inset-bottom)));
+  }
+}
+
+/* 触摸优化 */
+.nav-button,
+.mobile-menu-button {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* 滚动优化 */
+.mobile-content {
+  -webkit-overflow-scrolling: touch;
+  overflow-scrolling: touch;
+}
+
+/* 动画优化 */
+.mobile-app * {
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+

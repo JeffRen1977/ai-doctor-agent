@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { Language } from '../locales'
+import { Language, getTranslation } from '../locales'
 
 interface LanguageState {
   language: Language
@@ -8,6 +8,7 @@ interface LanguageState {
   initLanguage: () => void
   refreshLanguage: () => void
   forceUpdate: () => void
+  t: (key: string) => string
 }
 
 export const useLanguageStore = create<LanguageState>()(
@@ -57,6 +58,10 @@ export const useLanguageStore = create<LanguageState>()(
         setTimeout(() => {
           set({ language: currentLanguage })
         }, 10)
+      },
+      t: (key: string) => {
+        const currentLanguage = get().language
+        return getTranslation(currentLanguage, key)
       },
     }),
     {
