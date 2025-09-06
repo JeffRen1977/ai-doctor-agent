@@ -83,6 +83,8 @@ const allowedOrigins = [
   'http://localhost:5173', // Vite dev server
   'http://10.17.99.248:3000', // Network access for mobile testing
   'http://10.17.99.248:3001', // Network access for mobile testing (alternative port)
+  'http://192.168.0.39:3000', // Network access for mobile testing (new IP)
+  'http://192.168.0.39:3001', // Network access for mobile testing (new IP alternative port)
   'https://*.railway.app', // Railway domains
   process.env.FRONTEND_URL // Custom frontend URL if set
 ].filter(Boolean);

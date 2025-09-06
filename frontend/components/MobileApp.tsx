@@ -14,7 +14,6 @@ import DashboardPage from '../pages/DashboardPage'
 import ChatPage from '../pages/ChatPage'
 import HealthRecordsPage from '../pages/HealthRecordsPage'
 import ProfilePage from '../pages/ProfilePage'
-import LoginPage from '../pages/LoginPage'
 import AppointmentPage from '../pages/AppointmentPage'
 import DeviceSyncPage from '../pages/DeviceSyncPage'
 import HealthAnalyticsPage from '../pages/HealthAnalyticsPage'
@@ -103,15 +102,15 @@ const MobileApp: React.FC = () => {
             className="mobile-menu-button"
           />
           <h1 className="mobile-title">
-            {location.pathname === '/dashboard' && t('dashboard.title')}
-            {location.pathname === '/chat' && t('chat.title')}
-            {location.pathname === '/health-records' && t('healthRecords.title')}
-            {location.pathname === '/analytics' && t('analytics.title')}
-            {location.pathname === '/appointments' && t('appointments.title')}
-            {location.pathname === '/devices' && t('devices.title')}
-            {location.pathname === '/diet-analysis' && t('dietAnalysis.title')}
-            {location.pathname === '/emergency' && t('emergency.title')}
-            {location.pathname === '/profile' && t('profile.title')}
+            {location.pathname === '/dashboard' && t('sidebar.menu.dashboard')}
+            {location.pathname === '/chat' && t('sidebar.menu.aiChat')}
+            {location.pathname === '/health-records' && t('sidebar.menu.healthRecords')}
+            {location.pathname === '/analytics' && t('sidebar.menu.healthAnalytics')}
+            {location.pathname === '/appointments' && t('sidebar.menu.appointments')}
+            {location.pathname === '/devices' && t('sidebar.menu.deviceSync')}
+            {location.pathname === '/diet-analysis' && t('sidebar.menu.dietAnalysis')}
+            {location.pathname === '/emergency' && t('sidebar.menu.emergency')}
+            {location.pathname === '/profile' && t('sidebar.menu.profile')}
           </h1>
         </div>
         
@@ -126,12 +125,6 @@ const MobileApp: React.FC = () => {
 
       {/* 主要内容区域 */}
       <Content className="mobile-content">
-        <div style={{ padding: '16px', background: 'white', margin: '16px', borderRadius: '8px' }}>
-          <h2>📱 移动端测试页面</h2>
-          <p>当前路径: {location.pathname}</p>
-          <p>认证状态: {isAuthenticated ? '已登录' : '未登录'}</p>
-          <p>在线状态: {isOnline ? '在线' : '离线'}</p>
-        </div>
         <Routes>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
@@ -154,7 +147,7 @@ const MobileApp: React.FC = () => {
           className={`nav-button ${location.pathname === '/dashboard' ? 'active' : ''}`}
           onClick={() => navigate('/dashboard')}
         >
-          {t('nav.dashboard')}
+          {t('sidebar.menu.dashboard')}
         </Button>
         <Button
           type="text"
@@ -162,7 +155,7 @@ const MobileApp: React.FC = () => {
           className={`nav-button ${location.pathname === '/chat' ? 'active' : ''}`}
           onClick={() => navigate('/chat')}
         >
-          {t('nav.chat')}
+          {t('sidebar.menu.aiChat')}
         </Button>
         <Button
           type="text"
@@ -170,7 +163,7 @@ const MobileApp: React.FC = () => {
           className={`nav-button ${location.pathname === '/emergency' ? 'active' : ''}`}
           onClick={() => navigate('/emergency')}
         >
-          {t('nav.emergency')}
+          {t('sidebar.menu.emergency')}
         </Button>
         <Button
           type="text"
@@ -178,7 +171,7 @@ const MobileApp: React.FC = () => {
           className={`nav-button ${location.pathname === '/profile' ? 'active' : ''}`}
           onClick={() => navigate('/profile')}
         >
-          {t('nav.profile')}
+          {t('sidebar.menu.profile')}
         </Button>
       </div>
 
@@ -197,12 +190,12 @@ const MobileApp: React.FC = () => {
         >
           <FloatButton
             icon={<MessageOutlined />}
-            tooltip={t('nav.chat')}
+            tooltip={t('sidebar.menu.aiChat')}
             onClick={() => navigate('/chat')}
           />
           <FloatButton
             icon={<PhoneOutlined />}
-            tooltip={t('nav.emergency')}
+            tooltip={t('sidebar.menu.emergency')}
             onClick={() => navigate('/emergency')}
             type="primary"
             style={{ backgroundColor: '#ff4d4f' }}

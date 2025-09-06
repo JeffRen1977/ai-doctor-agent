@@ -1,12 +1,13 @@
 .mobile-menu-drawer .ant-drawer-content {
-  background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+  background: linear-gradient(180deg, #f8f9fa 0%, #e9ecef 100%);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
 .mobile-menu-container {
   height: 100%;
   display: flex;
   flex-direction: column;
-  color: white;
+  color: #2c3e50;
 }
 
 .mobile-menu-header {
@@ -14,54 +15,64 @@
   justify-content: space-between;
   align-items: center;
   padding: 20px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
 }
 
 .mobile-menu-logo h2 {
-  color: white;
+  color: #2c3e50;
   margin: 0;
   font-size: 20px;
-  font-weight: 600;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  font-weight: 700;
+  text-shadow: none;
+  letter-spacing: 0.5px;
 }
 
 .logo-subtitle {
-  color: rgba(255, 255, 255, 0.7) !important;
+  color: rgba(44, 62, 80, 0.7) !important;
   font-size: 12px;
   margin: 4px 0 0 0;
   font-weight: 400;
 }
 
 .mobile-menu-close {
-  color: white;
+  color: #2c3e50;
   font-size: 18px;
-  padding: 8px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(10px);
 }
 
 .mobile-menu-close:hover {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.3);
+  background: rgba(0, 0, 0, 0.1);
+  border-color: rgba(0, 0, 0, 0.2);
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .mobile-menu-user {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.02);
+  padding: 20px 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(10px);
 }
 
 .mobile-menu-user .ant-avatar {
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 3px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.mobile-menu-user .ant-avatar:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
 }
 
 .user-info {
@@ -71,12 +82,12 @@
 }
 
 .user-info .ant-typography {
-  color: white !important;
+  color: #2c3e50 !important;
   margin: 0;
 }
 
 .user-role {
-  color: rgba(255, 255, 255, 0.6) !important;
+  color: rgba(44, 62, 80, 0.6) !important;
   font-size: 12px;
 }
 
@@ -93,15 +104,17 @@
 }
 
 .mobile-menu-list .ant-menu-item {
-  color: #b8c5d6;
-  margin: 4px 0;
+  color: #2c3e50;
+  margin: 6px 0;
   border-radius: 12px;
   height: 48px;
   line-height: 48px;
   font-weight: 500;
+  font-size: 14px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
+  background: rgba(255, 255, 255, 0.5);
 }
 
 .mobile-menu-list .ant-menu-item::before {
@@ -111,17 +124,17 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.05) 0%, rgba(0, 0, 0, 0.02) 100%);
   opacity: 0;
   transition: opacity 0.3s ease;
   border-radius: 12px;
 }
 
 .mobile-menu-list .ant-menu-item:hover {
-  color: white;
-  background: rgba(255, 255, 255, 0.1);
+  color: #2c3e50;
+  background: rgba(255, 255, 255, 0.8);
   transform: translateX(4px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .mobile-menu-list .ant-menu-item:hover::before {
@@ -129,10 +142,11 @@
 }
 
 .mobile-menu-list .ant-menu-item-selected {
-  color: white;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  color: #2c3e50;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.7) 100%);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   transform: translateX(4px);
+  border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 .mobile-menu-list .ant-menu-item-selected::before {
@@ -142,17 +156,20 @@
 .mobile-menu-list .ant-menu-item .anticon {
   font-size: 16px;
   margin-right: 12px;
-  transition: transform 0.3s ease;
+  transition: all 0.3s ease;
+  color: rgba(44, 62, 80, 0.8);
 }
 
 .mobile-menu-list .ant-menu-item:hover .anticon {
   transform: scale(1.1);
+  color: #2c3e50;
 }
 
 .mobile-menu-footer {
-  padding: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.02);
+  padding: 20px 16px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(10px);
 }
 
 .language-switch-section {
@@ -162,20 +179,22 @@
 }
 
 .logout-button {
-  color: rgba(255, 255, 255, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.05);
+  color: #2c3e50;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.5);
   height: 40px;
   border-radius: 8px;
+  font-weight: 500;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(10px);
 }
 
 .logout-button:hover {
-  color: white;
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.3);
+  color: #2c3e50;
+  background: rgba(255, 255, 255, 0.8);
+  border-color: rgba(0, 0, 0, 0.2);
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .logout-button .anticon {

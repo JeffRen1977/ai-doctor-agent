@@ -1,7 +1,6 @@
-import React, { useState } from 'react'
-import { Drawer, Button, Menu, Avatar, Typography, Space } from 'antd'
+import React from 'react'
+import { Drawer, Button, Menu, Avatar, Typography } from 'antd'
 import { 
-  MenuOutlined, 
   CloseOutlined,
   HomeOutlined,
   MessageOutlined,
@@ -37,47 +36,47 @@ const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose }) => {
     {
       key: '/dashboard',
       icon: <HomeOutlined />,
-      label: t('dashboard.title'),
+      label: t('sidebar.menu.dashboard'),
     },
     {
       key: '/chat',
       icon: <MessageOutlined />,
-      label: t('chat.title'),
+      label: t('sidebar.menu.aiChat'),
     },
     {
       key: '/health-records',
       icon: <FileTextOutlined />,
-      label: t('healthRecords.title'),
+      label: t('sidebar.menu.healthRecords'),
     },
     {
       key: '/analytics',
       icon: <BarChartOutlined />,
-      label: t('analytics.title'),
+      label: t('sidebar.menu.healthAnalytics'),
     },
     {
       key: '/appointments',
       icon: <CalendarOutlined />,
-      label: t('appointments.title'),
+      label: t('sidebar.menu.appointments'),
     },
     {
       key: '/devices',
       icon: <MobileOutlined />,
-      label: t('devices.title'),
+      label: t('sidebar.menu.deviceSync'),
     },
     {
       key: '/diet-analysis',
       icon: <AppleOutlined />,
-      label: t('dietAnalysis.title'),
+      label: t('sidebar.menu.dietAnalysis'),
     },
     {
       key: '/emergency',
       icon: <ExclamationCircleOutlined />,
-      label: t('emergency.title'),
+      label: t('sidebar.menu.emergency'),
     },
     {
       key: '/profile',
       icon: <UserOutlined />,
-      label: t('profile.title'),
+      label: t('sidebar.menu.profile'),
     },
   ]
 
@@ -108,7 +107,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose }) => {
           <div className="mobile-menu-logo">
             <h2>AI Doctor</h2>
             <Text type="secondary" className="logo-subtitle">
-              {t('app.subtitle')}
+              {t('sidebar.logo.subtitle')}
             </Text>
           </div>
           <Button
@@ -125,7 +124,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose }) => {
           <div className="user-info">
             <Text strong>{user?.name || 'User'}</Text>
             <Text type="secondary" className="user-role">
-              {t('user.patient')}
+              {t('sidebar.user.role')}
             </Text>
           </div>
         </div>
@@ -154,7 +153,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose }) => {
             className="logout-button"
             block
           >
-            {t('auth.logout')}
+            {t('sidebar.menu.logout')}
           </Button>
         </div>
       </div>

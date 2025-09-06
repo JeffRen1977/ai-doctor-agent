@@ -9,14 +9,15 @@
   left: 0;
   right: 0;
   height: 56px;
-  background: white;
-  border-bottom: 1px solid #e8e8e8;
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 16px;
   z-index: 1000;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 20px rgba(255, 107, 107, 0.3);
+  backdrop-filter: blur(10px);
 }
 
 .mobile-header-left {
@@ -27,26 +28,32 @@
 }
 
 .mobile-menu-button {
-  color: #1890ff;
+  color: white;
   font-size: 18px;
-  padding: 8px;
-  border-radius: 4px;
+  padding: 10px;
+  border-radius: 8px;
   transition: all 0.3s ease;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .mobile-menu-button:hover {
-  background: #f0f8ff;
-  color: #40a9ff;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .mobile-title {
   font-size: 18px;
-  font-weight: 600;
-  color: #262626;
+  font-weight: 700;
+  color: white;
   margin: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  letter-spacing: 0.5px;
 }
 
 .mobile-header-right {
@@ -56,9 +63,13 @@
 }
 
 .offline-indicator {
-  color: #ff4d4f;
+  color: #ff6b6b;
   font-size: 12px;
   animation: pulse 2s infinite;
+  background: rgba(255, 107, 107, 0.1);
+  padding: 4px 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 107, 107, 0.3);
 }
 
 @keyframes pulse {
@@ -81,13 +92,14 @@
   left: 0;
   right: 0;
   height: 60px;
-  background: white;
-  border-top: 1px solid #e8e8e8;
+  background: linear-gradient(135deg, #00b894 0%, #00a085 100%);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   align-items: center;
   justify-content: space-around;
   z-index: 1000;
-  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 -4px 20px rgba(0, 184, 148, 0.3);
+  backdrop-filter: blur(10px);
 }
 
 .nav-button {
@@ -99,29 +111,36 @@
   padding: 8px 12px;
   border: none;
   background: transparent;
-  color: #8c8c8c;
+  color: rgba(255, 255, 255, 0.7);
   font-size: 12px;
+  font-weight: 500;
   transition: all 0.3s ease;
   min-width: 60px;
+  border-radius: 8px;
+  margin: 0 4px;
 }
 
 .nav-button .anticon {
   font-size: 20px;
   margin-bottom: 4px;
+  transition: all 0.3s ease;
 }
 
 .nav-button:hover {
-  color: #1890ff;
-  background: #f0f8ff;
+  color: white;
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
 }
 
 .nav-button.active {
-  color: #1890ff;
-  background: #f0f8ff;
+  color: white;
+  background: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3);
 }
 
 .nav-button.active .anticon {
   transform: scale(1.1);
+  color: #fff;
 }
 
 .offline-banner {
@@ -240,7 +259,6 @@
 /* 滚动优化 */
 .mobile-content {
   -webkit-overflow-scrolling: touch;
-  overflow-scrolling: touch;
 }
 
 /* 动画优化 */
