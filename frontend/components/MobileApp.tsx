@@ -5,7 +5,8 @@ import {
   MessageOutlined, 
   PhoneOutlined,
   HomeOutlined,
-  UserOutlined
+  AppleOutlined,
+  MobileOutlined
 } from '@ant-design/icons'
 import { Routes, Route, useLocation, useNavigate } from 'react-router-dom'
 import MobileMenu from './MobileMenu'
@@ -159,19 +160,19 @@ const MobileApp: React.FC = () => {
         </Button>
         <Button
           type="text"
-          icon={<PhoneOutlined />}
-          className={`nav-button ${location.pathname === '/emergency' ? 'active' : ''}`}
-          onClick={() => navigate('/emergency')}
+          icon={<AppleOutlined />}
+          className={`nav-button ${location.pathname === '/diet-analysis' ? 'active' : ''}`}
+          onClick={() => navigate('/diet-analysis')}
         >
-          {t('sidebar.menu.emergency')}
+          {t('sidebar.menu.dietAnalysis')}
         </Button>
         <Button
           type="text"
-          icon={<UserOutlined />}
-          className={`nav-button ${location.pathname === '/profile' ? 'active' : ''}`}
-          onClick={() => navigate('/profile')}
+          icon={<MobileOutlined />}
+          className={`nav-button ${location.pathname === '/devices' ? 'active' : ''}`}
+          onClick={() => navigate('/devices')}
         >
-          {t('sidebar.menu.profile')}
+          {t('sidebar.menu.deviceSync')}
         </Button>
       </div>
 
