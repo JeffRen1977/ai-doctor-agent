@@ -13,5 +13,8 @@
     "numReplicas": 1,
     "healthcheckInterval": 30,
     "healthcheckRetries": 3
+  },
+  "source": {
+    "branch": "release"
   }
 }

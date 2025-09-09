@@ -7,18 +7,40 @@
 - **Backend**: Node.js + Express + Firebase + Gemini AI
 - **Database**: Firebase Firestore
 - **Deployment**: Railway (handles both frontend and backend)
+- **Branch Strategy**: Uses `release` branch for production deployments
 
 ### 🎯 **Current Setup:**
 Your Railway service `ai-doctor-agent-production.up.railway.app` already serves:
 - **Frontend**: React app at the root `/`
 - **Backend API**: All endpoints at `/api/*`
 - **Static Files**: Built React app served by Express
+- **Deployment Branch**: `release` (configured in `railway.json`)
 
 ### 🔧 **How It Works:**
-1. **Railway builds** your frontend using the Dockerfile
-2. **Backend serves** the built frontend static files
-3. **API calls** use relative paths (`/api/auth`, `/api/chat`, etc.)
-4. **Single domain** handles everything
+1. **Development**: Work on `main` branch
+2. **Deployment**: Merge `main` to `release` branch
+3. **Railway builds** your frontend using the Dockerfile from `release` branch
+4. **Backend serves** the built frontend static files
+5. **API calls** use relative paths (`/api/auth`, `/api/chat`, etc.)
+6. **Single domain** handles everything
+
+### 🚀 **Deployment Process:**
+```bash
+# Option 1: Use the deployment script (recommended)
+./deploy-to-release.sh
+
+# Option 2: Manual deployment
+git checkout main
+git pull origin main
+git checkout release
+git merge main --no-ff -m "Deploy: Merge main to release"
+git push origin release
+```
+
+### 📋 **Branch Strategy:**
+- **`main`**: Development branch for ongoing work
+- **`release`**: Production branch for Railway deployments
+- **Workflow**: `main` → `release` → Railway deployment
 
 ### 📱 **Features Available:**
 - ✅ User authentication (login/register)
