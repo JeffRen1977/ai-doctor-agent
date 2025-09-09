@@ -100,4 +100,7 @@ jspm_packages/
 
 # Firebase service account keys (sensitive files)
 backend/src/config/*-firebase-adminsdk-*.json
-backend/src/config/firebase-service-account.json 
+backend/src/config/firebase-service-account.json
+
+# Data folder (user uploaded files and sensitive data)
+data/ 
