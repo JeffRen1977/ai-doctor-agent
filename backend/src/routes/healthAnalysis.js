@@ -8,17 +8,8 @@ const { saveHealthAnalysis, getHealthAnalysisHistory, getHealthAnalysisById } = 
 
 const router = express.Router();
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = path.join(__dirname, '../../uploads/health-documents');
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
+// Configure multer for file uploads (memory storage only)
+const storage = multer.memoryStorage();
 
 const upload = multer({ 
   storage: storage,
@@ -49,18 +40,7 @@ const upload = multer({
   }
 });
 
-// Ensure upload directory exists
-const ensureUploadDir = async () => {
-  const uploadDir = path.join(__dirname, '../../uploads/health-documents');
-  try {
-    await fs.access(uploadDir);
-  } catch {
-    await fs.mkdir(uploadDir, { recursive: true });
-  }
-};
-
-// Initialize upload directory
-ensureUploadDir();
+// No need for local upload directory since we're using memory storage
 
 // Multer error handling middleware
 const handleMulterError = (error, req, res, next) => {
@@ -163,10 +143,10 @@ router.post('/analyze', authenticateToken, (req, res, next) => {
  */
 router.get('/history', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userEmail = req.user.email;
     const { page = 1, limit = 10 } = req.query;
 
-    const history = await getHealthAnalysisHistory(userId, {
+    const history = await getHealthAnalysisHistory(userEmail, {
       page: parseInt(page),
       limit: parseInt(limit)
     });
@@ -194,9 +174,9 @@ router.get('/history', authenticateToken, async (req, res) => {
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user.id;
+    const userEmail = req.user.email;
 
-    const analysis = await getHealthAnalysisById(id, userId);
+    const analysis = await getHealthAnalysisById(id, userEmail);
 
     if (!analysis) {
       return res.status(404).json({

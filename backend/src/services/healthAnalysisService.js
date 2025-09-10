@@ -8,13 +8,12 @@ const pdfParse = require('pdf-parse');
 const mammoth = require('mammoth');
 
 // Document parsing utilities
-const parsePDF = async (filePath) => {
+const parsePDF = async (fileBuffer) => {
   try {
-    console.log('📄 Parsing PDF file with Gemini:', filePath);
+    console.log('📄 Parsing PDF file with Gemini from buffer');
     
-    // Read PDF file as buffer
-    const pdfBuffer = await fs.readFile(filePath);
-    const base64PDF = pdfBuffer.toString('base64');
+    // Convert buffer to base64
+    const base64PDF = fileBuffer.toString('base64');
     
     // Use Gemini to analyze PDF directly
     const geminiResult = await geminiService.analyzePDFDocument(base64PDF);
@@ -22,7 +21,7 @@ const parsePDF = async (filePath) => {
     if (!geminiResult.success) {
       console.warn('⚠️ Gemini PDF analysis failed, falling back to pdf-parse');
       // Fallback to traditional PDF parsing
-      const data = await pdfParse(pdfBuffer);
+      const data = await pdfParse(fileBuffer);
       return {
         text: data.text,
         metadata: {
@@ -51,10 +50,10 @@ const parsePDF = async (filePath) => {
   }
 };
 
-const parseWord = async (filePath) => {
+const parseWord = async (fileBuffer) => {
   try {
-    console.log('📝 Parsing Word document:', filePath);
-    const result = await mammoth.extractRawText({ path: filePath });
+    console.log('📝 Parsing Word document from buffer');
+    const result = await mammoth.extractRawText({ buffer: fileBuffer });
     
     return {
       text: result.value,
@@ -69,10 +68,10 @@ const parseWord = async (filePath) => {
   }
 };
 
-const parseText = async (filePath) => {
+const parseText = async (fileBuffer) => {
   try {
-    console.log('📄 Parsing text file:', filePath);
-    const content = await fs.readFile(filePath, 'utf8');
+    console.log('📄 Parsing text file from buffer');
+    const content = fileBuffer.toString('utf8');
     
     return {
       text: content,
@@ -87,13 +86,12 @@ const parseText = async (filePath) => {
   }
 };
 
-const parseImage = async (filePath) => {
+const parseImage = async (fileBuffer) => {
   try {
-    console.log('🖼️ Extracting text from image using Gemini:', filePath);
+    console.log('🖼️ Extracting text from image using Gemini from buffer');
     
-    // Use Gemini to extract text from image
-    const imageBuffer = await fs.readFile(filePath);
-    const base64Image = imageBuffer.toString('base64');
+    // Convert buffer to base64
+    const base64Image = fileBuffer.toString('base64');
     
     const geminiResult = await geminiService.extractTextFromImage(base64Image);
     
@@ -115,7 +113,7 @@ const parseImage = async (filePath) => {
 };
 
 /**
- * Upload file to Firebase Storage
+ * Upload file to Firebase Storage directly from buffer (no local storage)
  */
 const uploadFileToStorage = async (file, userEmail) => {
   try {
@@ -141,8 +139,8 @@ const uploadFileToStorage = async (file, userEmail) => {
     // Create storage reference
     const storageRef = ref(storage, storagePath);
     
-    // Read file buffer
-    const fileBuffer = await fs.readFile(file.path);
+    // Use file.buffer directly instead of reading from disk
+    const fileBuffer = file.buffer || Buffer.from(file.data);
     
     // Upload file with proper metadata
     const snapshot = await uploadBytes(storageRef, fileBuffer, {
@@ -286,24 +284,27 @@ const analyzeHealthDocuments = async (files, userId, userEmail) => {
       try {
         let extractedContent;
         
+        // Get file buffer for parsing
+        const fileBuffer = file.buffer || Buffer.from(file.data);
+        
         // Extract content based on file type
         switch (file.mimetype) {
           case 'application/pdf':
-            extractedContent = await parsePDF(file.path);
+            extractedContent = await parsePDF(fileBuffer);
             break;
           case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
           case 'application/msword':
-            extractedContent = await parseWord(file.path);
+            extractedContent = await parseWord(fileBuffer);
             break;
           case 'text/plain':
           case 'text/csv':
-            extractedContent = await parseText(file.path);
+            extractedContent = await parseText(fileBuffer);
             break;
           case 'image/jpeg':
           case 'image/png':
           case 'image/gif':
           case 'image/webp':
-            extractedContent = await parseImage(file.path);
+            extractedContent = await parseImage(fileBuffer);
             break;
           default:
             console.warn('⚠️ Unsupported file type:', file.mimetype);
@@ -472,55 +473,74 @@ const saveHealthAnalysisToRecords = async (analysisData) => {
     console.log('💾 Saving health analysis to HealthRecords...');
     
     // 创建健康记录条目，包含分析结果
-    const healthRecordData = {
-      userId: analysisData.userId,
-      userEmail: analysisData.userEmail,
-      date: new Date().toISOString().split('T')[0], // 今天的日期
-      type: 'AI Analysis',
-      description: analysisData.analysis.summary || 'AI健康分析结果',
-      severity: 'medium', // 默认中等严重程度
-      status: 'active',
-      // 分析结果
-      analysisResult: {
-        summary: analysisData.analysis.summary,
-        riskFactors: analysisData.analysis.riskFactors,
-        recommendations: analysisData.analysis.recommendations,
-        nextSteps: analysisData.analysis.nextSteps,
-        analysisDate: analysisData.analysisDate,
-        documentsAnalyzed: analysisData.documentsAnalyzed,
-        uploadedFiles: analysisData.uploadedFiles
-      },
-      // 文档信息 - 使用用户电子邮件作为文档标识符
-      documents: analysisData.uploadedFiles.map(file => ({
-        documentId: file.userEmail, // 使用用户电子邮件作为文档标识符
-        userEmail: file.userEmail,
+    // 使用用户电子邮件作为document ID（不添加时间戳）
+    const sanitizedEmail = analysisData.userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
+    const documentId = sanitizedEmail;
+    
+    const healthRecordsRef = collection(db, 'healthRecords');
+    const recordDocRef = doc(healthRecordsRef, documentId);
+    
+    // 首先尝试获取现有文档
+    let existingData = {};
+    try {
+      const existingDoc = await getDoc(recordDocRef);
+      if (existingDoc.exists()) {
+        existingData = existingDoc.data();
+        console.log('📄 Found existing health record for user:', analysisData.userEmail);
+      }
+    } catch (error) {
+      console.log('📄 No existing health record found, creating new one');
+    }
+
+    // 创建新的分析记录
+    const newAnalysisRecord = {
+      analysisId: analysisData.analysisId || `analysis_${Date.now()}`,
+      summary: analysisData.analysis.summary,
+      riskFactors: analysisData.analysis.riskFactors,
+      recommendations: analysisData.analysis.recommendations,
+      nextSteps: analysisData.analysis.nextSteps,
+      healthScore: analysisData.analysis.healthScore,
+      analysisDate: analysisData.analysisDate,
+      documentsAnalyzed: analysisData.documentsAnalyzed,
+      status: 'completed',
+      uploadedFiles: analysisData.uploadedFiles.map(file => ({
         originalName: file.originalName,
         downloadURL: file.downloadURL,
         storagePath: file.storagePath,
         size: file.size,
         contentType: file.contentType,
         uploadedAt: file.uploadedAt
-      })),
-      createdAt: new Date(),
+      }))
+    };
+
+    // 合并数据：保留现有数据，添加新的分析记录
+    const healthRecordData = {
+      userId: analysisData.userId,
+      userEmail: analysisData.userEmail,
+      // 将新分析添加到历史记录中
+      analysisHistory: [
+        ...(existingData.analysisHistory || []),
+        newAnalysisRecord
+      ],
+      // 最新的分析作为当前分析
+      latestAnalysis: newAnalysisRecord,
+      // 更新元数据
+      totalAnalyses: (existingData.totalAnalyses || 0) + 1,
+      lastAnalysisDate: analysisData.analysisDate,
+      createdAt: existingData.createdAt || new Date(),
       updatedAt: new Date()
     };
     
-    // 使用用户电子邮件和时间戳创建唯一的document ID
-    const timestamp = Date.now();
-    const sanitizedEmail = analysisData.userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
-    const documentId = `${sanitizedEmail}_${timestamp}`;
-    
-    const healthRecordsRef = collection(db, 'healthRecords');
-    const recordDocRef = doc(healthRecordsRef, documentId);
-    
-    // 使用setDoc而不是addDoc，这样可以指定document ID
-    await setDoc(recordDocRef, healthRecordData);
+    // 使用setDoc合并数据，这样每次分析都会更新同一个文档
+    await setDoc(recordDocRef, healthRecordData, { merge: true });
 
     console.log('✅ Health analysis saved to HealthRecords with ID:', documentId);
-    console.log('📧 User email used as part of document ID:', analysisData.userEmail);
+    console.log('📧 User email used as document ID:', analysisData.userEmail);
+    console.log('📊 Total analyses for this user:', healthRecordData.totalAnalyses);
     
     return {
       id: documentId,
+      analysisId: newAnalysisRecord.analysisId,
       ...healthRecordData
     };
   } catch (error) {
@@ -530,32 +550,47 @@ const saveHealthAnalysisToRecords = async (analysisData) => {
 };
 
 /**
- * Get health analysis history for a user
+ * Get health analysis history for a user from HealthRecords collection
  */
-const getHealthAnalysisHistory = async (userId, options = {}) => {
+const getHealthAnalysisHistory = async (userEmail, options = {}) => {
   try {
     const { page = 1, limit = 10 } = options;
     
-    const analysesRef = collection(db, 'healthAnalyses');
-    const q = query(
-      analysesRef,
-      where('userId', '==', userId),
-      orderBy('analysisDate', 'desc'),
-      limit(limit * page)
+    // 使用用户电子邮件作为文档ID
+    const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
+    const healthRecordRef = doc(db, 'healthRecords', sanitizedEmail);
+    const healthRecordDoc = await getDoc(healthRecordRef);
+
+    if (!healthRecordDoc.exists()) {
+      return {
+        analyses: [],
+        total: 0,
+        page,
+        limit,
+        hasMore: false
+      };
+    }
+
+    const healthRecordData = healthRecordDoc.data();
+    const analysisHistory = healthRecordData.analysisHistory || [];
+    
+    // 按分析日期排序（最新的在前）
+    const sortedAnalyses = analysisHistory.sort((a, b) => 
+      new Date(b.analysisDate) - new Date(a.analysisDate)
     );
 
-    const snapshot = await getDocs(q);
-    const analyses = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedAnalyses = sortedAnalyses.slice(startIndex, endIndex);
 
     return {
-      analyses: analyses.slice((page - 1) * limit, page * limit),
-      total: analyses.length,
+      analyses: paginatedAnalyses,
+      total: analysisHistory.length,
       page,
       limit,
-      hasMore: analyses.length > page * limit
+      hasMore: endIndex < analysisHistory.length,
+      latestAnalysis: healthRecordData.latestAnalysis,
+      totalAnalyses: healthRecordData.totalAnalyses || 0
     };
 
   } catch (error) {
@@ -565,26 +600,31 @@ const getHealthAnalysisHistory = async (userId, options = {}) => {
 };
 
 /**
- * Get specific health analysis by ID
+ * Get specific health analysis by ID from HealthRecords collection
  */
-const getHealthAnalysisById = async (analysisId, userId) => {
+const getHealthAnalysisById = async (analysisId, userEmail) => {
   try {
-    const analysisRef = doc(db, 'healthAnalyses', analysisId);
-    const analysisDoc = await getDoc(analysisRef);
+    // 使用用户电子邮件作为文档ID
+    const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
+    const healthRecordRef = doc(db, 'healthRecords', sanitizedEmail);
+    const healthRecordDoc = await getDoc(healthRecordRef);
 
-    if (!analysisDoc.exists()) {
+    if (!healthRecordDoc.exists()) {
       return null;
     }
 
-    const analysisData = analysisDoc.data();
+    const healthRecordData = healthRecordDoc.data();
+    const analysisHistory = healthRecordData.analysisHistory || [];
     
-    // Verify user owns this analysis
-    if (analysisData.userId !== userId) {
-      throw new Error('Unauthorized access to analysis');
+    // 查找特定的分析记录
+    const analysisData = analysisHistory.find(analysis => analysis.analysisId === analysisId);
+    
+    if (!analysisData) {
+      return null;
     }
 
     return {
-      id: analysisDoc.id,
+      id: analysisId,
       ...analysisData
     };
 
