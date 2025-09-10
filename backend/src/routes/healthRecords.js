@@ -1,10 +1,10 @@
 const express = require('express');
 const Joi = require('joi');
+const { db } = require('../config/firebase');
+const { collection, addDoc, getDocs, query, where, orderBy, doc, getDoc, updateDoc, deleteDoc } = require('firebase/firestore');
+const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
-
-// 模拟健康记录数据
-const healthRecords = new Map();
 
 // 健康记录验证schema
 const healthRecordSchema = Joi.object({
@@ -12,15 +12,57 @@ const healthRecordSchema = Joi.object({
   type: Joi.string().required(),
   description: Joi.string().required(),
   severity: Joi.string().valid('low', 'medium', 'high').required(),
-  status: Joi.string().valid('active', 'resolved').required()
+  status: Joi.string().valid('active', 'resolved').required(),
+  // 分析结果字段
+  analysisResult: Joi.object({
+    summary: Joi.string(),
+    riskFactors: Joi.array(),
+    recommendations: Joi.array(),
+    nextSteps: Joi.array(),
+    analysisDate: Joi.string(),
+    documentsAnalyzed: Joi.number(),
+    uploadedFiles: Joi.array()
+  }).optional(),
+  // 文档信息
+  documents: Joi.array().items(Joi.object({
+    documentId: Joi.string().required(), // 用户电子邮件作为文档标识符
+    userEmail: Joi.string().email().required(),
+    originalName: Joi.string(),
+    downloadURL: Joi.string(),
+    storagePath: Joi.string(),
+    size: Joi.number(),
+    contentType: Joi.string(),
+    uploadedAt: Joi.string()
+  })).optional()
 });
 
 // 获取健康记录列表
-router.get('/', (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
-    const userId = req.headers['user-id'] || '1';
-    const userRecords = healthRecords.get(userId) || [];
+    const userId = req.headers['user-id'] || req.user?.id || '1';
+    const userEmail = req.user?.email;
     
+    console.log('🔍 Getting health records for userId:', userId, 'userEmail:', userEmail);
+    
+    // 查询用户的健康记录，按创建时间倒序排列
+    const healthRecordsRef = collection(db, 'healthRecords');
+    const q = query(
+      healthRecordsRef, 
+      where('userId', '==', userId),
+      orderBy('createdAt', 'desc')
+    );
+    
+    const querySnapshot = await getDocs(q);
+    const userRecords = [];
+    
+    querySnapshot.forEach((doc) => {
+      userRecords.push({
+        id: doc.id,
+        ...doc.data()
+      });
+    });
+    
+    console.log('✅ Found', userRecords.length, 'health records');
     res.json(userRecords);
   } catch (error) {
     console.error('获取健康记录错误:', error);
@@ -29,7 +71,7 @@ router.get('/', (req, res) => {
 });
 
 // 创建健康记录
-router.post('/', (req, res) => {
+router.post('/', authenticateToken, async (req, res) => {
   try {
     // 验证输入
     const { error, value } = healthRecordSchema.validate(req.body);
@@ -37,22 +79,30 @@ router.post('/', (req, res) => {
       return res.status(400).json({ error: error.details[0].message });
     }
 
-    const userId = req.headers['user-id'] || '1';
+    const userId = req.headers['user-id'] || req.user?.id || '1';
+    const userEmail = req.user?.email;
+    
+    console.log('📝 Creating health record for userId:', userId, 'userEmail:', userEmail);
+    
     const newRecord = {
-      id: Date.now().toString(),
+      userId,
+      userEmail,
       ...value,
       createdAt: new Date(),
       updatedAt: new Date()
     };
 
-    if (!healthRecords.has(userId)) {
-      healthRecords.set(userId, []);
-    }
+    // 保存到Firebase Firestore
+    const healthRecordsRef = collection(db, 'healthRecords');
+    const docRef = await addDoc(healthRecordsRef, newRecord);
+    
+    const createdRecord = {
+      id: docRef.id,
+      ...newRecord
+    };
 
-    const userRecords = healthRecords.get(userId);
-    userRecords.push(newRecord);
-
-    res.status(201).json(newRecord);
+    console.log('✅ Health record created with ID:', docRef.id);
+    res.status(201).json(createdRecord);
   } catch (error) {
     console.error('创建健康记录错误:', error);
     res.status(500).json({ error: '服务器内部错误' });

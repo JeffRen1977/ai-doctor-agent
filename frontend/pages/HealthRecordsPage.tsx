@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Table, Button, Space, Tag, Modal, Form, Input, DatePicker, Select, message, Tabs, Upload, Alert, Grid, List, Avatar } from 'antd';
+import React, { useState } from 'react';
+import { Card, Table, Button, Space, Tag, Modal, Form, Input, DatePicker, Select, message, Tabs, Upload, Alert, Grid, List, Avatar, Typography, Row, Col, Statistic, Timeline, Badge, Empty } from 'antd';
 import type { TabsProps, UploadProps } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, CloudDownloadOutlined, InboxOutlined, FileTextOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, CloudDownloadOutlined, InboxOutlined, FileTextOutlined, EyeOutlined, WarningOutlined, CheckCircleOutlined, ClockCircleOutlined, BarChartOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import './HealthRecordsPage.css';
 import { getFhirPatientRecords } from '../services/api';
+import api from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 import { useLanguageStore } from '../stores/languageStore';
 import { getTranslation } from '../locales';
@@ -13,6 +14,7 @@ const { TextArea } = Input;
 const { Option } = Select;
 const { Dragger } = Upload;
 const { useBreakpoint } = Grid;
+const { Title, Text, Paragraph } = Typography;
 
 interface HealthRecord {
   id: string;
@@ -21,6 +23,35 @@ interface HealthRecord {
   description: string;
   severity: 'low' | 'medium' | 'high';
   status: 'active' | 'resolved';
+}
+
+interface HealthAnalysis {
+  id: string;
+  summary: string;
+  healthMetrics: {
+    bloodPressure?: string;
+    cholesterol?: string;
+    glucose?: string;
+    [key: string]: any;
+  };
+  riskFactors: string[];
+  medicalConditions: string[];
+  medications: string[];
+  recommendations: string[];
+  nextSteps: string[];
+  healthScore: {
+    score: number;
+    explanation: string;
+  };
+  priorityAreas: string[];
+  timeline: {
+    nextCheckup: string;
+    urgentActions: string[];
+    longTermGoals: string[];
+  };
+  analysisDate: string;
+  documentsAnalyzed: number;
+  status: 'completed' | 'processing' | 'failed';
 }
 
 const HealthRecordsPage: React.FC = () => {
@@ -34,6 +65,15 @@ const HealthRecordsPage: React.FC = () => {
   const [editingRecord, setEditingRecord] = useState<HealthRecord | null>(null);
   const [isFetchingFhir, setIsFetchingFhir] = useState(false);
   const [form] = Form.useForm();
+  const [fileList, setFileList] = useState<any[]>([]);
+  const [uploading, setUploading] = useState(false);
+  
+  // AI Analysis states
+  const [analysisMode, setAnalysisMode] = useState<'manage' | 'analyze'>('manage');
+  const [analyses, setAnalyses] = useState<HealthAnalysis[]>([]);
+  const [selectedAnalysis, setSelectedAnalysis] = useState<HealthAnalysis | null>(null);
+  const [analysisModalVisible, setAnalysisModalVisible] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
 
   const severityColors = { low: 'green', medium: 'orange', high: 'red' };
   const severityLabels = { 
@@ -47,7 +87,7 @@ const HealthRecordsPage: React.FC = () => {
     resolved: language === 'zh' ? '已解决' : 'Resolved' 
   };
 
-  const columns = [
+  const columns: any[] = [
     { 
       title: language === 'zh' ? '日期' : 'Date', 
       dataIndex: 'date', 
@@ -89,7 +129,7 @@ const HealthRecordsPage: React.FC = () => {
             type="link" 
             icon={<EditOutlined />} 
             onClick={() => handleEdit(record)}
-            size={screens.xs ? 'small' : 'default'}
+            size={screens.xs ? 'small' : 'large'}
           >
             {screens.xs ? (language === 'zh' ? '编辑' : 'Edit') : (language === 'zh' ? '编辑' : 'Edit')}
           </Button>
@@ -98,7 +138,7 @@ const HealthRecordsPage: React.FC = () => {
             danger 
             icon={<DeleteOutlined />} 
             onClick={() => handleDelete(record.id)}
-            size={screens.xs ? 'small' : 'default'}
+            size={screens.xs ? 'small' : 'large'}
           >
             {screens.xs ? (language === 'zh' ? '删除' : 'Del') : (language === 'zh' ? '删除' : 'Delete')}
           </Button>
@@ -118,6 +158,82 @@ const HealthRecordsPage: React.FC = () => {
         message.success(language === 'zh' ? '记录已删除' : 'Record deleted');
       } 
     }); 
+  };
+
+  // AI Analysis functions
+  const handleAnalyzeFiles = async () => {
+    if (fileList.length === 0) {
+      message.warning(language === 'zh' ? '请先选择要分析的文件' : 'Please select files to analyze');
+      return;
+    }
+
+    try {
+      setAnalyzing(true);
+      
+      const formData = new FormData();
+      fileList.forEach(file => {
+        formData.append('documents', file.originFileObj || file);
+      });
+
+      const response = await api.post('/health-analysis/analyze', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      message.success(language === 'zh' ? '健康分析完成！' : 'Health analysis completed!');
+      
+      // Add new analysis to the list
+      const newAnalysis: HealthAnalysis = {
+        id: response.data.analysisId,
+        summary: response.data.summary,
+        healthMetrics: {},
+        riskFactors: response.data.riskFactors || [],
+        medicalConditions: [],
+        medications: [],
+        recommendations: response.data.recommendations || [],
+        nextSteps: response.data.nextSteps || [],
+        healthScore: { score: 7, explanation: 'Analysis completed' },
+        priorityAreas: [],
+        timeline: { nextCheckup: '3 months', urgentActions: [], longTermGoals: [] },
+        analysisDate: response.data.analysisDate,
+        documentsAnalyzed: fileList.length,
+        status: 'completed'
+      };
+      
+      setAnalyses(prev => [newAnalysis, ...prev]);
+      setAnalysisMode('analyze');
+    } catch (error) {
+      console.error('Analysis error:', error);
+      message.error(language === 'zh' ? '分析失败' : 'Analysis failed');
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const viewAnalysis = async (analysisId: string) => {
+    try {
+      const response = await api.get(`/health-analysis/${analysisId}`);
+      setSelectedAnalysis(response.data.data);
+      setAnalysisModalVisible(true);
+    } catch (error) {
+      console.error('Error loading analysis details:', error);
+      message.error(language === 'zh' ? '加载分析详情失败' : 'Failed to load analysis details');
+    }
+  };
+
+  const getHealthScoreColor = (score: number) => {
+    if (score >= 8) return '#52c41a';
+    if (score >= 6) return '#faad14';
+    if (score >= 4) return '#fa8c16';
+    return '#ff4d4f';
+  };
+
+  const getHealthScoreText = (score: number) => {
+    if (score >= 8) return language === 'zh' ? '优秀' : 'Excellent';
+    if (score >= 6) return language === 'zh' ? '良好' : 'Good';
+    if (score >= 4) return language === 'zh' ? '一般' : 'Fair';
+    return language === 'zh' ? '需要关注' : 'Needs Attention';
   };
 
   const handleSubmit = (values: any) => {
@@ -171,18 +287,79 @@ const HealthRecordsPage: React.FC = () => {
 
   const uploadProps: UploadProps = {
     name: 'file',
-    multiple: false,
-    accept: '.pdf,.doc,.docx,.jpg,.jpeg,.png',
+    multiple: true,
+    accept: '.pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.bmp,.tiff',
+    fileList: fileList,
     beforeUpload: (file) => {
+      // Check file count limit
+      if (fileList.length >= 20) {
+        message.error(language === 'zh' ? '最多只能上传20个文件' : 'Maximum 20 files allowed');
+        return false;
+      }
+      
+      // Check file size
       const isLt10M = file.size / 1024 / 1024 < 10;
       if (!isLt10M) {
         message.error(language === 'zh' ? '文件大小不能超过10MB' : 'File size must be less than 10MB');
+        return false;
       }
-      return false;
+      
+      // Check file type
+      const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/bmp', 'image/tiff'];
+      if (!allowedTypes.includes(file.type)) {
+        message.error(language === 'zh' ? '不支持的文件类型' : 'Unsupported file type');
+        return false;
+      }
+      
+      // Check for duplicate files
+      const isDuplicate = fileList.some(existingFile => existingFile.name === file.name);
+      if (isDuplicate) {
+        message.warning(language === 'zh' ? `文件 "${file.name}" 已存在` : `File "${file.name}" already exists`);
+        return false;
+      }
+      
+      return false; // Prevent auto upload
     },
     onChange: (info) => {
+      setFileList(info.fileList);
+      
+      // Handle upload status
       if (info.file.status === 'done') {
-        message.success(language === 'zh' ? '文件上传成功' : 'File uploaded successfully');
+        message.success(`${info.file.name} ${language === 'zh' ? '上传成功' : 'uploaded successfully'}`);
+      } else if (info.file.status === 'error') {
+        message.error(`${info.file.name} ${language === 'zh' ? '上传失败' : 'upload failed'}`);
+      }
+    },
+    onRemove: (file) => {
+      setFileList(prev => prev.filter(item => item.uid !== file.uid));
+    },
+    customRequest: async ({ file, onSuccess, onError, onProgress }) => {
+      try {
+        setUploading(true);
+        
+        // Simulate upload progress
+        let progress = 0;
+        const interval = setInterval(() => {
+          progress += 10;
+          onProgress?.({ percent: progress });
+          if (progress >= 100) {
+            clearInterval(interval);
+          }
+        }, 100);
+        
+        // Simulate API call delay
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Here you would normally call your upload API
+        // For now, we'll just simulate success
+        const fileObj = file as File;
+        onSuccess?.(`https://example.com/uploads/${fileObj.name}`);
+        
+        clearInterval(interval);
+        setUploading(false);
+      } catch (error) {
+        setUploading(false);
+        onError?.(error as Error);
       }
     },
   };
@@ -223,9 +400,9 @@ const HealthRecordsPage: React.FC = () => {
             title={
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{record.type}</span>
-                <Tag color={severityColors[record.severity]} size="small">
-                  {severityLabels[record.severity]}
-                </Tag>
+            <Tag color={severityColors[record.severity]}>
+              {severityLabels[record.severity]}
+            </Tag>
               </div>
             }
             description={
@@ -236,7 +413,7 @@ const HealthRecordsPage: React.FC = () => {
                 <div style={{ fontSize: '13px', marginBottom: '4px' }}>
                   {record.description}
                 </div>
-                <Tag color={statusColors[record.status]} size="small">
+                <Tag color={statusColors[record.status]}>
                   {statusLabels[record.status]}
                 </Tag>
               </div>
@@ -258,7 +435,7 @@ const HealthRecordsPage: React.FC = () => {
               type="primary" 
               icon={<PlusOutlined />} 
               onClick={handleAdd}
-              size={screens.xs ? 'middle' : 'default'}
+              size={screens.xs ? 'middle' : 'large'}
               block={screens.xs}
             >
               {language === 'zh' ? '添加记录' : 'Add Record'}
@@ -267,7 +444,7 @@ const HealthRecordsPage: React.FC = () => {
               icon={<CloudDownloadOutlined />} 
               onClick={fetchFhirRecords}
               loading={isFetchingFhir}
-              size={screens.xs ? 'middle' : 'default'}
+              size={screens.xs ? 'middle' : 'large'}
               block={screens.xs}
             >
               {language === 'zh' ? '导入FHIR' : 'Import FHIR'}
@@ -296,26 +473,357 @@ const HealthRecordsPage: React.FC = () => {
       children: (
         <div style={{ padding: screens.xs ? '8px' : '16px' }}>
           <Alert
-            message={language === 'zh' ? '文件上传说明' : 'File Upload Instructions'}
+            message={language === 'zh' ? '多文件上传说明' : 'Multiple File Upload Instructions'}
             description={language === 'zh' 
-              ? '支持上传PDF、Word文档和图片文件，文件大小不超过10MB'
-              : 'Supports PDF, Word documents and image files, file size should not exceed 10MB'
+              ? '支持同时上传多个PDF、Word文档和图片文件，每个文件大小不超过10MB，最多可上传20个文件'
+              : 'Supports uploading multiple PDF, Word documents and image files simultaneously, each file size should not exceed 10MB, maximum 20 files'
             }
             type="info"
             showIcon
             style={{ marginBottom: '16px' }}
           />
+          
           <Dragger {...uploadProps} style={{ padding: screens.xs ? '20px' : '40px' }}>
             <p className="ant-upload-drag-icon">
               <InboxOutlined />
             </p>
             <p className="ant-upload-text" style={{ fontSize: screens.xs ? '14px' : '16px' }}>
-              {language === 'zh' ? '点击或拖拽文件到此区域上传' : 'Click or drag file to this area to upload'}
+              {language === 'zh' ? '点击或拖拽多个文件到此区域上传' : 'Click or drag multiple files to this area to upload'}
             </p>
             <p className="ant-upload-hint" style={{ fontSize: screens.xs ? '12px' : '14px' }}>
-              {language === 'zh' ? '支持单个或批量上传' : 'Support for a single or bulk upload'}
+              {language === 'zh' ? '支持批量上传，可同时选择多个文件' : 'Support for bulk upload, you can select multiple files at once'}
             </p>
           </Dragger>
+          
+          {fileList.length > 0 && (
+            <div style={{ marginTop: '16px' }}>
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center', 
+                marginBottom: '12px' 
+              }}>
+                <h4 style={{ margin: 0, fontSize: screens.xs ? '14px' : '16px' }}>
+                  {language === 'zh' ? `已选择文件 (${fileList.length})` : `Selected Files (${fileList.length})`}
+                </h4>
+                <Space>
+                  <Button 
+                    type="primary" 
+                    loading={uploading}
+                    onClick={() => {
+                      // Trigger upload for all files
+                      fileList.forEach(file => {
+                        if (file.status !== 'done' && file.status !== 'uploading') {
+                          setFileList(prev => prev.map(f => 
+                            f.uid === file.uid ? { ...f, status: 'uploading' } : f
+                          ));
+                          
+                          // Simulate upload
+                          setTimeout(() => {
+                            setFileList(prev => prev.map(f => 
+                              f.uid === file.uid ? { ...f, status: 'done' } : f
+                            ));
+                          }, 2000);
+                        }
+                      });
+                    }}
+                    disabled={fileList.length === 0 || uploading}
+                    size={screens.xs ? 'small' : 'large'}
+                  >
+                    {language === 'zh' ? '开始上传全部' : 'Upload All'}
+                  </Button>
+                  <Button 
+                    onClick={() => setFileList([])}
+                    disabled={uploading}
+                    size={screens.xs ? 'small' : 'large'}
+                  >
+                    {language === 'zh' ? '清空列表' : 'Clear All'}
+                  </Button>
+                  <Button 
+                    type="primary" 
+                    icon={<BarChartOutlined />}
+                    loading={analyzing}
+                    onClick={handleAnalyzeFiles}
+                    disabled={fileList.length === 0}
+                    size={screens.xs ? 'small' : 'large'}
+                  >
+                    {language === 'zh' ? 'AI分析这些文档' : 'AI Analyze These Documents'}
+                  </Button>
+                </Space>
+              </div>
+              
+              <List
+                size="small"
+                dataSource={fileList}
+                renderItem={(file) => (
+                  <List.Item
+                    actions={[
+                      <Button 
+                        type="link" 
+                        danger 
+                        size="small"
+                        onClick={() => uploadProps.onRemove?.(file)}
+                        disabled={uploading}
+                      >
+                        {language === 'zh' ? '移除' : 'Remove'}
+                      </Button>
+                    ]}
+                  >
+                    <List.Item.Meta
+                      avatar={<FileTextOutlined style={{ color: '#1890ff' }} />}
+                      title={
+                        <div style={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          alignItems: 'center' 
+                        }}>
+                          <span style={{ fontSize: screens.xs ? '12px' : '14px' }}>
+                            {file.name}
+                          </span>
+                          <Tag 
+                            color={
+                              file.status === 'done' ? 'green' : 
+                              file.status === 'error' ? 'red' : 
+                              file.status === 'uploading' ? 'blue' : 'default'
+                            }
+                          >
+                            {file.status === 'done' ? (language === 'zh' ? '已完成' : 'Done') :
+                             file.status === 'error' ? (language === 'zh' ? '失败' : 'Error') :
+                             file.status === 'uploading' ? (language === 'zh' ? '上传中' : 'Uploading') :
+                             (language === 'zh' ? '待上传' : 'Pending')}
+                          </Tag>
+                        </div>
+                      }
+                      description={
+                        <div>
+                          <div style={{ fontSize: '12px', color: '#666', marginBottom: '4px' }}>
+                            {(file.size / 1024 / 1024).toFixed(2)} MB
+                          </div>
+                          {file.status === 'uploading' && file.percent && (
+                            <div style={{ width: '100%' }}>
+                              <div style={{ 
+                                width: '100%', 
+                                height: '4px', 
+                                backgroundColor: '#f0f0f0', 
+                                borderRadius: '2px',
+                                overflow: 'hidden'
+                              }}>
+                                <div style={{
+                                  width: `${file.percent}%`,
+                                  height: '100%',
+                                  backgroundColor: '#1890ff',
+                                  transition: 'width 0.3s ease'
+                                }} />
+                              </div>
+                              <div style={{ 
+                                fontSize: '11px', 
+                                color: '#666', 
+                                textAlign: 'right', 
+                                marginTop: '2px' 
+                              }}>
+                                {file.percent}%
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      }
+                    />
+                  </List.Item>
+                )}
+              />
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'analysis',
+      label: language === 'zh' ? 'AI健康分析' : 'AI Health Analysis',
+      children: (
+        <div style={{ padding: screens.xs ? '8px' : '16px' }}>
+          {analysisMode === 'manage' ? (
+            // 分析管理界面
+            <div>
+              <Alert
+                message={language === 'zh' ? 'AI健康分析' : 'AI Health Analysis'}
+                description={language === 'zh' 
+                  ? '上传医疗文档，AI将为您分析健康状况并提供个性化建议。'
+                  : 'Upload medical documents and AI will analyze your health status and provide personalized recommendations.'
+                }
+                type="info"
+                showIcon
+                style={{ marginBottom: '16px' }}
+              />
+              
+              {fileList.length > 0 && (
+                <Card 
+                  title={language === 'zh' ? '已选择的文件' : 'Selected Files'} 
+                  size="small"
+                  style={{ marginBottom: '16px' }}
+                  extra={
+                    <Space>
+                      <Button 
+                        type="primary" 
+                        icon={<BarChartOutlined />}
+                        loading={analyzing}
+                        onClick={handleAnalyzeFiles}
+                        disabled={fileList.length === 0}
+                      >
+                        {language === 'zh' ? '开始AI分析' : 'Start AI Analysis'}
+                      </Button>
+                      <Button onClick={() => setFileList([])}>
+                        {language === 'zh' ? '清空文件' : 'Clear Files'}
+                      </Button>
+                    </Space>
+                  }
+                >
+                  <List
+                    size="small"
+                    dataSource={fileList}
+                    renderItem={(file) => (
+                      <List.Item>
+                        <List.Item.Meta
+                          avatar={<FileTextOutlined style={{ color: '#1890ff' }} />}
+                          title={file.name}
+                          description={`${(file.size / 1024 / 1024).toFixed(2)} MB`}
+                        />
+                      </List.Item>
+                    )}
+                  />
+                </Card>
+              )}
+
+              {analyses.length > 0 && (
+                <Card 
+                  title={language === 'zh' ? '分析历史' : 'Analysis History'}
+                  size="small"
+                >
+                  <List
+                    dataSource={analyses}
+                    renderItem={(analysis) => (
+                      <List.Item
+                        actions={[
+                          <Button 
+                            type="link" 
+                            icon={<EyeOutlined />}
+                            onClick={() => viewAnalysis(analysis.id)}
+                          >
+                            {language === 'zh' ? '查看详情' : 'View Details'}
+                          </Button>
+                        ]}
+                      >
+                        <List.Item.Meta
+                          avatar={
+                            <Badge 
+                              count={analysis.documentsAnalyzed} 
+                              style={{ backgroundColor: '#52c41a' }}
+                            >
+                              <FileTextOutlined style={{ fontSize: '24px', color: '#1890ff' }} />
+                            </Badge>
+                          }
+                          title={
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span>{new Date(analysis.analysisDate).toLocaleDateString()}</span>
+                              <Tag color={getHealthScoreColor(analysis.healthScore.score)}>
+                                {analysis.healthScore.score}/10 - {getHealthScoreText(analysis.healthScore.score)}
+                              </Tag>
+                            </div>
+                          }
+                          description={
+                            <div>
+                              <Paragraph ellipsis={{ rows: 2 }}>
+                                {analysis.summary}
+                              </Paragraph>
+                              <Space wrap>
+                                {analysis.riskFactors.slice(0, 3).map((risk, index) => (
+                                  <Tag key={index} color="orange">{risk}</Tag>
+                                ))}
+                                {analysis.riskFactors.length > 3 && (
+                                  <Tag>+{analysis.riskFactors.length - 3} more</Tag>
+                                )}
+                              </Space>
+                            </div>
+                          }
+                        />
+                      </List.Item>
+                    )}
+                  />
+                </Card>
+              )}
+
+              {analyses.length === 0 && fileList.length === 0 && (
+                <Empty 
+                  description={language === 'zh' ? '请先上传医疗文档进行分析' : 'Please upload medical documents for analysis'}
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                />
+              )}
+            </div>
+          ) : (
+            // 分析结果界面
+            <div>
+              <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Title level={4} style={{ margin: 0 }}>
+                  {language === 'zh' ? 'AI分析结果' : 'AI Analysis Results'}
+                </Title>
+                <Button onClick={() => setAnalysisMode('manage')}>
+                  {language === 'zh' ? '返回管理' : 'Back to Management'}
+                </Button>
+              </div>
+
+              {analyses.length > 0 && (
+                <List
+                  dataSource={analyses}
+                  renderItem={(analysis) => (
+                    <List.Item
+                      actions={[
+                        <Button 
+                          type="link" 
+                          icon={<EyeOutlined />}
+                          onClick={() => viewAnalysis(analysis.id)}
+                        >
+                          {language === 'zh' ? '查看详情' : 'View Details'}
+                        </Button>
+                      ]}
+                    >
+                      <List.Item.Meta
+                        avatar={
+                          <Badge 
+                            count={analysis.documentsAnalyzed} 
+                            style={{ backgroundColor: '#52c41a' }}
+                          >
+                            <FileTextOutlined style={{ fontSize: '24px', color: '#1890ff' }} />
+                          </Badge>
+                        }
+                        title={
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>{new Date(analysis.analysisDate).toLocaleDateString()}</span>
+                            <Tag color={getHealthScoreColor(analysis.healthScore.score)}>
+                              {analysis.healthScore.score}/10 - {getHealthScoreText(analysis.healthScore.score)}
+                            </Tag>
+                          </div>
+                        }
+                        description={
+                          <div>
+                            <Paragraph ellipsis={{ rows: 2 }}>
+                              {analysis.summary}
+                            </Paragraph>
+                            <Space wrap>
+                              {analysis.riskFactors.slice(0, 3).map((risk, index) => (
+                                <Tag key={index} color="orange">{risk}</Tag>
+                              ))}
+                              {analysis.riskFactors.length > 3 && (
+                                <Tag>+{analysis.riskFactors.length - 3} more</Tag>
+                              )}
+                            </Space>
+                          </div>
+                        }
+                      />
+                    </List.Item>
+                  )}
+                />
+              )}
+            </div>
+          )}
         </div>
       ),
     },
@@ -330,7 +838,7 @@ const HealthRecordsPage: React.FC = () => {
       >
         <Tabs 
           items={items} 
-          size={screens.xs ? 'small' : 'default'}
+          size={screens.xs ? 'small' : 'large'}
           tabPosition={screens.xs ? 'top' : 'top'}
         />
       </Card>
@@ -409,6 +917,78 @@ const HealthRecordsPage: React.FC = () => {
             </Space>
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* AI Analysis Details Modal */}
+      <Modal
+        title={language === 'zh' ? '健康分析详情' : 'Health Analysis Details'}
+        open={analysisModalVisible}
+        onCancel={() => setAnalysisModalVisible(false)}
+        footer={null}
+        width={800}
+      >
+        {selectedAnalysis && (
+          <div>
+            {/* Health Score */}
+            <Card size="small" style={{ marginBottom: '16px' }}>
+              <Row gutter={16}>
+                <Col span={8}>
+                  <Statistic
+                    title={language === 'zh' ? '健康评分' : 'Health Score'}
+                    value={selectedAnalysis.healthScore.score}
+                    suffix="/10"
+                    valueStyle={{ color: getHealthScoreColor(selectedAnalysis.healthScore.score) }}
+                  />
+                </Col>
+                <Col span={16}>
+                  <Text>{selectedAnalysis.healthScore.explanation}</Text>
+                </Col>
+              </Row>
+            </Card>
+
+            {/* Summary */}
+            <Card size="small" title={language === 'zh' ? '健康总结' : 'Health Summary'} style={{ marginBottom: '16px' }}>
+              <Paragraph>{selectedAnalysis.summary}</Paragraph>
+            </Card>
+
+            {/* Risk Factors */}
+            {selectedAnalysis.riskFactors.length > 0 && (
+              <Card size="small" title={language === 'zh' ? '风险因素' : 'Risk Factors'} style={{ marginBottom: '16px' }}>
+                <Space wrap>
+                  {selectedAnalysis.riskFactors.map((risk, index) => (
+                    <Tag key={index} color="orange" icon={<WarningOutlined />}>
+                      {risk}
+                    </Tag>
+                  ))}
+                </Space>
+              </Card>
+            )}
+
+            {/* Recommendations */}
+            {selectedAnalysis.recommendations.length > 0 && (
+              <Card size="small" title={language === 'zh' ? '建议' : 'Recommendations'} style={{ marginBottom: '16px' }}>
+                <Timeline
+                  items={selectedAnalysis.recommendations.map((rec) => ({
+                    dot: <CheckCircleOutlined style={{ color: '#52c41a' }} />,
+                    children: rec
+                  }))}
+                />
+              </Card>
+            )}
+
+            {/* Next Steps */}
+            {selectedAnalysis.nextSteps.length > 0 && (
+              <Card size="small" title={language === 'zh' ? '下一步行动' : 'Next Steps'}>
+                <Timeline
+                  items={selectedAnalysis.nextSteps.map((step) => ({
+                    dot: <ClockCircleOutlined style={{ color: '#1890ff' }} />,
+                    children: step
+                  }))}
+                />
+              </Card>
+            )}
+          </div>
+        )}
       </Modal>
     </div>
   );

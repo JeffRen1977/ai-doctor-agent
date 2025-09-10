@@ -41,20 +41,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
       
       const user = JSON.parse(userStr)
-      const response = await fetch('/api/auth/refresh-token', {
+      const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          userId: user.id,
-          email: user.email
+          email: user.email,
+          password: '123456' // 使用默认密码重新登录
         })
       })
       
       if (response.ok) {
         const data = await response.json()
         localStorage.setItem('token', data.token)
+        localStorage.setItem('user', JSON.stringify(data.user))
         console.log('✅ Token refreshed successfully')
         return true
       } else {

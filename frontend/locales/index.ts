@@ -28,6 +28,10 @@ export interface Translations {
       title: string
       description: string
     }
+    healthAnalysis: {
+      title: string
+      description: string
+    }
     appointments: {
       title: string
       description: string
@@ -51,6 +55,7 @@ export interface Translations {
       aiChat: string
       healthRecords: string
       healthAnalytics: string
+      healthAnalysis: string
       dietAnalysis: string
       appointments: string
       deviceSync: string
@@ -435,6 +440,10 @@ export const translations: Record<Language, Translations> = {
         title: '健康分析',
         description: '数据可视化，健康趋势分析'
       },
+      healthAnalysis: {
+        title: '健康档案分析',
+        description: 'AI分析医疗文档，生成个人健康报告'
+      },
       appointments: {
         title: '预约管理',
         description: '在线预约医生，就诊提醒'
@@ -458,6 +467,7 @@ export const translations: Record<Language, Translations> = {
         aiChat: 'AI医生对话',
         healthRecords: '健康档案',
         healthAnalytics: '健康分析',
+        healthAnalysis: '健康档案分析',
         dietAnalysis: '饮食分析',
         appointments: '预约管理',
         deviceSync: '设备同步',
@@ -840,6 +850,10 @@ export const translations: Record<Language, Translations> = {
         title: 'Health Analytics',
         description: 'Data visualization, health trend analysis'
       },
+      healthAnalysis: {
+        title: 'Health Document Analysis',
+        description: 'AI analysis of medical documents, generate personal health reports'
+      },
       appointments: {
         title: 'Appointment Management',
         description: 'Online doctor booking, appointment reminders'
@@ -863,6 +877,7 @@ export const translations: Record<Language, Translations> = {
         aiChat: 'AI Doctor Chat',
         healthRecords: 'Health Records',
         healthAnalytics: 'Health Analytics',
+        healthAnalysis: 'Health Document Analysis',
         dietAnalysis: 'Diet Analysis',
         appointments: 'Appointments',
         deviceSync: 'Device Sync',

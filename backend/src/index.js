@@ -3,13 +3,14 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const path = require('path');
-require('dotenv').config();
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const authRoutes = require('./routes/auth');
 const chatRoutes = require('./routes/chat');
 const healthRecordsRoutes = require('./routes/healthRecords');
 const dietAnalysisRoutes = require('./routes/dietAnalysis');
 const wearableRoutes = require('./routes/wearables');
+const healthAnalysisRoutes = require('./routes/healthAnalysis');
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -80,6 +81,8 @@ if (!distPath) {
 const allowedOrigins = [
   'http://localhost:3000', // Local development
   'http://localhost:3001', // Vite dev server (alternative port)
+  'http://localhost:3002', // Vite HMR port (legacy)
+  'http://localhost:3003', // Vite HMR port (new)
   'http://localhost:5173', // Vite dev server
   'http://10.17.99.248:3000', // Network access for mobile testing
   'http://10.17.99.248:3001', // Network access for mobile testing (alternative port)
@@ -129,6 +132,7 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/health-records', healthRecordsRoutes);
 app.use('/api/diet-analysis', dietAnalysisRoutes);
 app.use('/api/wearables', wearableRoutes);
+app.use('/api/health-analysis', healthAnalysisRoutes);
 
 // Basic health check for Railway (works immediately)
 app.get('/health', (req, res) => {

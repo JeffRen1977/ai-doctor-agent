@@ -58,7 +58,7 @@ const Sidebar: React.FC = () => {
   const mainMenuItems = [
     {
       key: '/dashboard',
-      icon: React.createElement(DashboardOutlined),
+      icon: <DashboardOutlined />,
       label: t('sidebar.menu.dashboard'),
     },
     {

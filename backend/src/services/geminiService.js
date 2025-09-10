@@ -16,6 +16,108 @@ class GeminiService {
     console.log('🖼️  图片模型: gemini-1.5-pro');
   }
 
+  // 从图像中提取文本
+  async extractTextFromImage(base64Image) {
+    try {
+      console.log('🖼️ Extracting text from image using Gemini Vision...');
+      
+      const prompt = `
+        请仔细分析这张图片中的所有文字内容，包括：
+        1. 医疗报告中的文字
+        2. 检查结果数据
+        3. 医生诊断意见
+        4. 药物名称和剂量
+        5. 任何其他相关的医疗信息
+        
+        请将所有文字内容完整地提取出来，保持原有的格式和结构。
+        如果图片中包含表格，请尽量保持表格的结构。
+        如果文字模糊不清，请标注"无法识别"。
+      `;
+
+      const result = await this.imageModel.generateContent([
+        prompt,
+        {
+          inlineData: {
+            data: base64Image,
+            mimeType: 'image/jpeg'
+          }
+        }
+      ]);
+
+      const response = await result.response;
+      const extractedText = response.text();
+
+      console.log('✅ Text extraction completed, length:', extractedText.length);
+
+      return {
+        success: true,
+        text: extractedText,
+        model: 'gemini-1.5-pro'
+      };
+
+    } catch (error) {
+      console.error('❌ Image text extraction error:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  // 分析PDF文档
+  async analyzePDFDocument(base64PDF) {
+    try {
+      console.log('📄 Analyzing PDF document with Gemini Vision...');
+      
+      const prompt = `
+        请仔细分析这个PDF文档中的所有内容，包括：
+        1. 医疗报告、检查结果、诊断书等医疗文档
+        2. 患者基本信息（姓名、年龄、性别等）
+        3. 检查数据（血压、血糖、胆固醇、心率等数值）
+        4. 医生诊断意见和建议
+        5. 药物处方和剂量
+        6. 任何表格、图表中的医疗数据
+        7. 其他相关的健康信息
+        
+        请将所有文字内容完整地提取出来，保持原有的格式和结构。
+        对于表格数据，请尽量保持表格的结构。
+        对于数值数据，请准确提取数字和单位。
+        如果某些内容模糊不清，请标注"无法识别"。
+        
+        请以结构化的方式组织提取的内容，便于后续的健康分析。
+      `;
+
+      const result = await this.imageModel.generateContent([
+        prompt,
+        {
+          inlineData: {
+            data: base64PDF,
+            mimeType: 'application/pdf'
+          }
+        }
+      ]);
+
+      const response = await result.response;
+      const extractedText = response.text();
+
+      console.log('✅ PDF analysis completed, length:', extractedText.length);
+
+      return {
+        success: true,
+        text: extractedText,
+        pages: 1, // Gemini会处理整个PDF
+        model: 'gemini-1.5-pro'
+      };
+
+    } catch (error) {
+      console.error('❌ PDF analysis error:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
   // 健康咨询对话
   async healthChat(message, context = '') {
     try {
