@@ -1,124 +1,101 @@
-# AI个人医生助理 - 文档中心
+# AI个人医生助理系统 - 文档中心
 
-> 完整的项目文档集合，包含开发指南、API文档、部署指南等
+## 📚 文档概览
 
-## 📋 文档目录
+欢迎来到AI个人医生助理系统的文档中心。这里包含了项目的完整文档，帮助您快速了解、开发、部署和维护系统。
 
-### 🚀 快速开始
-- **[项目概述](../README.md)** - 项目主文档，包含快速开始和基本介绍
+## 🗂️ 文档结构
 
-### 📚 核心文档
-- **[API文档](./API_DOCUMENTATION.md)** - 完整的RESTful API接口文档
-- **[开发指南](./DEVELOPMENT_GUIDE.md)** - 详细的开发指南和最佳实践
-- **[部署指南](./DEPLOYMENT_GUIDE.md)** - 全面的部署和运维指南
-- **[项目总结](./PROJECT_SUMMARY.md)** - 完整的项目总结和技术架构
+### 📋 核心文档
+- **[项目总结](../PROJECT_SUMMARY.md)** - 项目整体概述和功能总结
+- **[开发指南](DEVELOPMENT_GUIDE.md)** - 详细的开发环境搭建和开发流程
+- **[API文档](API_DOCUMENTATION.md)** - 完整的API接口文档
+- **[部署指南](DEPLOYMENT_GUIDE.md)** - 生产环境部署指南
 
-### 🎯 功能特性文档
-- **[饮食分析功能](./features/DIET_ANALYSIS_FEATURE.md)** - 饮食分析功能的详细说明
+### 🏥 功能文档
+- **[健康分析功能](HEALTH_ANALYSIS_FEATURE.md)** - AI健康分析功能详细说明
+- **[饮食分析功能](features/DIET_ANALYSIS_FEATURE.md)** - 饮食分析功能说明
+- **[可穿戴设备集成](WEARABLE_DEVICE_SETUP.md)** - 可穿戴设备连接和配置
+- **[移动端开发指南](MOBILE_DEVELOPMENT_GUIDE.md)** - 移动端开发和PWA功能
+
+### 🔧 技术文档
+- **[Firebase配置](FIREBASE_SETUP.md)** - Firebase服务配置指南
+- **[聊天历史结构](CHAT_HISTORY_STRUCTURE.md)** - 聊天数据结构说明
+- **[饮食分析结构](DIET_ANALYSIS_STRUCTURE.md)** - 饮食分析数据结构
+- **[故障排除指南](guides/TROUBLESHOOTING.md)** - 常见问题解决方案
 
 ### 🎨 设计文档
-- **[前端设计总结](./design/FRONTEND_DESIGN_SUMMARY.md)** - 前端UI/UX设计说明
-- **[核心架构文档](./design/)** - 系统架构和功能设计文档
+- **[前端设计总结](design/FRONTEND_DESIGN_SUMMARY.md)** - 前端UI/UX设计说明
+- **[核心架构设计](design/Core%20architecture%20&%20functionality.pdf)** - 系统架构设计文档
 
-### 🔧 实用指南
-- **[故障排除指南](./guides/TROUBLESHOOTING.md)** - 常见问题和解决方案
-- **[项目完成总结](./PROJECT_COMPLETION_SUMMARY.md)** - 项目开发完成情况总结
+## 🚀 快速开始
 
-## 🎯 文档导航
+### 1. 环境准备
+```bash
+# 克隆项目
+git clone <repository-url>
+cd ai-doctor-agent
 
-### 开发者文档
-| 文档 | 描述 | 适用人群 |
-|------|------|----------|
-| [开发指南](./DEVELOPMENT_GUIDE.md) | 环境搭建、代码规范、开发流程 | 前端/后端开发者 |
-| [API文档](./API_DOCUMENTATION.md) | 完整的API接口文档和示例 | API使用者、前端开发者 |
-| [项目总结](./PROJECT_SUMMARY.md) | 项目架构、技术栈、功能特性 | 项目管理者、技术决策者 |
+# 安装依赖
+npm install
+cd backend && npm install
+```
 
-### 运维文档
-| 文档 | 描述 | 适用人群 |
-|------|------|----------|
-| [部署指南](./DEPLOYMENT_GUIDE.md) | 开发环境、生产环境、云平台部署 | DevOps工程师、运维人员 |
-| [项目总结](./PROJECT_SUMMARY.md) | 部署选项、监控维护 | 运维团队、技术管理者 |
+### 2. 配置环境变量
+```bash
+# 复制环境变量模板
+cp backend/.env.example backend/.env
 
-### 功能文档
-| 文档 | 描述 | 适用人群 |
-|------|------|----------|
-| [饮食分析功能](./features/DIET_ANALYSIS_FEATURE.md) | 饮食分析功能详细说明 | 产品经理、开发者 |
-| [前端设计总结](./design/FRONTEND_DESIGN_SUMMARY.md) | UI/UX设计说明 | 前端开发者、设计师 |
+# 编辑环境变量
+# 配置Firebase、Gemini AI等服务的API密钥
+```
 
-### 实用指南
-| 文档 | 描述 | 适用人群 |
-|------|------|----------|
-| [故障排除指南](./guides/TROUBLESHOOTING.md) | 常见问题和解决方案 | 开发者、运维人员 |
-| [项目完成总结](./PROJECT_COMPLETION_SUMMARY.md) | 项目开发完成情况 | 项目管理者、团队 |
+### 3. 启动开发服务器
+```bash
+# 启动后端服务
+cd backend && npm start
 
-## 📖 文档特点
+# 启动前端服务
+npm run dev:frontend
+```
 
-### 结构化设计
-- **清晰的目录结构**: 按功能模块组织文档
-- **统一的格式规范**: 一致的Markdown格式和样式
-- **完整的交叉引用**: 文档间的相互链接和引用
+## 📖 文档使用指南
 
-### 实用性内容
-- **代码示例**: 大量可直接使用的代码模板
-- **配置模板**: 完整的配置文件示例
-- **最佳实践**: 经过验证的开发和生产实践
+### 开发者
+- 从[开发指南](DEVELOPMENT_GUIDE.md)开始
+- 参考[API文档](API_DOCUMENTATION.md)了解接口
+- 查看[故障排除指南](guides/TROUBLESHOOTING.md)解决常见问题
 
-### 完整性覆盖
-- **开发全流程**: 从环境搭建到代码部署
-- **运维全周期**: 从部署到监控维护
-- **多环境支持**: 开发、测试、生产环境
-
-## 🔧 文档维护
-
-### 更新原则
-- **及时性**: 代码变更时同步更新文档
-- **准确性**: 确保文档内容与实际代码一致
-- **完整性**: 覆盖所有重要的功能和流程
-
-### 贡献指南
-1. 修改代码时同步更新相关文档
-2. 新增功能时添加相应的文档说明
-3. 发现文档错误时及时修正
-4. 提出改进建议时考虑文档的可维护性
-
-## 📝 文档版本
-
-| 版本 | 日期 | 更新内容 |
-|------|------|----------|
-| v1.1.0 | 2024-01-15 | 重新组织文档结构，按功能分类 |
-| v1.0.0 | 2024-01-15 | 初始版本，包含完整的文档体系 |
-
-## 🎯 使用建议
-
-### 新开发者
-1. 阅读 [项目概述](../README.md) 了解项目基本情况
-2. 查看 [开发指南](./DEVELOPMENT_GUIDE.md) 搭建开发环境
-3. 参考 [API文档](./API_DOCUMENTATION.md) 了解接口规范
-4. 阅读 [项目总结](./PROJECT_SUMMARY.md) 理解整体架构
-
-### 运维人员
-1. 查看 [部署指南](./DEPLOYMENT_GUIDE.md) 了解部署方案
-2. 参考 [项目总结](./PROJECT_SUMMARY.md) 了解技术架构
-3. 根据实际需求选择合适的部署方式
+### 部署人员
+- 参考[部署指南](DEPLOYMENT_GUIDE.md)
+- 查看[Firebase配置](FIREBASE_SETUP.md)
+- 了解[可穿戴设备集成](WEARABLE_DEVICE_SETUP.md)
 
 ### 产品经理
-1. 阅读 [饮食分析功能](./features/DIET_ANALYSIS_FEATURE.md) 了解功能特性
-2. 查看 [前端设计总结](./design/FRONTEND_DESIGN_SUMMARY.md) 了解UI设计
-3. 参考 [项目完成总结](./PROJECT_COMPLETION_SUMMARY.md) 了解开发进度
+- 查看[项目总结](../PROJECT_SUMMARY.md)了解功能
+- 参考[功能文档](#-功能文档)了解具体功能
+- 查看[设计文档](#-设计文档)了解用户体验
 
-### 项目管理者
-1. 阅读 [项目总结](./PROJECT_SUMMARY.md) 了解项目全貌
-2. 查看 [开发指南](./DEVELOPMENT_GUIDE.md) 了解技术栈
-3. 参考 [部署指南](./DEPLOYMENT_GUIDE.md) 了解运维需求
+## 🔄 文档更新
 
-## 📞 文档反馈
+文档会随着项目的发展持续更新。最新更新包括：
 
-如果您发现文档中的问题或有改进建议，请通过以下方式反馈：
+### 2025年1月更新
+- ✅ 添加了AI健康分析功能文档
+- ✅ 更新了Firebase集成文档
+- ✅ 完善了移动端开发指南
+- ✅ 优化了API文档结构
 
-- **GitHub Issues**: 在项目仓库中创建Issue
-- **Pull Request**: 直接提交文档改进的PR
-- **邮件联系**: 发送邮件到项目维护者
+## 📞 支持与反馈
+
+如果您在使用文档过程中遇到问题，或有改进建议，请：
+
+1. 查看[故障排除指南](guides/TROUBLESHOOTING.md)
+2. 提交Issue到项目仓库
+3. 联系开发团队
 
 ---
 
-**AI个人医生助理文档中心** - 让开发更高效，让维护更简单！ 📚✨ 
+**最后更新**: 2025年1月
+**文档版本**: v2.0
+**维护团队**: AI医生助理开发团队

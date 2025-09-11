@@ -194,17 +194,20 @@ const parseDocuments = async (files) => {
     try {
       let parsedContent;
       
+      // Get file buffer for parsing
+      const fileBuffer = file.buffer || Buffer.from(file.data);
+      
       switch (file.mimetype) {
         case 'application/pdf':
-          parsedContent = await parsePDF(file.path);
+          parsedContent = await parsePDF(fileBuffer);
           break;
         case 'application/msword':
         case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
-          parsedContent = await parseWord(file.path);
+          parsedContent = await parseWord(fileBuffer);
           break;
         case 'text/plain':
         case 'text/csv':
-          parsedContent = await parseText(file.path);
+          parsedContent = await parseText(fileBuffer);
           break;
         case 'image/jpeg':
         case 'image/jpg':
@@ -213,7 +216,7 @@ const parseDocuments = async (files) => {
         case 'image/bmp':
         case 'image/tiff':
         case 'image/webp':
-          parsedContent = await parseImage(file.path);
+          parsedContent = await parseImage(fileBuffer);
           break;
         default:
           console.warn(`Unsupported file type: ${file.mimetype}`);

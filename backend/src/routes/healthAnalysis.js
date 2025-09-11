@@ -80,10 +80,16 @@ const handleMulterError = (error, req, res, next) => {
  * @access Private
  */
 router.post('/analyze', authenticateToken, (req, res, next) => {
+  console.log('🔍 /analyze route - Before multer middleware');
+  console.log('🔍 Request headers:', req.headers);
+  console.log('🔍 Request body keys:', Object.keys(req.body));
+  
   upload.array('documents', 20)(req, res, (err) => {
     if (err) {
+      console.error('❌ Multer error:', err);
       return handleMulterError(err, req, res, next);
     }
+    console.log('✅ Multer middleware completed successfully');
     next();
   });
 }, async (req, res) => {
@@ -93,6 +99,20 @@ router.post('/analyze', authenticateToken, (req, res, next) => {
     console.log('👤 User:', req.user.email);
     console.log('📋 Request body keys:', Object.keys(req.body));
     console.log('📋 Request files:', req.files);
+    
+    // Debug file structure
+    if (req.files && req.files.length > 0) {
+      req.files.forEach((file, index) => {
+        console.log(`📄 File ${index}:`, {
+          fieldname: file.fieldname,
+          originalname: file.originalname,
+          encoding: file.encoding,
+          mimetype: file.mimetype,
+          size: file.size,
+          buffer: file.buffer ? `Buffer(${file.buffer.length} bytes)` : 'No buffer'
+        });
+      });
+    }
 
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({

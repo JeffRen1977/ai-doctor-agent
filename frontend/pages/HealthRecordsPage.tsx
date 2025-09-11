@@ -171,16 +171,38 @@ const HealthRecordsPage: React.FC = () => {
       
       const formData = new FormData();
       fileList.forEach(file => {
-        formData.append('documents', file.originFileObj || file);
+        // Handle different file structures from Ant Design Upload
+        const fileToUpload = file.originFileObj || file;
+        console.log('File structure:', {
+          name: fileToUpload.name,
+          size: fileToUpload.size,
+          type: fileToUpload.type,
+          hasBuffer: !!fileToUpload.buffer,
+          hasData: !!fileToUpload.data,
+          fileObject: fileToUpload
+        });
+        
+        // Ensure we're sending the actual File object
+        if (fileToUpload instanceof File) {
+          formData.append('documents', fileToUpload);
+        } else {
+          console.error('Invalid file object:', fileToUpload);
+          message.error(language === 'zh' ? '文件格式错误' : 'Invalid file format');
+          return;
+        }
       });
 
+      console.log('Sending request to:', '/health-analysis/analyze');
+      console.log('FormData entries:', Array.from(formData.entries()));
+      console.log('User token:', localStorage.getItem('token'));
+      
       const response = await api.post('/health-analysis/analyze', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
 
-      message.success(language === 'zh' ? '健康分析完成！' : 'Health analysis completed!');
+      message.success(language === 'zh' ? '健康分析完成！文件已保存到Firebase Storage，分析结果已保存到数据库。' : 'Health analysis completed! Files saved to Firebase Storage, analysis results saved to database.');
       
       // Debug: Log the response structure
       console.log('Analysis response:', response.data);
@@ -229,6 +251,10 @@ const HealthRecordsPage: React.FC = () => {
       if (newAnalysis.id && newAnalysis.summary) {
         console.log('Adding analysis to state:', newAnalysis);
         setAnalyses(prev => [newAnalysis, ...prev]);
+        
+        // Clear the file list after successful analysis
+        setFileList([]);
+        message.info(language === 'zh' ? '文件列表已清空，可以上传新的文档进行分析' : 'File list cleared, you can upload new documents for analysis');
       } else {
         console.error('Invalid analysis object:', newAnalysis);
         message.error(language === 'zh' ? '分析数据无效' : 'Invalid analysis data');
@@ -396,12 +422,17 @@ const HealthRecordsPage: React.FC = () => {
         }, 100);
         
         // Simulate API call delay
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
-        // Here you would normally call your upload API
-        // For now, we'll just simulate success
+        // Store the file for later analysis
         const fileObj = file as File;
-        onSuccess?.(`https://example.com/uploads/${fileObj.name}`);
+        console.log('File stored for analysis:', {
+          name: fileObj.name,
+          size: fileObj.size,
+          type: fileObj.type
+        });
+        
+        onSuccess?.(`stored://${fileObj.name}`);
         
         clearInterval(interval);
         setUploading(false);
@@ -523,8 +554,8 @@ const HealthRecordsPage: React.FC = () => {
           <Alert
             message={language === 'zh' ? '多文件上传与AI分析' : 'Multiple File Upload & AI Analysis'}
             description={language === 'zh' 
-              ? '支持同时上传多个PDF、Word文档和图片文件，AI将自动分析您的健康文档并提供个性化建议。每个文件大小不超过10MB，最多可上传20个文件。'
-              : 'Supports uploading multiple PDF, Word documents and image files simultaneously. AI will automatically analyze your health documents and provide personalized recommendations. Each file size should not exceed 10MB, maximum 20 files.'
+              ? '支持同时上传多个PDF、Word文档和图片文件，AI将自动分析您的健康文档并提供个性化建议。分析完成后，文件将自动保存到Firebase Storage，分析结果保存到数据库，文件列表将自动清空。每个文件大小不超过10MB，最多可上传20个文件。'
+              : 'Supports uploading multiple PDF, Word documents and image files simultaneously. AI will automatically analyze your health documents and provide personalized recommendations. After analysis, files will be automatically saved to Firebase Storage, analysis results saved to database, and file list will be cleared. Each file size should not exceed 10MB, maximum 20 files.'
             }
             type="info"
             showIcon
