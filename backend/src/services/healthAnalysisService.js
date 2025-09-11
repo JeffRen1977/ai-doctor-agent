@@ -1,4 +1,6 @@
 const geminiService = require('./geminiService');
+const aiServiceFactory = require('./aiServiceFactory');
+const userSettingsService = require('./userSettingsService');
 const { db, storage } = require('../config/firebase');
 const { collection, addDoc, getDocs, query, where, orderBy, limit, startAfter, doc, getDoc, setDoc } = require('firebase/firestore');
 const { ref, uploadBytes, getDownloadURL } = require('firebase/storage');
@@ -8,18 +10,24 @@ const pdfParse = require('pdf-parse');
 const mammoth = require('mammoth');
 
 // Document parsing utilities
-const parsePDF = async (fileBuffer) => {
+const parsePDF = async (fileBuffer, userAISettings = {}) => {
   try {
-    console.log('📄 Parsing PDF file with Gemini from buffer');
+    const provider = userAISettings.aiProvider || 'gemini';
+    const model = userAISettings.aiModel || '';
+    
+    console.log(`📄 Parsing PDF file with ${provider} from buffer`);
     
     // Convert buffer to base64
     const base64PDF = fileBuffer.toString('base64');
     
-    // Use Gemini to analyze PDF directly
-    const geminiResult = await geminiService.analyzePDFDocument(base64PDF);
+    // Use AI service based on user settings
+    const aiResult = await aiServiceFactory.analyzePDFDocument(base64PDF, { 
+      provider, 
+      model 
+    });
     
-    if (!geminiResult.success) {
-      console.warn('⚠️ Gemini PDF analysis failed, falling back to pdf-parse');
+    if (!aiResult.success) {
+      console.warn(`⚠️ ${provider} PDF analysis failed, falling back to pdf-parse`);
       // Fallback to traditional PDF parsing
       const data = await pdfParse(fileBuffer);
       return {
@@ -36,11 +44,11 @@ const parsePDF = async (fileBuffer) => {
     }
     
     return {
-      text: geminiResult.text,
+      text: aiResult.text,
       metadata: {
-        pages: geminiResult.pages || 1,
+        pages: aiResult.pages || 1,
         title: 'PDF Document',
-        method: 'gemini-vision',
+        method: `${provider}-pdf-analysis`,
         confidence: 0.95
       }
     };
@@ -86,24 +94,30 @@ const parseText = async (fileBuffer) => {
   }
 };
 
-const parseImage = async (fileBuffer) => {
+const parseImage = async (fileBuffer, userAISettings = {}) => {
   try {
-    console.log('🖼️ Extracting text from image using Gemini from buffer');
+    const provider = userAISettings.aiProvider || 'gemini';
+    const model = userAISettings.aiModel || '';
+    
+    console.log(`🖼️ Extracting text from image using ${provider} from buffer`);
     
     // Convert buffer to base64
     const base64Image = fileBuffer.toString('base64');
     
-    const geminiResult = await geminiService.extractTextFromImage(base64Image);
+    const aiResult = await aiServiceFactory.extractTextFromImage(base64Image, { 
+      provider, 
+      model 
+    });
     
-    if (!geminiResult.success) {
-      throw new Error(`Gemini image text extraction failed: ${geminiResult.error}`);
+    if (!aiResult.success) {
+      throw new Error(`${provider} image text extraction failed: ${aiResult.error}`);
     }
     
     return {
-      text: geminiResult.text,
+      text: aiResult.text,
       metadata: {
-        confidence: 0.9, // Gemini provides high confidence
-        method: 'gemini-vision'
+        confidence: 0.9, // AI provides high confidence
+        method: `${provider}-vision`
       }
     };
   } catch (error) {
@@ -187,7 +201,7 @@ const uploadFileToStorage = async (file, userEmail) => {
 /**
  * Parse uploaded documents based on file type
  */
-const parseDocuments = async (files) => {
+const parseDocuments = async (files, userAISettings = {}) => {
   const parsedDocuments = [];
 
   for (const file of files) {
@@ -199,7 +213,7 @@ const parseDocuments = async (files) => {
       
       switch (file.mimetype) {
         case 'application/pdf':
-          parsedContent = await parsePDF(fileBuffer);
+          parsedContent = await parsePDF(fileBuffer, userAISettings);
           break;
         case 'application/msword':
         case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
@@ -216,7 +230,7 @@ const parseDocuments = async (files) => {
         case 'image/bmp':
         case 'image/tiff':
         case 'image/webp':
-          parsedContent = await parseImage(fileBuffer);
+          parsedContent = await parseImage(fileBuffer, userAISettings);
           break;
         default:
           console.warn(`Unsupported file type: ${file.mimetype}`);
@@ -240,9 +254,9 @@ const parseDocuments = async (files) => {
 };
 
 /**
- * Analyze health documents using Gemini AI
+ * Analyze health documents using AI service factory
  */
-const analyzeHealthDocuments = async (files, userId, userEmail) => {
+const analyzeHealthDocuments = async (files, userId, userEmail, options = {}) => {
   try {
     console.log('🔍 Starting health document analysis...');
     console.log('📁 Uploaded files:', files.length);
@@ -276,8 +290,21 @@ const analyzeHealthDocuments = async (files, userId, userEmail) => {
 
     console.log('✅ Processed', uploadResults.length, 'files (some may be local)');
 
-    // Step 2: Extract content from documents
-    console.log('🔍 Starting document content extraction...');
+    // Step 2: Get user AI settings for document parsing
+    const { provider: requestProvider, model: requestModel } = options;
+    
+    // Get user's AI settings
+    const userAISettings = await userSettingsService.getUserAISettings(userId);
+    const userProvider = userAISettings.success ? userAISettings.aiProvider : 'gemini';
+    const userModel = userAISettings.success ? userAISettings.aiModel : '';
+    
+    // Use request provider if specified, otherwise use user's default
+    const finalProvider = requestProvider || userProvider;
+    const finalModel = requestModel || userModel;
+    
+    console.log(`🔍 Starting document content extraction with ${finalProvider}...`);
+
+    // Step 3: Extract content from documents using user's AI settings
     const parsedDocuments = [];
     
     for (let i = 0; i < files.length; i++) {
@@ -290,10 +317,10 @@ const analyzeHealthDocuments = async (files, userId, userEmail) => {
         // Get file buffer for parsing
         const fileBuffer = file.buffer || Buffer.from(file.data);
         
-        // Extract content based on file type
+        // Extract content based on file type using user's AI settings
         switch (file.mimetype) {
           case 'application/pdf':
-            extractedContent = await parsePDF(fileBuffer);
+            extractedContent = await parsePDF(fileBuffer, { aiProvider: finalProvider, aiModel: finalModel });
             break;
           case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
           case 'application/msword':
@@ -307,7 +334,7 @@ const analyzeHealthDocuments = async (files, userId, userEmail) => {
           case 'image/png':
           case 'image/gif':
           case 'image/webp':
-            extractedContent = await parseImage(fileBuffer);
+            extractedContent = await parseImage(fileBuffer, { aiProvider: finalProvider, aiModel: finalModel });
             break;
           default:
             console.warn('⚠️ Unsupported file type:', file.mimetype);
@@ -340,8 +367,10 @@ const analyzeHealthDocuments = async (files, userId, userEmail) => {
       throw new Error('No documents could be processed successfully');
     }
 
-    // Step 3: Analyze with Gemini AI
-    console.log('🤖 Sending extracted content to Gemini AI for analysis...');
+    // Step 4: Analyze with AI service factory
+    console.log(`🤖 Sending extracted content to AI service for analysis...`);
+    console.log(`🎯 Provider: ${finalProvider} (user default: ${userProvider}, request: ${requestProvider})`);
+    console.log(`🎯 Model: ${finalModel || 'default'} (user default: ${userModel}, request: ${requestModel})`);
     
     const healthData = {
       documents: parsedDocuments,
@@ -351,15 +380,20 @@ const analyzeHealthDocuments = async (files, userId, userEmail) => {
       }
     };
 
-    const result = await geminiService.analyzeHealthRecords(healthData);
+    // Use single provider
+    const result = await aiServiceFactory.analyzeHealthRecords(healthData, { 
+      provider: finalProvider, 
+      model: finalModel 
+    });
     
     if (!result.success) {
-      throw new Error(result.error || 'Gemini analysis failed');
+      throw new Error(result.error || `${finalProvider} analysis failed`);
     }
     
     const analysisText = result.analysis;
 
-    console.log('✅ Received analysis from Gemini');
+    console.log(`✅ Received analysis from ${result.provider}`);
+    console.log(`⏱️ Processing time: ${result.processingTime}ms`);
 
     // Step 4: Create structured analysis response
     const analysis = {
@@ -391,8 +425,10 @@ const analyzeHealthDocuments = async (files, userId, userEmail) => {
       analysisDate: new Date().toISOString(),
       documentsAnalyzed: parsedDocuments.length,
       documentTypes: parsedDocuments.map(doc => doc.type),
-      aiModel: 'gemini-1.5-pro',
-      version: '1.0',
+      aiProvider: result.provider,
+      aiModel: result.model,
+      processingTime: result.processingTime,
+      version: '2.0',
       uploadedFiles: uploadResults.map(result => ({
         documentId: result.userEmail, // 使用用户电子邮件作为文档标识符
         userEmail: result.userEmail,
@@ -433,37 +469,14 @@ const analyzeHealthDocuments = async (files, userId, userEmail) => {
       analysis: analysis,
       documentsAnalyzed: parsedDocuments.length,
       analysisDate: new Date().toISOString(),
-      uploadedFiles: uploadResults
+      uploadedFiles: uploadResults,
+      aiProvider: result.provider,
+      aiModel: result.model,
+      processingTime: result.processingTime
     };
 
   } catch (error) {
     console.error('❌ Health analysis error:', error);
-    throw error;
-  }
-};
-
-/**
- * Save health analysis to database
- */
-const saveHealthAnalysis = async (analysisData) => {
-  try {
-    console.log('💾 Saving health analysis to database...');
-    
-    const analysisRef = await addDoc(collection(db, 'healthAnalyses'), {
-      ...analysisData,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    });
-
-    console.log('✅ Health analysis saved with ID:', analysisRef.id);
-    
-    return {
-      id: analysisRef.id,
-      ...analysisData
-    };
-
-  } catch (error) {
-    console.error('❌ Error saving health analysis:', error);
     throw error;
   }
 };
@@ -739,62 +752,9 @@ function extractValue(text, keyword, defaultValue) {
   return match ? match[1].trim() : defaultValue;
 }
 
-/**
- * Analyze health documents directly with parsed content (for testing)
- */
-const analyzeHealthDocumentsDirect = async (parsedDocuments, userId, userEmail) => {
-  try {
-    console.log('🔍 Starting direct health document analysis...');
-    console.log('📁 Parsed documents:', parsedDocuments.length);
-    console.log('👤 User:', userEmail);
-
-    if (!parsedDocuments || parsedDocuments.length === 0) {
-      throw new Error('No documents provided for analysis');
-    }
-
-    // Prepare health data for AI analysis
-    const healthData = {
-      documents: parsedDocuments,
-      userId,
-      userEmail,
-      analysisDate: new Date().toISOString()
-    };
-
-    console.log('🤖 Sending to Gemini AI for analysis...');
-    
-    // Call Gemini AI for analysis
-    const geminiResult = await geminiService.analyzeHealthRecords(healthData);
-    
-    if (!geminiResult.success) {
-      throw new Error(`Gemini AI analysis failed: ${geminiResult.error}`);
-    }
-
-    console.log('✅ Gemini AI analysis completed');
-    console.log('📝 Raw response length:', geminiResult.analysis.length);
-
-    // Parse the response into structured format
-    const analysisText = geminiResult.analysis;
-    const structuredAnalysis = parseGeminiResponse(analysisText);
-
-    console.log('✅ Health analysis completed successfully');
-    
-    return {
-      success: true,
-      analysis: structuredAnalysis,
-      documentsAnalyzed: parsedDocuments.length,
-      analysisDate: new Date().toISOString()
-    };
-
-  } catch (error) {
-    console.error('❌ Direct health analysis error:', error);
-    throw error;
-  }
-};
 
 module.exports = {
   analyzeHealthDocuments,
-  analyzeHealthDocumentsDirect,
-  saveHealthAnalysis,
   saveHealthAnalysisToRecords,
   getHealthAnalysisHistory,
   getHealthAnalysisById,

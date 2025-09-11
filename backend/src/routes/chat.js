@@ -1,6 +1,8 @@
 const express = require('express');
 const Joi = require('joi');
 const geminiService = require('../services/geminiService');
+const aiServiceFactory = require('../services/aiServiceFactory');
+const userSettingsService = require('../services/userSettingsService');
 const { authenticateToken, optionalAuth } = require('../middleware/auth');
 const { doc, setDoc, getDoc, updateDoc, arrayUnion, collection, query, where, orderBy, limit, getDocs } = require('firebase/firestore');
 const { db } = require('../config/firebase');
@@ -126,8 +128,18 @@ router.post('/send', authenticateToken, async (req, res) => {
       // 继续执行，不中断流程
     }
 
-    // 使用Gemini AI生成回复
-    const aiResult = await geminiService.healthChat(message);
+    // 获取用户的AI设置
+    const userAISettings = await userSettingsService.getUserAISettings(userId);
+    const userProvider = userAISettings.success ? userAISettings.aiProvider : 'gemini';
+    const userModel = userAISettings.success ? userAISettings.aiModel : '';
+    
+    console.log(`🤖 Using AI provider: ${userProvider} for chat`);
+    
+    // 使用AI服务工厂生成回复
+    const aiResult = await aiServiceFactory.healthChat(message, '', {
+      provider: userProvider,
+      model: userModel
+    });
     
     if (!aiResult.success) {
       return res.status(500).json({ error: 'AI服务暂时不可用' });

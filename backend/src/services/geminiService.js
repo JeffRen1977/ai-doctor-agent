@@ -2,18 +2,27 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 class GeminiService {
   constructor() {
-    // 初始化Gemini AI
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    this.isInitialized = false;
+    this.genAI = null;
     
-    // 文本任务使用flash模型（更快、更经济）
-    this.textModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    
-    // 图片任务使用pro模型（更好的图片理解能力）
-    this.imageModel = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
-    
-    console.log('✅ Gemini AI 服务初始化成功');
-    console.log('📝 文本模型: gemini-1.5-flash');
-    console.log('🖼️  图片模型: gemini-1.5-pro');
+    try {
+      // 初始化Gemini AI
+      this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+      
+      // 文本任务使用flash模型（更快、更经济）
+      this.textModel = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      
+      // 图片任务使用pro模型（更好的图片理解能力）
+      this.imageModel = this.genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
+      
+      this.isInitialized = true;
+      console.log('✅ Gemini AI 服务初始化成功');
+      console.log('📝 文本模型: gemini-1.5-flash');
+      console.log('🖼️  图片模型: gemini-1.5-pro');
+    } catch (error) {
+      console.error('❌ Gemini AI 服务初始化失败:', error);
+      this.isInitialized = false;
+    }
   }
 
   // 从图像中提取文本
@@ -357,6 +366,18 @@ class GeminiService {
         error: error.message
       };
     }
+  }
+
+  getAvailableModels() {
+    return {
+      text: ['gemini-1.5-flash', 'gemini-1.5-pro'],
+      vision: ['gemini-1.5-pro'],
+      all: ['gemini-1.5-flash', 'gemini-1.5-pro']
+    };
+  }
+
+  isServiceAvailable() {
+    return this.isInitialized && this.genAI !== null;
   }
 }
 

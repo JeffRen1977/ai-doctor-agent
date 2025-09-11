@@ -3,8 +3,9 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
 const { authenticateToken } = require('../middleware/auth');
-const { analyzeHealthDocuments, analyzeHealthDocumentsDirect } = require('../services/healthAnalysisService');
-const { saveHealthAnalysis, getHealthAnalysisHistory, getHealthAnalysisById } = require('../services/healthAnalysisService');
+const { analyzeHealthDocuments } = require('../services/healthAnalysisService');
+const { getHealthAnalysisHistory, getHealthAnalysisById } = require('../services/healthAnalysisService');
+const aiServiceFactory = require('../services/aiServiceFactory');
 
 const router = express.Router();
 
@@ -127,8 +128,16 @@ router.post('/analyze', authenticateToken, (req, res, next) => {
     console.log('🔍 Route - userId:', userId, 'userEmail:', userEmail);
     console.log('🔍 Route - req.user:', req.user);
 
+    // Get AI service options from request body
+    const { provider = 'gemini', model } = req.body;
+    
+    console.log('🤖 AI Service options:', { provider, model });
+
     // Analyze documents using AI (includes saving to database)
-    const analysisResult = await analyzeHealthDocuments(req.files, userId, userEmail);
+    const analysisResult = await analyzeHealthDocuments(req.files, userId, userEmail, {
+      provider,
+      model
+    });
 
     console.log('✅ Health analysis completed and saved');
 
@@ -142,7 +151,10 @@ router.post('/analyze', authenticateToken, (req, res, next) => {
         recommendations: analysisResult.analysis.recommendations,
         nextSteps: analysisResult.analysis.nextSteps,
         analysisDate: analysisResult.analysisDate,
-        uploadedFiles: analysisResult.uploadedFiles
+        uploadedFiles: analysisResult.uploadedFiles,
+        aiProvider: analysisResult.aiProvider,
+        aiModel: analysisResult.aiModel,
+        processingTime: analysisResult.processingTime
       }
     });
 
@@ -151,6 +163,33 @@ router.post('/analyze', authenticateToken, (req, res, next) => {
     res.status(500).json({
       success: false,
       message: 'Failed to analyze health documents',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * @route GET /api/health-analysis/ai-services
+ * @desc Get available AI services and models
+ * @access Private
+ */
+router.get('/ai-services', authenticateToken, async (req, res) => {
+  try {
+    const availableServices = aiServiceFactory.getAvailableServices();
+    
+    res.json({
+      success: true,
+      data: {
+        services: availableServices,
+        totalServices: Object.keys(availableServices).length
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Get AI services error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve AI services',
       error: error.message
     });
   }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Table, Button, Space, Tag, Modal, Form, Input, DatePicker, Select, message, Tabs, Upload, Alert, Grid, List, Avatar, Typography, Row, Col, Statistic, Timeline, Badge, Empty } from 'antd';
 import type { TabsProps, UploadProps } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, CloudDownloadOutlined, InboxOutlined, FileTextOutlined, EyeOutlined, WarningOutlined, CheckCircleOutlined, ClockCircleOutlined, BarChartOutlined } from '@ant-design/icons';
@@ -52,6 +52,12 @@ interface HealthAnalysis {
   analysisDate: string;
   documentsAnalyzed: number;
   status: 'completed' | 'processing' | 'failed';
+  metadata?: {
+    aiProvider?: string;
+    aiModel?: string;
+    processingTime?: number;
+    [key: string]: any;
+  };
 }
 
 const HealthRecordsPage: React.FC = () => {
@@ -73,6 +79,7 @@ const HealthRecordsPage: React.FC = () => {
   const [selectedAnalysis, setSelectedAnalysis] = useState<HealthAnalysis | null>(null);
   const [analysisModalVisible, setAnalysisModalVisible] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [userAISettings, setUserAISettings] = useState<any>({});
 
   const severityColors = { low: 'green', medium: 'orange', high: 'red' };
   const severityLabels = { 
@@ -160,6 +167,18 @@ const HealthRecordsPage: React.FC = () => {
   };
 
   // AI Analysis functions
+  const fetchUserAISettings = async () => {
+    try {
+      const response = await api.get('/user-settings/ai');
+      if (response.data.success) {
+        setUserAISettings(response.data.data);
+        console.log('User AI settings:', response.data.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch user AI settings:', error);
+    }
+  };
+
   const handleAnalyzeFiles = async () => {
     if (fileList.length === 0) {
       message.warning(language === 'zh' ? '请先选择要分析的文件' : 'Please select files to analyze');
@@ -192,6 +211,8 @@ const HealthRecordsPage: React.FC = () => {
         }
       });
 
+      // Note: provider and model will be determined by user's settings on the backend
+
       console.log('Sending request to:', '/health-analysis/analyze');
       console.log('FormData entries:', Array.from(formData.entries()));
       console.log('User token:', localStorage.getItem('token'));
@@ -202,7 +223,15 @@ const HealthRecordsPage: React.FC = () => {
         },
       });
 
-      message.success(language === 'zh' ? '健康分析完成！文件已保存到Firebase Storage，分析结果已保存到数据库。' : 'Health analysis completed! Files saved to Firebase Storage, analysis results saved to database.');
+      const providerName = response.data.data.aiProvider === 'gemini' ? 'Gemini' : 'OpenAI';
+      const modelName = response.data.data.aiModel || 'default';
+      const processingTime = response.data.data.processingTime || 0;
+      
+      message.success(
+        language === 'zh' 
+          ? `健康分析完成！使用${providerName} (${modelName})，处理时间: ${processingTime}ms` 
+          : `Health analysis completed! Using ${providerName} (${modelName}), processing time: ${processingTime}ms`
+      );
       
       // Debug: Log the response structure
       console.log('Analysis response:', response.data);
@@ -309,6 +338,11 @@ const HealthRecordsPage: React.FC = () => {
     if (score >= 4) return language === 'zh' ? '一般' : 'Fair';
     return language === 'zh' ? '需要关注' : 'Needs Attention';
   };
+
+  // Fetch user AI settings on component mount
+  useEffect(() => {
+    fetchUserAISettings();
+  }, []);
 
   const handleSubmit = (values: any) => {
     const recordData = {
@@ -601,6 +635,47 @@ const HealthRecordsPage: React.FC = () => {
                 </Space>
               }
             >
+              {/* AI Service Information */}
+              <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#f5f5f5', borderRadius: '6px' }}>
+                <Typography.Title level={5} style={{ marginBottom: '12px' }}>
+                  {language === 'zh' ? 'AI服务设置' : 'AI Service Settings'}
+                </Typography.Title>
+                <Row gutter={[16, 16]}>
+                  <Col xs={24} sm={12} md={8}>
+                    <div>
+                      <Typography.Text strong>
+                        {language === 'zh' ? '当前AI服务提供商:' : 'Current AI Provider:'}
+                      </Typography.Text>
+                      <div style={{ marginTop: '4px' }}>
+                        <Tag color="blue">
+                          {userAISettings.aiProvider === 'gemini' ? 'Google Gemini' : 'OpenAI'}
+                        </Tag>
+                      </div>
+                    </div>
+                  </Col>
+                  <Col xs={24} sm={12} md={8}>
+                    <div>
+                      <Typography.Text strong>
+                        {language === 'zh' ? '当前模型:' : 'Current Model:'}
+                      </Typography.Text>
+                      <div style={{ marginTop: '4px' }}>
+                        <Tag color="green">
+                          {userAISettings.aiModel || (language === 'zh' ? '默认模型' : 'Default Model')}
+                        </Tag>
+                      </div>
+                    </div>
+                  </Col>
+                </Row>
+                <div style={{ marginTop: '12px', textAlign: 'center' }}>
+                  <Button
+                    type="link"
+                    size="small"
+                    onClick={() => window.open('/settings', '_blank')}
+                  >
+                    {language === 'zh' ? '修改AI服务设置' : 'Modify AI Service Settings'}
+                  </Button>
+                </div>
+              </div>
               <List
                 size="small"
                 dataSource={fileList}
@@ -723,9 +798,21 @@ const HealthRecordsPage: React.FC = () => {
                           <span style={{ fontSize: screens.xs ? '12px' : '14px' }}>
                             {new Date(analysis.analysisDate).toLocaleDateString()}
                           </span>
-                          <Tag color={getHealthScoreColor(analysis.healthScore.score)}>
-                            {analysis.healthScore.score}/10 - {getHealthScoreText(analysis.healthScore.score)}
-                          </Tag>
+                          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                            <Tag color={getHealthScoreColor(analysis.healthScore.score)}>
+                              {analysis.healthScore.score}/10 - {getHealthScoreText(analysis.healthScore.score)}
+                            </Tag>
+                            {analysis.metadata?.aiProvider && (
+                              <Tag color="blue">
+                                {analysis.metadata.aiProvider === 'gemini' ? 'Gemini' : 'OpenAI'}
+                              </Tag>
+                            )}
+                            {analysis.metadata?.processingTime && (
+                              <Tag color="green">
+                                {analysis.metadata.processingTime}ms
+                              </Tag>
+                            )}
+                          </div>
                         </div>
                       }
                       description={

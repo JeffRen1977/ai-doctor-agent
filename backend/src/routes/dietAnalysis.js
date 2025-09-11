@@ -3,6 +3,8 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const geminiService = require('../services/geminiService');
+const aiServiceFactory = require('../services/aiServiceFactory');
+const userSettingsService = require('../services/userSettingsService');
 const { authenticateToken } = require('../middleware/auth');
 const { doc, setDoc, getDoc, updateDoc, arrayUnion, collection, query, where, orderBy, limit, getDocs } = require('firebase/firestore');
 const { db } = require('../config/firebase');
@@ -130,16 +132,23 @@ async function getDietAnalysisHistory(userEmail, limitCount = 20) {
   }
 }
 
-// 使用Gemini AI分析食物图片
-async function analyzeFoodImageWithGemini(imagePath, userEmail) {
+// 使用AI服务分析食物图片（根据用户设置选择提供商）
+async function analyzeFoodImageWithAI(imagePath, userId, userEmail) {
   try {
-    console.log('🤖 使用Gemini AI分析食物图片:', imagePath);
+    console.log('🤖 使用AI服务分析食物图片:', imagePath);
+    
+    // 获取用户AI设置
+    const userAISettings = await userSettingsService.getUserAISettings(userId);
+    const userProvider = userAISettings.success ? userAISettings.aiProvider : 'gemini';
+    const userModel = userAISettings.success ? userAISettings.aiModel : '';
+    
+    console.log(`🎯 使用AI提供商: ${userProvider} (用户设置: ${userAISettings.success ? '已配置' : '默认'})`);
     
     // 读取图片文件并转换为base64
     const imageBuffer = fs.readFileSync(imagePath);
     const base64Image = imageBuffer.toString('base64');
     
-    // 构建Gemini AI提示词
+    // 构建AI提示词
     const prompt = `
     你是一个专业的营养师和AI医生助理。请分析这张食物图片并提供详细的营养分析。
 
@@ -172,20 +181,25 @@ async function analyzeFoodImageWithGemini(imagePath, userEmail) {
     请用中文回答，保持专业、详细和实用。格式要清晰易读。
     `;
 
-    // 调用Gemini AI进行分析
-    const aiResult = await geminiService.analyzeImageWithGemini(base64Image, prompt);
+    // 使用AI服务工厂进行分析
+    const aiResult = await aiServiceFactory.analyzeImageWithAI(base64Image, prompt, {
+      provider: userProvider,
+      model: userModel
+    });
     
     if (!aiResult.success) {
-      throw new Error(`Gemini AI分析失败: ${aiResult.error}`);
+      throw new Error(`${userProvider} AI分析失败: ${aiResult.error}`);
     }
 
     return {
       success: true,
       analysis: aiResult.analysis,
-      recognizedFoods: aiResult.recognizedFoods || []
+      recognizedFoods: aiResult.recognizedFoods || [],
+      aiProvider: userProvider,
+      aiModel: userModel
     };
   } catch (error) {
-    console.error('❌ Gemini AI食物图片分析错误:', error);
+    console.error('❌ AI食物图片分析错误:', error);
     throw error;
   }
 }
@@ -198,23 +212,26 @@ router.post('/analyze', authenticateToken, upload.single('image'), async (req, r
     }
 
     const userEmail = req.user.email;
+    const userId = req.user.id;
     const imagePath = req.file.path;
 
-    console.log('📸 开始分析用户上传的食物图片:', { userEmail, imagePath });
+    console.log('📸 开始分析用户上传的食物图片:', { userEmail, userId, imagePath });
 
-    // 使用Gemini AI分析食物图片
-    const geminiResult = await analyzeFoodImageWithGemini(imagePath, userEmail);
+    // 使用AI服务分析食物图片
+    const aiResult = await analyzeFoodImageWithAI(imagePath, userId, userEmail);
     
-    console.log('🔍 Gemini AI分析结果:', {
-      success: geminiResult.success,
-      analysis: geminiResult.analysis ? geminiResult.analysis.substring(0, 100) + '...' : 'null',
-      recognizedFoods: geminiResult.recognizedFoods,
-      error: geminiResult.error
+    console.log('🔍 AI分析结果:', {
+      success: aiResult.success,
+      analysis: aiResult.analysis ? aiResult.analysis.substring(0, 100) + '...' : 'null',
+      recognizedFoods: aiResult.recognizedFoods,
+      aiProvider: aiResult.aiProvider,
+      aiModel: aiResult.aiModel,
+      error: aiResult.error
     });
     
-    if (!geminiResult.success) {
+    if (!aiResult.success) {
       // 检查是否是配额限制错误
-      if (geminiResult.error && geminiResult.error.includes('quota') || geminiResult.error.includes('Too Many Requests')) {
+      if (aiResult.error && aiResult.error.includes('quota') || aiResult.error.includes('Too Many Requests')) {
         return res.status(429).json({ 
           error: 'AI服务配额已用完，请稍后再试或升级您的账户',
           details: '您已达到免费账户的每日/每分钟请求限制',
@@ -226,7 +243,7 @@ router.post('/analyze', authenticateToken, upload.single('image'), async (req, r
       // 其他AI分析错误
       return res.status(500).json({ 
         error: 'AI图片分析失败',
-        details: geminiResult.error,
+        details: aiResult.error,
         code: 'AI_ANALYSIS_FAILED'
       });
     }
@@ -236,11 +253,13 @@ router.post('/analyze', authenticateToken, upload.single('image'), async (req, r
       imagePath: req.file.filename,
       originalFilename: req.file.originalname,
       imageSize: req.file.size,
-      aiAnalysis: geminiResult.analysis,
-      recognizedFoods: geminiResult.recognizedFoods,
+      aiAnalysis: aiResult.analysis,
+      recognizedFoods: aiResult.recognizedFoods,
       analysisType: 'image_analysis',
       userEmail: userEmail,
-      analysisTimestamp: new Date()
+      analysisTimestamp: new Date(),
+      aiProvider: aiResult.aiProvider,
+      aiModel: aiResult.aiModel
     };
 
     console.log('🔍 构建的分析结果:', {
@@ -265,13 +284,15 @@ router.post('/analyze', authenticateToken, upload.single('image'), async (req, r
       imagePath: req.file.filename,
       originalFilename: req.file.originalname,
       imageSize: req.file.size,
-      aiAnalysis: geminiResult.analysis,
-      recognizedFoods: geminiResult.recognizedFoods,
+      aiAnalysis: aiResult.analysis,
+      recognizedFoods: aiResult.recognizedFoods,
       analysisType: 'image_analysis',
       userEmail: userEmail,
       analysisTimestamp: analysisResult.analysisTimestamp,
+      aiProvider: aiResult.aiProvider,
+      aiModel: aiResult.aiModel,
       // Include the AI analysis text in the expected field
-      analysis: geminiResult.analysis
+      analysis: aiResult.analysis
     };
 
     console.log('🔍 发送给前端的响应数据:', {
@@ -464,11 +485,22 @@ router.get('/foods', (req, res) => {
 router.get('/recommendations', authenticateToken, async (req, res) => {
   try {
     const userEmail = req.user.email;
+    const userId = req.user.id;
     
-    // 使用Gemini AI生成个性化饮食建议
-    const aiResult = await geminiService.analyzeDiet([], {
+    // 获取用户AI设置
+    const userAISettings = await userSettingsService.getUserAISettings(userId);
+    const userProvider = userAISettings.success ? userAISettings.aiProvider : 'gemini';
+    const userModel = userAISettings.success ? userAISettings.aiModel : '';
+    
+    console.log(`🎯 使用AI提供商生成饮食建议: ${userProvider} (用户设置: ${userAISettings.success ? '已配置' : '默认'})`);
+    
+    // 使用AI服务工厂生成个性化饮食建议
+    const aiResult = await aiServiceFactory.analyzeDiet([], {
       userEmail,
       type: 'recommendations'
+    }, {
+      provider: userProvider,
+      model: userModel
     });
 
     if (!aiResult.success) {
@@ -479,7 +511,9 @@ router.get('/recommendations', authenticateToken, async (req, res) => {
       success: true,
       data: {
         recommendations: aiResult.analysis,
-        timestamp: new Date()
+        timestamp: new Date(),
+        aiProvider: userProvider,
+        aiModel: userModel
       }
     });
   } catch (error) {

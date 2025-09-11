@@ -14,11 +14,14 @@
 
 ### 🏥 功能文档
 - **[健康分析功能](HEALTH_ANALYSIS_FEATURE.md)** - AI健康分析功能详细说明
+- **[AI服务集成指南](AI_SERVICES_GUIDE.md)** - AI服务配置和使用指南
+- **[AI服务更新说明](AI_SERVICES_UPDATE.md)** - 多AI服务支持更新说明
 - **[饮食分析功能](features/DIET_ANALYSIS_FEATURE.md)** - 饮食分析功能说明
 - **[可穿戴设备集成](WEARABLE_DEVICE_SETUP.md)** - 可穿戴设备连接和配置
 - **[移动端开发指南](MOBILE_DEVELOPMENT_GUIDE.md)** - 移动端开发和PWA功能
 
 ### 🔧 技术文档
+- **[AI服务集成指南](AI_SERVICES_GUIDE.md)** - AI服务配置和使用指南
 - **[Firebase配置](FIREBASE_SETUP.md)** - Firebase服务配置指南
 - **[聊天历史结构](CHAT_HISTORY_STRUCTURE.md)** - 聊天数据结构说明
 - **[饮食分析结构](DIET_ANALYSIS_STRUCTURE.md)** - 饮食分析数据结构
@@ -47,7 +50,7 @@ cd backend && npm install
 cp backend/.env.example backend/.env
 
 # 编辑环境变量
-# 配置Firebase、Gemini AI等服务的API密钥
+# 配置Firebase、Gemini AI、OpenAI等服务的API密钥
 ```
 
 ### 3. 启动开发服务器
@@ -82,6 +85,8 @@ npm run dev:frontend
 
 ### 2025年1月更新
 - ✅ 添加了AI健康分析功能文档
+- ✅ 新增了AI服务集成指南（支持Gemini和OpenAI）
+- ✅ 新增了AI服务更新说明文档
 - ✅ 更新了Firebase集成文档
 - ✅ 完善了移动端开发指南
 - ✅ 优化了API文档结构
