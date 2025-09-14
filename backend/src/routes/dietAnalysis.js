@@ -141,50 +141,87 @@ async function analyzeFoodImageWithAI(imagePath, userId, userEmail) {
     const userAISettings = await userSettingsService.getUserAISettings(userId);
     const userProvider = userAISettings.success ? userAISettings.aiProvider : 'gemini';
     const userModel = userAISettings.success ? userAISettings.aiModel : '';
+    const userLanguage = userAISettings.success ? userAISettings.language : 'zh';
     
-    console.log(`🎯 使用AI提供商: ${userProvider} (用户设置: ${userAISettings.success ? '已配置' : '默认'})`);
+    console.log(`🎯 使用AI提供商: ${userProvider}, 模型: ${userModel}, 语言: ${userLanguage} (用户设置: ${userAISettings.success ? '已配置' : '默认'})`);
     
     // 读取图片文件并转换为base64
     const imageBuffer = fs.readFileSync(imagePath);
     const base64Image = imageBuffer.toString('base64');
     
-    // 构建AI提示词
-    const prompt = `
-    你是一个专业的营养师和AI医生助理。请分析这张食物图片并提供详细的营养分析。
+    // 构建语言感知的AI提示词
+    let prompt;
+    if (userLanguage === 'en') {
+      prompt = `
+        You are a professional nutritionist and AI medical assistant. Please analyze this food image and provide detailed nutritional analysis.
 
-    请识别图片中的食物，并提供以下信息：
+        Please identify the food in the image and provide the following information:
 
-    1. 食物识别：
-       - 主要食物名称（中文）
-       - 可能的配料和成分
-       - 烹饪方式（如煎、炒、蒸、煮等）
+        1. Food Identification:
+           - Main food names (in English)
+           - Possible ingredients and components
+           - Cooking method (fried, stir-fried, steamed, boiled, etc.)
 
-    2. 营养分析：
-       - 估计的卡路里含量
-       - 蛋白质含量（克）
-       - 碳水化合物含量（克）
-       - 脂肪含量（克）
-       - 纤维含量（克）
-       - 血糖指数（GI值）
+        2. Nutritional Analysis:
+           - Estimated calorie content
+           - Protein content (grams)
+           - Carbohydrate content (grams)
+           - Fat content (grams)
+           - Fiber content (grams)
+           - Glycemic Index (GI value)
 
-    3. 健康评估：
-       - 对糖尿病患者的血糖影响
-       - 营养价值评估
-       - 潜在的健康风险
-       - 适合的食用量建议
+        3. Health Assessment:
+           - Blood sugar impact for diabetes patients
+           - Nutritional value assessment
+           - Potential health risks
+           - Recommended serving size
 
-    4. 改进建议：
-       - 如何让这餐更健康
-       - 推荐的替代食材
-       - 搭配建议
+        4. Improvement Suggestions:
+           - How to make this meal healthier
+           - Recommended alternative ingredients
+           - Pairing suggestions
 
-    请用中文回答，保持专业、详细和实用。格式要清晰易读。
-    `;
+        Please respond in English, keeping it professional, detailed, and practical. Format should be clear and readable.
+        `;
+    } else {
+      prompt = `
+        你是一个专业的营养师和AI医生助理。请分析这张食物图片并提供详细的营养分析。
+
+        请识别图片中的食物，并提供以下信息：
+
+        1. 食物识别：
+           - 主要食物名称（中文）
+           - 可能的配料和成分
+           - 烹饪方式（如煎、炒、蒸、煮等）
+
+        2. 营养分析：
+           - 估计的卡路里含量
+           - 蛋白质含量（克）
+           - 碳水化合物含量（克）
+           - 脂肪含量（克）
+           - 纤维含量（克）
+           - 血糖指数（GI值）
+
+        3. 健康评估：
+           - 对糖尿病患者的血糖影响
+           - 营养价值评估
+           - 潜在的健康风险
+           - 适合的食用量建议
+
+        4. 改进建议：
+           - 如何让这餐更健康
+           - 推荐的替代食材
+           - 搭配建议
+
+        请用中文回答，保持专业、详细和实用。格式要清晰易读。
+        `;
+    }
 
     // 使用AI服务工厂进行分析
     const aiResult = await aiServiceFactory.analyzeImageWithAI(base64Image, prompt, {
       provider: userProvider,
-      model: userModel
+      model: userModel,
+      language: userLanguage
     });
     
     if (!aiResult.success) {
@@ -196,7 +233,8 @@ async function analyzeFoodImageWithAI(imagePath, userId, userEmail) {
       analysis: aiResult.analysis,
       recognizedFoods: aiResult.recognizedFoods || [],
       aiProvider: userProvider,
-      aiModel: userModel
+      aiModel: userModel,
+      language: userLanguage
     };
   } catch (error) {
     console.error('❌ AI食物图片分析错误:', error);
@@ -491,8 +529,9 @@ router.get('/recommendations', authenticateToken, async (req, res) => {
     const userAISettings = await userSettingsService.getUserAISettings(userId);
     const userProvider = userAISettings.success ? userAISettings.aiProvider : 'gemini';
     const userModel = userAISettings.success ? userAISettings.aiModel : '';
+    const userLanguage = userAISettings.success ? userAISettings.language : 'zh';
     
-    console.log(`🎯 使用AI提供商生成饮食建议: ${userProvider} (用户设置: ${userAISettings.success ? '已配置' : '默认'})`);
+    console.log(`🎯 使用AI提供商生成饮食建议: ${userProvider}, 模型: ${userModel}, 语言: ${userLanguage} (用户设置: ${userAISettings.success ? '已配置' : '默认'})`);
     
     // 使用AI服务工厂生成个性化饮食建议
     const aiResult = await aiServiceFactory.analyzeDiet([], {
@@ -500,7 +539,8 @@ router.get('/recommendations', authenticateToken, async (req, res) => {
       type: 'recommendations'
     }, {
       provider: userProvider,
-      model: userModel
+      model: userModel,
+      language: userLanguage
     });
 
     if (!aiResult.success) {
@@ -513,7 +553,8 @@ router.get('/recommendations', authenticateToken, async (req, res) => {
         recommendations: aiResult.analysis,
         timestamp: new Date(),
         aiProvider: userProvider,
-        aiModel: userModel
+        aiModel: userModel,
+        language: userLanguage
       }
     });
   } catch (error) {
