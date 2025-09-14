@@ -113,16 +113,17 @@ cd backend && npm install
 
 3. **启动服务**
 ```bash
-# 启动前端开发服务器
-npm run dev
+# 启动全栈开发服务器 (推荐)
+npm run dev:full
 
-# 启动后端API服务
-cd backend && npm run dev
+# 或者分别启动
+npm run dev:frontend  # 前端开发服务器
+npm run dev:backend   # 后端API服务
 ```
 
 4. **访问应用**
-- 前端: http://localhost:3000
-- 后端API: http://localhost:8000
+- 前端: http://localhost:5173 (Vite开发服务器)
+- 后端API: http://localhost:3000
 - 演示账号: demo@example.com / 123456
 
 ## 📁 项目结构
@@ -199,25 +200,66 @@ AI-doctor/
 
 ### 快速开始
 
+#### 全栈开发 (推荐)
+```bash
+# 同时启动前端和后端开发服务器
+npm run dev:full
+
+# 或者分别启动
+npm run dev:frontend  # 前端开发服务器
+npm run dev:backend   # 后端开发服务器
+```
+
 #### 前端开发
 ```bash
-# 启动开发服务器
-npm run dev
+# 启动前端开发服务器
+npm run dev:frontend
 
 # 构建生产版本
 npm run build
 
 # 代码检查
 npm run lint
+
+# 移动端模式
+npm run dev:mobile
 ```
 
 #### 后端开发
 ```bash
-# 启动开发服务器
-cd backend && npm run dev
+# 启动后端开发服务器
+npm run dev:backend
+
+# 或者直接启动
+npm run start:backend
 
 # 运行测试
-cd backend && npm test
+npm run test:backend
+```
+
+#### 测试语言感知聊天功能
+```bash
+# 启动开发服务器
+npm run dev:full
+
+# 然后在浏览器中测试:
+# 1. 打开 http://localhost:5173 (前端)
+# 2. 登录账户
+# 3. 设置页面 → 设置语言为 English → 保存
+# 4. 医生聊天页面 → 询问: "I have a headache, what should I do?"
+# 5. 验证响应为英文
+# 6. 设置页面 → 设置语言为 中文 → 保存
+# 7. 医生聊天页面 → 询问: "我头痛，应该怎么办？"
+# 8. 验证响应为中文
+```
+
+#### Docker 测试
+```bash
+# 使用 Docker 测试完整应用
+./docker-test.sh
+
+# 或使用 Docker Compose
+docker-compose up --build
 ```
 
 ### 开发规范
@@ -245,11 +287,12 @@ cd backend && npm test
 
 #### 本地开发
 ```bash
-# 启动前端
-npm run dev
+# 启动全栈开发服务器
+npm run dev:full
 
-# 启动后端
-cd backend && npm run dev
+# 或者分别启动
+npm run dev:frontend  # 前端
+npm run dev:backend   # 后端
 ```
 
 #### Docker部署
