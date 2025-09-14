@@ -36,7 +36,7 @@ const upload = multer({
     if (file.mimetype.startsWith('image/')) {
       cb(null, true);
     } else {
-      cb(new Error('只允许上传图片文件'), false);
+      cb(new Error('Only image files are allowed'), false);
     }
   }
 });
@@ -246,14 +246,18 @@ async function analyzeFoodImageWithAI(imagePath, userId, userEmail) {
 router.post('/analyze', authenticateToken, upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ error: '请上传图片' });
+      return res.status(400).json({ error: 'Please upload an image' });
     }
 
     const userEmail = req.user.email;
     const userId = req.user.id;
     const imagePath = req.file.path;
 
-    console.log('📸 开始分析用户上传的食物图片:', { userEmail, userId, imagePath });
+    // 获取用户AI设置以确定语言
+    const userAISettings = await userSettingsService.getUserAISettings(userId);
+    const userLanguage = userAISettings.success ? userAISettings.language : 'zh';
+
+    console.log('📸 开始分析用户上传的食物图片:', { userEmail, userId, imagePath, language: userLanguage });
 
     // 使用AI服务分析食物图片
     const aiResult = await analyzeFoodImageWithAI(imagePath, userId, userEmail);
@@ -264,23 +268,38 @@ router.post('/analyze', authenticateToken, upload.single('image'), async (req, r
       recognizedFoods: aiResult.recognizedFoods,
       aiProvider: aiResult.aiProvider,
       aiModel: aiResult.aiModel,
+      language: aiResult.language,
       error: aiResult.error
     });
     
     if (!aiResult.success) {
       // 检查是否是配额限制错误
       if (aiResult.error && aiResult.error.includes('quota') || aiResult.error.includes('Too Many Requests')) {
+        const quotaMessage = userLanguage === 'en' 
+          ? 'AI service quota exceeded, please try again later or upgrade your account'
+          : 'AI服务配额已用完，请稍后再试或升级您的账户';
+        const quotaDetails = userLanguage === 'en'
+          ? 'You have reached the daily/minute request limit for free accounts'
+          : '您已达到免费账户的每日/每分钟请求限制';
+        const retryMessage = userLanguage === 'en'
+          ? 'Please wait a few minutes before trying again'
+          : '建议等待几分钟后再试';
+          
         return res.status(429).json({ 
-          error: 'AI服务配额已用完，请稍后再试或升级您的账户',
-          details: '您已达到免费账户的每日/每分钟请求限制',
-          retryAfter: '建议等待几分钟后再试',
+          error: quotaMessage,
+          details: quotaDetails,
+          retryAfter: retryMessage,
           code: 'QUOTA_EXCEEDED'
         });
       }
       
       // 其他AI分析错误
+      const analysisError = userLanguage === 'en'
+        ? 'AI image analysis failed'
+        : 'AI图片分析失败';
+        
       return res.status(500).json({ 
-        error: 'AI图片分析失败',
+        error: analysisError,
         details: aiResult.error,
         code: 'AI_ANALYSIS_FAILED'
       });
@@ -333,15 +352,20 @@ router.post('/analyze', authenticateToken, upload.single('image'), async (req, r
       analysis: aiResult.analysis
     };
 
+    // 根据用户语言设置响应消息
+    const successMessage = userLanguage === 'en' 
+      ? 'Food image analysis completed'
+      : '食物图片分析完成';
+
     console.log('🔍 发送给前端的响应数据:', {
       success: true,
-      message: '食物图片分析完成',
+      message: successMessage,
       data: responseData
     });
 
     res.json({
       success: true,
-      message: '食物图片分析完成',
+      message: successMessage,
       data: responseData
     });
 
@@ -366,8 +390,24 @@ router.post('/analyze', authenticateToken, upload.single('image'), async (req, r
       }
     }
     
+    // 获取用户语言设置以确定错误消息语言
+    let userLanguage = 'zh'; // 默认中文
+    try {
+      const userId = req.user?.id;
+      if (userId) {
+        const userAISettings = await userSettingsService.getUserAISettings(userId);
+        userLanguage = userAISettings.success ? userAISettings.language : 'zh';
+      }
+    } catch (settingsError) {
+      console.warn('⚠️ 获取用户语言设置失败:', settingsError.message);
+    }
+    
+    const errorMessage = userLanguage === 'en' 
+      ? 'Internal server error'
+      : '服务器内部错误';
+    
     res.status(500).json({ 
-      error: '服务器内部错误',
+      error: errorMessage,
       details: error.message 
     });
   }
@@ -544,7 +584,10 @@ router.get('/recommendations', authenticateToken, async (req, res) => {
     });
 
     if (!aiResult.success) {
-      return res.status(500).json({ error: 'AI建议生成失败' });
+      const errorMessage = userLanguage === 'en' 
+        ? 'AI recommendation generation failed'
+        : 'AI建议生成失败';
+      return res.status(500).json({ error: errorMessage });
     }
 
     res.json({
@@ -559,7 +602,24 @@ router.get('/recommendations', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('❌ 获取饮食建议错误:', error);
-    res.status(500).json({ error: '服务器内部错误' });
+    
+    // 获取用户语言设置以确定错误消息语言
+    let userLanguage = 'zh'; // 默认中文
+    try {
+      const userId = req.user?.id;
+      if (userId) {
+        const userAISettings = await userSettingsService.getUserAISettings(userId);
+        userLanguage = userAISettings.success ? userAISettings.language : 'zh';
+      }
+    } catch (settingsError) {
+      console.warn('⚠️ 获取用户语言设置失败:', settingsError.message);
+    }
+    
+    const errorMessage = userLanguage === 'en' 
+      ? 'Internal server error'
+      : '服务器内部错误';
+    
+    res.status(500).json({ error: errorMessage });
   }
 });
 
