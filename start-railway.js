@@ -47,15 +47,19 @@ try {
   const contents = fs.readdirSync('.');
   console.log(contents);
   
-  if (fs.existsSync('backend')) {
-    console.log('📁 Backend directory contents:');
-    const backendContents = fs.readdirSync('backend');
-    console.log(backendContents);
-    
-    if (fs.existsSync('backend/src')) {
-      console.log('📁 Backend/src directory contents:');
-      const srcContents = fs.readdirSync('backend/src');
-      console.log(srcContents);
+  // Check for backend in multiple locations
+  const possibleBackendDirs = ['./backend', '/app/backend', './src', '/app/src'];
+  for (const backendDir of possibleBackendDirs) {
+    if (fs.existsSync(backendDir)) {
+      console.log(`📁 Found backend directory at: ${backendDir}`);
+      const backendContents = fs.readdirSync(backendDir);
+      console.log(`📁 ${backendDir} contents:`, backendContents);
+      
+      if (fs.existsSync(`${backendDir}/src`)) {
+        console.log(`📁 ${backendDir}/src directory contents:`);
+        const srcContents = fs.readdirSync(`${backendDir}/src`);
+        console.log(srcContents);
+      }
     }
   }
   
@@ -63,6 +67,13 @@ try {
     console.log('📁 Dist directory contents:');
     const distContents = fs.readdirSync('dist');
     console.log(distContents);
+  }
+  
+  // Check absolute paths
+  if (fs.existsSync('/app')) {
+    console.log('📁 /app directory contents:');
+    const appContents = fs.readdirSync('/app');
+    console.log(appContents);
   }
 } catch (error) {
   console.error('❌ Error listing directories:', error.message);
@@ -123,7 +134,11 @@ try {
     './backend/src/index.js',  // This should be the correct path
     './backend/index.js',
     './src/index.js',
-    './index.js'
+    './index.js',
+    '/app/backend/src/index.js',  // Absolute path in Docker
+    '/app/backend/index.js',
+    '/app/src/index.js',
+    '/app/index.js'
   ];
   
   let backendStarted = false;
