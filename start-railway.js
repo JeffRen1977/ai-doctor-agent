@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-// Railway-specific startup script - Updated: 2025-09-14 06:15 UTC
-// Force new deployment to fix missing backend files issue
+// Railway-specific startup script - Updated: 2025-09-14 06:20 UTC
+// Fix: Ensure correct backend path order and enhanced debugging
 console.log('🚀 Starting AI Doctor Agent for Railway...');
 
 // Check Node.js version compatibility
@@ -120,7 +120,7 @@ try {
   
   // Try multiple possible paths for the backend
   const possibleBackendPaths = [
-    './backend/src/index.js',
+    './backend/src/index.js',  // This should be the correct path
     './backend/index.js',
     './src/index.js',
     './index.js'
