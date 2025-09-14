@@ -33,8 +33,32 @@ const Sidebar: React.FC = () => {
 
   const t = (key: string) => getTranslation(language, key)
 
-  const handleLanguageChange = (newLanguage: 'zh' | 'en') => {
+  const handleLanguageChange = async (newLanguage: 'zh' | 'en') => {
     setLanguage(newLanguage)
+    
+    // Save to localStorage
+    localStorage.setItem('selectedLanguage', newLanguage)
+    
+    // Sync with backend user settings
+    try {
+      const token = localStorage.getItem('token')
+      if (token) {
+        await fetch('/api/user-settings/ai', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            language: newLanguage
+          })
+        })
+        console.log(`🌐 Language setting synced to backend: ${newLanguage}`)
+      }
+    } catch (error) {
+      console.warn('⚠️ Failed to sync language setting to backend:', error)
+    }
+    
     // 强制重新渲染
     window.location.reload()
   }
@@ -58,7 +82,7 @@ const Sidebar: React.FC = () => {
   const mainMenuItems = [
     {
       key: '/dashboard',
-      icon: React.createElement(DashboardOutlined),
+      icon: <DashboardOutlined />,
       label: t('sidebar.menu.dashboard'),
     },
     {

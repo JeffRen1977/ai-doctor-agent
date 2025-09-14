@@ -79,6 +79,23 @@ const LoginPage: React.FC = () => {
           localStorage.setItem('selectedLanguage', language)
           console.log('🌐 Language saved to localStorage:', language)
           
+          // 同步语言设置到后端用户设置
+          try {
+            await fetch('/api/user-settings/ai', {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${data.token}`
+              },
+              body: JSON.stringify({
+                language: language
+              })
+            })
+            console.log('🌐 Language setting synced to backend on login:', language)
+          } catch (syncError) {
+            console.warn('⚠️ Failed to sync language setting on login:', syncError)
+          }
+          
           // 显示成功消息
           message.success(language === 'zh' ? '登录成功！' : 'Login successful!')
           

@@ -54,7 +54,7 @@ if (serviceAccount) {
     apiKey: process.env.FIREBASE_API_KEY || "AIzaSyDummyKey", // 需要从Firebase控制台获取Web API Key
     authDomain: `${serviceAccount.project_id}.firebaseapp.com`,
     projectId: serviceAccount.project_id,
-    storageBucket: `${serviceAccount.project_id}.appspot.com`,
+    storageBucket: `${serviceAccount.project_id}.firebasestorage.app`,
     messagingSenderId: serviceAccount.client_id,
     appId: process.env.FIREBASE_APP_ID || "1:103828834479878192658:web:dummy" // 需要从Firebase控制台获取
   };
@@ -64,7 +64,7 @@ if (serviceAccount) {
     apiKey: process.env.FIREBASE_API_KEY,
     authDomain: process.env.FIREBASE_AUTH_DOMAIN,
     projectId: process.env.FIREBASE_PROJECT_ID,
-    storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+    storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${process.env.FIREBASE_PROJECT_ID}.firebasestorage.app`,
     messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
     appId: process.env.FIREBASE_APP_ID
   };

@@ -2,24 +2,154 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 class GeminiService {
   constructor() {
-    // 初始化Gemini AI
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    this.isInitialized = false;
+    this.genAI = null;
     
-    // 文本任务使用flash模型（更快、更经济）
-    this.textModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    
-    // 图片任务使用pro模型（更好的图片理解能力）
-    this.imageModel = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
-    
-    console.log('✅ Gemini AI 服务初始化成功');
-    console.log('📝 文本模型: gemini-1.5-flash');
-    console.log('🖼️  图片模型: gemini-1.5-pro');
+    try {
+      // 初始化Gemini AI
+      this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+      
+      // 文本任务使用flash模型（更快、更经济）
+      this.textModel = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      
+      // 图片任务使用pro模型（更好的图片理解能力）
+      this.imageModel = this.genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
+      
+      this.isInitialized = true;
+      console.log('✅ Gemini AI 服务初始化成功');
+      console.log('📝 文本模型: gemini-1.5-flash');
+      console.log('🖼️  图片模型: gemini-1.5-pro');
+    } catch (error) {
+      console.error('❌ Gemini AI 服务初始化失败:', error);
+      this.isInitialized = false;
+    }
+  }
+
+  // 从图像中提取文本
+  async extractTextFromImage(base64Image) {
+    try {
+      console.log('🖼️ Extracting text from image using Gemini Vision...');
+      
+      const prompt = `
+        请仔细分析这张图片中的所有文字内容，包括：
+        1. 医疗报告中的文字
+        2. 检查结果数据
+        3. 医生诊断意见
+        4. 药物名称和剂量
+        5. 任何其他相关的医疗信息
+        
+        请将所有文字内容完整地提取出来，保持原有的格式和结构。
+        如果图片中包含表格，请尽量保持表格的结构。
+        如果文字模糊不清，请标注"无法识别"。
+      `;
+
+      const result = await this.imageModel.generateContent([
+        prompt,
+        {
+          inlineData: {
+            data: base64Image,
+            mimeType: 'image/jpeg'
+          }
+        }
+      ]);
+
+      const response = await result.response;
+      const extractedText = response.text();
+
+      console.log('✅ Text extraction completed, length:', extractedText.length);
+
+      return {
+        success: true,
+        text: extractedText,
+        model: 'gemini-1.5-pro'
+      };
+
+    } catch (error) {
+      console.error('❌ Image text extraction error:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  // 分析PDF文档
+  async analyzePDFDocument(base64PDF) {
+    try {
+      console.log('📄 Analyzing PDF document with Gemini Vision...');
+      
+      const prompt = `
+        请仔细分析这个PDF文档中的所有内容，包括：
+        1. 医疗报告、检查结果、诊断书等医疗文档
+        2. 患者基本信息（姓名、年龄、性别等）
+        3. 检查数据（血压、血糖、胆固醇、心率等数值）
+        4. 医生诊断意见和建议
+        5. 药物处方和剂量
+        6. 任何表格、图表中的医疗数据
+        7. 其他相关的健康信息
+        
+        请将所有文字内容完整地提取出来，保持原有的格式和结构。
+        对于表格数据，请尽量保持表格的结构。
+        对于数值数据，请准确提取数字和单位。
+        如果某些内容模糊不清，请标注"无法识别"。
+        
+        请以结构化的方式组织提取的内容，便于后续的健康分析。
+      `;
+
+      const result = await this.imageModel.generateContent([
+        prompt,
+        {
+          inlineData: {
+            data: base64PDF,
+            mimeType: 'application/pdf'
+          }
+        }
+      ]);
+
+      const response = await result.response;
+      const extractedText = response.text();
+
+      console.log('✅ PDF analysis completed, length:', extractedText.length);
+
+      return {
+        success: true,
+        text: extractedText,
+        pages: 1, // Gemini会处理整个PDF
+        model: 'gemini-1.5-pro'
+      };
+
+    } catch (error) {
+      console.error('❌ PDF analysis error:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
   }
 
   // 健康咨询对话
-  async healthChat(message, context = '') {
+  async healthChat(message, context = '', options = {}) {
     try {
-      const prompt = `
+      const { language = 'zh' } = options;
+      
+      let prompt;
+      if (language === 'en') {
+        prompt = `
+            You are a professional AI medical assistant. Please provide professional responses based on the user's health questions.
+
+            User question: ${message}
+            ${context ? `Context information: ${context}` : ''}
+
+            Please provide:
+            1. Professional health advice
+            2. Possible symptom analysis
+            3. Suggested next steps
+            4. Important notes and precautions
+
+            Please respond in English, keeping it professional, friendly, and easy to understand.
+            `;
+      } else {
+        prompt = `
             你是一个专业的AI医生助理，请根据用户的健康问题进行专业的回答。
 
             用户问题: ${message}
@@ -33,6 +163,7 @@ class GeminiService {
 
             请用中文回答，保持专业、友好和易懂。
             `;
+      }
 
       const result = await this.textModel.generateContent(prompt);
       const response = await result.response;
@@ -255,6 +386,18 @@ class GeminiService {
         error: error.message
       };
     }
+  }
+
+  getAvailableModels() {
+    return {
+      text: ['gemini-1.5-flash', 'gemini-1.5-pro'],
+      vision: ['gemini-1.5-pro'],
+      all: ['gemini-1.5-flash', 'gemini-1.5-pro']
+    };
+  }
+
+  isServiceAvailable() {
+    return this.isInitialized && this.genAI !== null;
   }
 }
 

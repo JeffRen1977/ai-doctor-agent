@@ -1,6 +1,6 @@
 # AI个人医生助理
 
-> 一个基于React + Node.js的智能健康咨询系统，提供AI医生对话和健康记录管理功能
+> 一个基于React + Node.js的智能健康咨询系统，提供AI医生对话、健康记录管理、AI健康分析、饮食分析、可穿戴设备集成等全方位健康管理功能
 
 [![React](https://img.shields.io/badge/React-18.2.0-blue.svg)](https://reactjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-4.9.0-blue.svg)](https://www.typescriptlang.org/)
@@ -27,6 +27,9 @@ AI个人医生助理是一个现代化的健康咨询平台，采用前后端分
 ### 核心价值
 - 🤖 **智能AI咨询**: 基于症状的智能健康建议
 - 📊 **健康记录管理**: 完整的个人健康档案系统
+- 🔍 **AI健康分析**: 基于Gemini AI的智能健康分析
+- 🍎 **饮食分析**: 图片识别和营养成分分析
+- ⌚ **可穿戴设备**: Fitbit和Apple Health集成
 - 🔐 **安全认证**: JWT认证和密码加密
 - 📱 **响应式设计**: 完美适配各种设备
 - ⚡ **实时交互**: 流畅的用户体验
@@ -35,7 +38,10 @@ AI个人医生助理是一个现代化的健康咨询平台，采用前后端分
 
 ### 🏥 核心功能
 - **AI医生对话**: 智能症状分析和健康建议
+- **AI健康分析**: 基于Gemini AI的智能健康分析
 - **健康记录管理**: 完整的CRUD操作和状态跟踪
+- **饮食分析**: 图片识别和营养成分分析
+- **可穿戴设备**: Fitbit和Apple Health集成
 - **个人资料管理**: 用户信息和健康档案完善
 - **用户认证系统**: 安全的登录登出功能
 
@@ -77,6 +83,9 @@ AI个人医生助理是一个现代化的健康咨询平台，采用前后端分
 | Helmet | 7.0.0 | 安全中间件 |
 | CORS | 2.8.5 | 跨域资源共享 |
 | Morgan | 1.10.0 | HTTP请求日志 |
+| Multer | 1.4.5 | 文件上传处理 |
+| Firebase Admin | 11.0.0 | Firebase服务集成 |
+| Google Gemini AI | 1.0.0 | AI健康分析 |
 
 ## 🚀 快速开始
 
@@ -104,16 +113,17 @@ cd backend && npm install
 
 3. **启动服务**
 ```bash
-# 启动前端开发服务器
-npm run dev
+# 启动全栈开发服务器 (推荐)
+npm run dev:full
 
-# 启动后端API服务
-cd backend && npm run dev
+# 或者分别启动
+npm run dev:frontend  # 前端开发服务器
+npm run dev:backend   # 后端API服务
 ```
 
 4. **访问应用**
-- 前端: http://localhost:3000
-- 后端API: http://localhost:8000
+- 前端: http://localhost:5173 (Vite开发服务器)
+- 后端API: http://localhost:3000
 - 演示账号: demo@example.com / 123456
 
 ## 📁 项目结构
@@ -190,25 +200,63 @@ AI-doctor/
 
 ### 快速开始
 
+#### 全栈开发 (推荐)
+```bash
+# 同时启动前端和后端开发服务器
+npm run dev:full
+
+# 或者分别启动
+npm run dev:frontend  # 前端开发服务器
+npm run dev:backend   # 后端开发服务器
+```
+
 #### 前端开发
 ```bash
-# 启动开发服务器
-npm run dev
+# 启动前端开发服务器
+npm run dev:frontend
 
 # 构建生产版本
 npm run build
 
 # 代码检查
 npm run lint
+
+# 移动端模式
+npm run dev:mobile
 ```
 
 #### 后端开发
 ```bash
-# 启动开发服务器
-cd backend && npm run dev
+# 启动后端开发服务器
+npm run dev:backend
+
+# 或者直接启动
+npm run start:backend
 
 # 运行测试
-cd backend && npm test
+npm run test:backend
+```
+
+#### 测试语言感知聊天功能
+```bash
+# 启动开发服务器
+npm run dev:full
+
+# 然后在浏览器中测试:
+# 1. 打开 http://localhost:5173 (前端)
+# 2. 登录账户
+# 3. 设置页面 → 设置语言为 English → 保存
+# 4. 医生聊天页面 → 询问: "I have a headache, what should I do?"
+# 5. 验证响应为英文
+# 6. 设置页面 → 设置语言为 中文 → 保存
+# 7. 医生聊天页面 → 询问: "我头痛，应该怎么办？"
+# 8. 验证响应为中文
+```
+
+#### Docker 测试
+```bash
+# 使用 Docker Compose 测试完整应用
+docker-compose up --build
 ```
 
 ### 开发规范
@@ -236,11 +284,12 @@ cd backend && npm test
 
 #### 本地开发
 ```bash
-# 启动前端
-npm run dev
+# 启动全栈开发服务器
+npm run dev:full
 
-# 启动后端
-cd backend && npm run dev
+# 或者分别启动
+npm run dev:frontend  # 前端
+npm run dev:backend   # 后端
 ```
 
 #### Docker部署

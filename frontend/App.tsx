@@ -13,6 +13,7 @@ import DeviceSyncPage from './pages/DeviceSyncPage'
 import HealthAnalyticsPage from './pages/HealthAnalyticsPage'
 import EmergencyPage from './pages/EmergencyPage'
 import DietAnalysisPage from './pages/DietAnalysisPage'
+import UserSettingsPage from './pages/UserSettingsPage'
 import { useAuthStore } from './stores/authStore'
 import { useLanguageStore } from './stores/languageStore'
 import './App.css'
@@ -106,6 +107,7 @@ function App() {
             <Route path="/emergency" element={<EmergencyPage />} />
             <Route path="/diet-analysis" element={<DietAnalysisPage />} />
             <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/settings" element={<UserSettingsPage />} />
           </Routes>
         </Content>
       </Layout>

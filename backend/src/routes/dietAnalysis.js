@@ -3,6 +3,8 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const geminiService = require('../services/geminiService');
+const aiServiceFactory = require('../services/aiServiceFactory');
+const userSettingsService = require('../services/userSettingsService');
 const { authenticateToken } = require('../middleware/auth');
 const { doc, setDoc, getDoc, updateDoc, arrayUnion, collection, query, where, orderBy, limit, getDocs } = require('firebase/firestore');
 const { db } = require('../config/firebase');
@@ -34,7 +36,7 @@ const upload = multer({
     if (file.mimetype.startsWith('image/')) {
       cb(null, true);
     } else {
-      cb(new Error('只允许上传图片文件'), false);
+      cb(new Error('Only image files are allowed'), false);
     }
   }
 });
@@ -130,62 +132,112 @@ async function getDietAnalysisHistory(userEmail, limitCount = 20) {
   }
 }
 
-// 使用Gemini AI分析食物图片
-async function analyzeFoodImageWithGemini(imagePath, userEmail) {
+// 使用AI服务分析食物图片（根据用户设置选择提供商）
+async function analyzeFoodImageWithAI(imagePath, userId, userEmail) {
   try {
-    console.log('🤖 使用Gemini AI分析食物图片:', imagePath);
+    console.log('🤖 使用AI服务分析食物图片:', imagePath);
+    
+    // 获取用户AI设置
+    const userAISettings = await userSettingsService.getUserAISettings(userId);
+    const userProvider = userAISettings.success ? userAISettings.aiProvider : 'gemini';
+    const userModel = userAISettings.success ? userAISettings.aiModel : '';
+    const userLanguage = userAISettings.success ? userAISettings.language : 'zh';
+    
+    console.log(`🎯 使用AI提供商: ${userProvider}, 模型: ${userModel}, 语言: ${userLanguage} (用户设置: ${userAISettings.success ? '已配置' : '默认'})`);
     
     // 读取图片文件并转换为base64
     const imageBuffer = fs.readFileSync(imagePath);
     const base64Image = imageBuffer.toString('base64');
     
-    // 构建Gemini AI提示词
-    const prompt = `
-    你是一个专业的营养师和AI医生助理。请分析这张食物图片并提供详细的营养分析。
+    // 构建语言感知的AI提示词
+    let prompt;
+    if (userLanguage === 'en') {
+      prompt = `
+        You are a professional nutritionist and AI medical assistant. Please analyze this food image and provide detailed nutritional analysis.
 
-    请识别图片中的食物，并提供以下信息：
+        Please identify the food in the image and provide the following information:
 
-    1. 食物识别：
-       - 主要食物名称（中文）
-       - 可能的配料和成分
-       - 烹饪方式（如煎、炒、蒸、煮等）
+        1. Food Identification:
+           - Main food names (in English)
+           - Possible ingredients and components
+           - Cooking method (fried, stir-fried, steamed, boiled, etc.)
 
-    2. 营养分析：
-       - 估计的卡路里含量
-       - 蛋白质含量（克）
-       - 碳水化合物含量（克）
-       - 脂肪含量（克）
-       - 纤维含量（克）
-       - 血糖指数（GI值）
+        2. Nutritional Analysis:
+           - Estimated calorie content
+           - Protein content (grams)
+           - Carbohydrate content (grams)
+           - Fat content (grams)
+           - Fiber content (grams)
+           - Glycemic Index (GI value)
 
-    3. 健康评估：
-       - 对糖尿病患者的血糖影响
-       - 营养价值评估
-       - 潜在的健康风险
-       - 适合的食用量建议
+        3. Health Assessment:
+           - Blood sugar impact for diabetes patients
+           - Nutritional value assessment
+           - Potential health risks
+           - Recommended serving size
 
-    4. 改进建议：
-       - 如何让这餐更健康
-       - 推荐的替代食材
-       - 搭配建议
+        4. Improvement Suggestions:
+           - How to make this meal healthier
+           - Recommended alternative ingredients
+           - Pairing suggestions
 
-    请用中文回答，保持专业、详细和实用。格式要清晰易读。
-    `;
+        Please respond in English, keeping it professional, detailed, and practical. Format should be clear and readable.
+        `;
+    } else {
+      prompt = `
+        你是一个专业的营养师和AI医生助理。请分析这张食物图片并提供详细的营养分析。
 
-    // 调用Gemini AI进行分析
-    const aiResult = await geminiService.analyzeImageWithGemini(base64Image, prompt);
+        请识别图片中的食物，并提供以下信息：
+
+        1. 食物识别：
+           - 主要食物名称（中文）
+           - 可能的配料和成分
+           - 烹饪方式（如煎、炒、蒸、煮等）
+
+        2. 营养分析：
+           - 估计的卡路里含量
+           - 蛋白质含量（克）
+           - 碳水化合物含量（克）
+           - 脂肪含量（克）
+           - 纤维含量（克）
+           - 血糖指数（GI值）
+
+        3. 健康评估：
+           - 对糖尿病患者的血糖影响
+           - 营养价值评估
+           - 潜在的健康风险
+           - 适合的食用量建议
+
+        4. 改进建议：
+           - 如何让这餐更健康
+           - 推荐的替代食材
+           - 搭配建议
+
+        请用中文回答，保持专业、详细和实用。格式要清晰易读。
+        `;
+    }
+
+    // 使用AI服务工厂进行分析
+    const aiResult = await aiServiceFactory.analyzeImageWithAI(base64Image, prompt, {
+      provider: userProvider,
+      model: userModel,
+      language: userLanguage
+    });
     
     if (!aiResult.success) {
-      throw new Error(`Gemini AI分析失败: ${aiResult.error}`);
+      throw new Error(`${userProvider} AI分析失败: ${aiResult.error}`);
     }
 
     return {
       success: true,
       analysis: aiResult.analysis,
-      recognizedFoods: aiResult.recognizedFoods || []
+      recognizedFoods: aiResult.recognizedFoods || [],
+      aiProvider: userProvider,
+      aiModel: userModel,
+      language: userLanguage
     };
   } catch (error) {
-    console.error('❌ Gemini AI食物图片分析错误:', error);
+    console.error('❌ AI食物图片分析错误:', error);
     throw error;
   }
 }
@@ -194,39 +246,61 @@ async function analyzeFoodImageWithGemini(imagePath, userEmail) {
 router.post('/analyze', authenticateToken, upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ error: '请上传图片' });
+      return res.status(400).json({ error: 'Please upload an image' });
     }
 
     const userEmail = req.user.email;
+    const userId = req.user.id;
     const imagePath = req.file.path;
 
-    console.log('📸 开始分析用户上传的食物图片:', { userEmail, imagePath });
+    // 获取用户AI设置以确定语言
+    const userAISettings = await userSettingsService.getUserAISettings(userId);
+    const userLanguage = userAISettings.success ? userAISettings.language : 'zh';
 
-    // 使用Gemini AI分析食物图片
-    const geminiResult = await analyzeFoodImageWithGemini(imagePath, userEmail);
+    console.log('📸 开始分析用户上传的食物图片:', { userEmail, userId, imagePath, language: userLanguage });
+
+    // 使用AI服务分析食物图片
+    const aiResult = await analyzeFoodImageWithAI(imagePath, userId, userEmail);
     
-    console.log('🔍 Gemini AI分析结果:', {
-      success: geminiResult.success,
-      analysis: geminiResult.analysis ? geminiResult.analysis.substring(0, 100) + '...' : 'null',
-      recognizedFoods: geminiResult.recognizedFoods,
-      error: geminiResult.error
+    console.log('🔍 AI分析结果:', {
+      success: aiResult.success,
+      analysis: aiResult.analysis ? aiResult.analysis.substring(0, 100) + '...' : 'null',
+      recognizedFoods: aiResult.recognizedFoods,
+      aiProvider: aiResult.aiProvider,
+      aiModel: aiResult.aiModel,
+      language: aiResult.language,
+      error: aiResult.error
     });
     
-    if (!geminiResult.success) {
+    if (!aiResult.success) {
       // 检查是否是配额限制错误
-      if (geminiResult.error && geminiResult.error.includes('quota') || geminiResult.error.includes('Too Many Requests')) {
+      if (aiResult.error && aiResult.error.includes('quota') || aiResult.error.includes('Too Many Requests')) {
+        const quotaMessage = userLanguage === 'en' 
+          ? 'AI service quota exceeded, please try again later or upgrade your account'
+          : 'AI服务配额已用完，请稍后再试或升级您的账户';
+        const quotaDetails = userLanguage === 'en'
+          ? 'You have reached the daily/minute request limit for free accounts'
+          : '您已达到免费账户的每日/每分钟请求限制';
+        const retryMessage = userLanguage === 'en'
+          ? 'Please wait a few minutes before trying again'
+          : '建议等待几分钟后再试';
+          
         return res.status(429).json({ 
-          error: 'AI服务配额已用完，请稍后再试或升级您的账户',
-          details: '您已达到免费账户的每日/每分钟请求限制',
-          retryAfter: '建议等待几分钟后再试',
+          error: quotaMessage,
+          details: quotaDetails,
+          retryAfter: retryMessage,
           code: 'QUOTA_EXCEEDED'
         });
       }
       
       // 其他AI分析错误
+      const analysisError = userLanguage === 'en'
+        ? 'AI image analysis failed'
+        : 'AI图片分析失败';
+        
       return res.status(500).json({ 
-        error: 'AI图片分析失败',
-        details: geminiResult.error,
+        error: analysisError,
+        details: aiResult.error,
         code: 'AI_ANALYSIS_FAILED'
       });
     }
@@ -236,11 +310,13 @@ router.post('/analyze', authenticateToken, upload.single('image'), async (req, r
       imagePath: req.file.filename,
       originalFilename: req.file.originalname,
       imageSize: req.file.size,
-      aiAnalysis: geminiResult.analysis,
-      recognizedFoods: geminiResult.recognizedFoods,
+      aiAnalysis: aiResult.analysis,
+      recognizedFoods: aiResult.recognizedFoods,
       analysisType: 'image_analysis',
       userEmail: userEmail,
-      analysisTimestamp: new Date()
+      analysisTimestamp: new Date(),
+      aiProvider: aiResult.aiProvider,
+      aiModel: aiResult.aiModel
     };
 
     console.log('🔍 构建的分析结果:', {
@@ -265,24 +341,31 @@ router.post('/analyze', authenticateToken, upload.single('image'), async (req, r
       imagePath: req.file.filename,
       originalFilename: req.file.originalname,
       imageSize: req.file.size,
-      aiAnalysis: geminiResult.analysis,
-      recognizedFoods: geminiResult.recognizedFoods,
+      aiAnalysis: aiResult.analysis,
+      recognizedFoods: aiResult.recognizedFoods,
       analysisType: 'image_analysis',
       userEmail: userEmail,
       analysisTimestamp: analysisResult.analysisTimestamp,
+      aiProvider: aiResult.aiProvider,
+      aiModel: aiResult.aiModel,
       // Include the AI analysis text in the expected field
-      analysis: geminiResult.analysis
+      analysis: aiResult.analysis
     };
+
+    // 根据用户语言设置响应消息
+    const successMessage = userLanguage === 'en' 
+      ? 'Food image analysis completed'
+      : '食物图片分析完成';
 
     console.log('🔍 发送给前端的响应数据:', {
       success: true,
-      message: '食物图片分析完成',
+      message: successMessage,
       data: responseData
     });
 
     res.json({
       success: true,
-      message: '食物图片分析完成',
+      message: successMessage,
       data: responseData
     });
 
@@ -307,8 +390,24 @@ router.post('/analyze', authenticateToken, upload.single('image'), async (req, r
       }
     }
     
+    // 获取用户语言设置以确定错误消息语言
+    let userLanguage = 'zh'; // 默认中文
+    try {
+      const userId = req.user?.id;
+      if (userId) {
+        const userAISettings = await userSettingsService.getUserAISettings(userId);
+        userLanguage = userAISettings.success ? userAISettings.language : 'zh';
+      }
+    } catch (settingsError) {
+      console.warn('⚠️ 获取用户语言设置失败:', settingsError.message);
+    }
+    
+    const errorMessage = userLanguage === 'en' 
+      ? 'Internal server error'
+      : '服务器内部错误';
+    
     res.status(500).json({ 
-      error: '服务器内部错误',
+      error: errorMessage,
       details: error.message 
     });
   }
@@ -464,27 +563,63 @@ router.get('/foods', (req, res) => {
 router.get('/recommendations', authenticateToken, async (req, res) => {
   try {
     const userEmail = req.user.email;
+    const userId = req.user.id;
     
-    // 使用Gemini AI生成个性化饮食建议
-    const aiResult = await geminiService.analyzeDiet([], {
+    // 获取用户AI设置
+    const userAISettings = await userSettingsService.getUserAISettings(userId);
+    const userProvider = userAISettings.success ? userAISettings.aiProvider : 'gemini';
+    const userModel = userAISettings.success ? userAISettings.aiModel : '';
+    const userLanguage = userAISettings.success ? userAISettings.language : 'zh';
+    
+    console.log(`🎯 使用AI提供商生成饮食建议: ${userProvider}, 模型: ${userModel}, 语言: ${userLanguage} (用户设置: ${userAISettings.success ? '已配置' : '默认'})`);
+    
+    // 使用AI服务工厂生成个性化饮食建议
+    const aiResult = await aiServiceFactory.analyzeDiet([], {
       userEmail,
       type: 'recommendations'
+    }, {
+      provider: userProvider,
+      model: userModel,
+      language: userLanguage
     });
 
     if (!aiResult.success) {
-      return res.status(500).json({ error: 'AI建议生成失败' });
+      const errorMessage = userLanguage === 'en' 
+        ? 'AI recommendation generation failed'
+        : 'AI建议生成失败';
+      return res.status(500).json({ error: errorMessage });
     }
 
     res.json({
       success: true,
       data: {
         recommendations: aiResult.analysis,
-        timestamp: new Date()
+        timestamp: new Date(),
+        aiProvider: userProvider,
+        aiModel: userModel,
+        language: userLanguage
       }
     });
   } catch (error) {
     console.error('❌ 获取饮食建议错误:', error);
-    res.status(500).json({ error: '服务器内部错误' });
+    
+    // 获取用户语言设置以确定错误消息语言
+    let userLanguage = 'zh'; // 默认中文
+    try {
+      const userId = req.user?.id;
+      if (userId) {
+        const userAISettings = await userSettingsService.getUserAISettings(userId);
+        userLanguage = userAISettings.success ? userAISettings.language : 'zh';
+      }
+    } catch (settingsError) {
+      console.warn('⚠️ 获取用户语言设置失败:', settingsError.message);
+    }
+    
+    const errorMessage = userLanguage === 'en' 
+      ? 'Internal server error'
+      : '服务器内部错误';
+    
+    res.status(500).json({ error: errorMessage });
   }
 });
 
