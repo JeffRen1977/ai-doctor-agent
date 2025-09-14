@@ -255,10 +255,7 @@ npm run dev:full
 
 #### Docker 测试
 ```bash
-# 使用 Docker 测试完整应用
-./docker-test.sh
-
-# 或使用 Docker Compose
+# 使用 Docker Compose 测试完整应用
 docker-compose up --build
 ```
 
