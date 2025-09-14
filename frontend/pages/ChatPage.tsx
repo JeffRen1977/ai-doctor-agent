@@ -53,6 +53,24 @@ const ChatPage: React.FC = () => {
     setSending(true)
 
     try {
+      // First, ensure the current language setting is saved to backend user settings
+      try {
+        await fetch('/api/user-settings/ai', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({
+            language: language
+          })
+        })
+        console.log(`🌐 Language setting synchronized: ${language}`)
+      } catch (syncError) {
+        console.warn('⚠️ Failed to sync language setting:', syncError)
+        // Continue with chat even if language sync fails
+      }
+
       const response = await chatService.sendMessage(userMessage.content)
       
       updateMessage(assistantMessage.id, {
