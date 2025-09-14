@@ -131,11 +131,12 @@ class UserSettingsService {
    */
   async updateUserAISettings(userId, aiSettings) {
     try {
-      const { aiProvider, aiModel } = aiSettings;
+      const { aiProvider, aiModel, language } = aiSettings;
       
       const settings = {
         aiProvider: aiProvider || 'gemini',
         aiModel: aiModel || '',
+        language: language || 'zh',
         updatedAt: new Date().toISOString()
       };
       

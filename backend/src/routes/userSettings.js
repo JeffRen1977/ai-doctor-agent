@@ -124,14 +124,15 @@ router.get('/ai', authenticateToken, async (req, res) => {
 router.put('/ai', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
-    const { aiProvider, aiModel } = req.body;
+    const { aiProvider, aiModel, language } = req.body;
     
     console.log('🤖 Updating user AI settings for:', userId);
-    console.log('📝 AI settings to update:', { aiProvider, aiModel });
+    console.log('📝 AI settings to update:', { aiProvider, aiModel, language });
     
     const result = await userSettingsService.updateUserAISettings(userId, {
       aiProvider,
-      aiModel
+      aiModel,
+      language
     });
     
     if (result.success) {
@@ -140,7 +141,8 @@ router.put('/ai', authenticateToken, async (req, res) => {
         message: 'User AI settings updated successfully',
         data: {
           aiProvider: result.settings.aiProvider,
-          aiModel: result.settings.aiModel
+          aiModel: result.settings.aiModel,
+          language: result.settings.language
         }
       });
     } else {
