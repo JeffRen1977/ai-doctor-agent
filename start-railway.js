@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
-// Railway-specific startup script - Updated: 2025-08-29 16:16 UTC
+// Railway-specific startup script - Updated: 2025-09-14 06:15 UTC
+// Force new deployment to fix missing backend files issue
 console.log('🚀 Starting AI Doctor Agent for Railway...');
 
 // Check Node.js version compatibility
@@ -128,15 +129,22 @@ try {
   let backendStarted = false;
   for (const backendPath of possibleBackendPaths) {
     try {
-      if (require('fs').existsSync(backendPath)) {
+      console.log(`🔍 Checking path: ${backendPath}`);
+      const fs = require('fs');
+      if (fs.existsSync(backendPath)) {
         console.log(`✅ Found backend at: ${backendPath}`);
+        console.log(`📄 File size: ${fs.statSync(backendPath).size} bytes`);
+        console.log(`📅 Last modified: ${fs.statSync(backendPath).mtime}`);
         require(backendPath);
         backendStarted = true;
         console.log('✅ Backend server started successfully');
         break;
+      } else {
+        console.log(`❌ Path ${backendPath} does not exist`);
       }
     } catch (pathError) {
       console.log(`⚠️ Path ${backendPath} not accessible:`, pathError.message);
+      console.log(`📊 Error details:`, pathError.stack);
     }
   }
   
