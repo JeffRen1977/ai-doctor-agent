@@ -108,9 +108,9 @@ class AIServiceFactory {
   }
 
   async healthChat(message, context = '', options = {}) {
-    const { provider = 'gemini', model, ...otherOptions } = options;
+    const { provider = 'gemini', model, language = 'zh', ...otherOptions } = options;
     
-    console.log(`💬 Using AI provider for health chat: ${provider}`);
+    console.log(`💬 Using AI provider for health chat: ${provider}, language: ${language}`);
     
     const service = this.getService(provider);
     
@@ -118,6 +118,7 @@ class AIServiceFactory {
     if (model) {
       serviceOptions.model = model;
     }
+    serviceOptions.language = language;
     
     return await service.healthChat(message, context, serviceOptions);
   }

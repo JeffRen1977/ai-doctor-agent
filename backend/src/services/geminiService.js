@@ -128,9 +128,28 @@ class GeminiService {
   }
 
   // 健康咨询对话
-  async healthChat(message, context = '') {
+  async healthChat(message, context = '', options = {}) {
     try {
-      const prompt = `
+      const { language = 'zh' } = options;
+      
+      let prompt;
+      if (language === 'en') {
+        prompt = `
+            You are a professional AI medical assistant. Please provide professional responses based on the user's health questions.
+
+            User question: ${message}
+            ${context ? `Context information: ${context}` : ''}
+
+            Please provide:
+            1. Professional health advice
+            2. Possible symptom analysis
+            3. Suggested next steps
+            4. Important notes and precautions
+
+            Please respond in English, keeping it professional, friendly, and easy to understand.
+            `;
+      } else {
+        prompt = `
             你是一个专业的AI医生助理，请根据用户的健康问题进行专业的回答。
 
             用户问题: ${message}
@@ -144,6 +163,7 @@ class GeminiService {
 
             请用中文回答，保持专业、友好和易懂。
             `;
+      }
 
       const result = await this.textModel.generateContent(prompt);
       const response = await result.response;

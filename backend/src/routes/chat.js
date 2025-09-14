@@ -116,8 +116,9 @@ router.post('/send', authenticateToken, async (req, res) => {
     }
 
     const { message } = value;
+    const userId = req.user.id;
     const userEmail = req.user.email;
-    console.log('📝 发送消息:', { userEmail, messageLength: message.length });
+    console.log('📝 发送消息:', { userId, userEmail, messageLength: message.length });
 
     // 保存用户消息
     try {
@@ -132,17 +133,20 @@ router.post('/send', authenticateToken, async (req, res) => {
     const userAISettings = await userSettingsService.getUserAISettings(userId);
     const userProvider = userAISettings.success ? userAISettings.aiProvider : 'gemini';
     const userModel = userAISettings.success ? userAISettings.aiModel : '';
+    const userLanguage = userAISettings.success ? userAISettings.language : 'zh';
     
-    console.log(`🤖 Using AI provider: ${userProvider} for chat`);
+    console.log(`🤖 Using AI provider: ${userProvider}, model: ${userModel}, language: ${userLanguage} for chat`);
     
     // 使用AI服务工厂生成回复
     const aiResult = await aiServiceFactory.healthChat(message, '', {
       provider: userProvider,
-      model: userModel
+      model: userModel,
+      language: userLanguage
     });
     
     if (!aiResult.success) {
-      return res.status(500).json({ error: 'AI服务暂时不可用' });
+      const errorMessage = userLanguage === 'en' ? 'AI service temporarily unavailable' : 'AI服务暂时不可用';
+      return res.status(500).json({ error: errorMessage });
     }
 
     const aiResponse = aiResult.message;
@@ -156,23 +160,36 @@ router.post('/send', authenticateToken, async (req, res) => {
       // 继续执行，不中断流程
     }
 
+    // 根据语言返回相应的建议
+    const suggestions = userLanguage === 'en' ? [
+      'Headache',
+      'Cold',
+      'Fever',
+      'Cough',
+      'Insomnia',
+      'Stomach pain',
+      'Fatigue',
+      'Anxiety'
+    ] : [
+      '头痛',
+      '感冒',
+      '发烧',
+      '咳嗽',
+      '失眠',
+      '胃痛',
+      '疲劳',
+      '焦虑'
+    ];
+
     // 返回AI回复
     res.json({
       message: aiResponse,
-      suggestions: [
-        '头痛',
-        '感冒',
-        '发烧',
-        '咳嗽',
-        '失眠',
-        '胃痛',
-        '疲劳',
-        '焦虑'
-      ]
+      suggestions: suggestions
     });
   } catch (error) {
     console.error('❌ 发送消息错误:', error);
-    res.status(500).json({ error: '服务器内部错误' });
+    const errorMessage = userLanguage === 'en' ? 'Internal server error' : '服务器内部错误';
+    res.status(500).json({ error: errorMessage });
   }
 });
 
