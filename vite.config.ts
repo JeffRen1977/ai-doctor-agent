@@ -45,6 +45,9 @@ export default defineConfig({
   },
   define: {
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
+    // Expose Railway backend URL for production builds
+    'import.meta.env.VITE_RAILWAY_BACKEND_URL': JSON.stringify(process.env.VITE_RAILWAY_BACKEND_URL || ''),
+    'import.meta.env.VITE_API_BASE_URL': JSON.stringify(process.env.VITE_API_BASE_URL || ''),
   },
   optimizeDeps: {
     include: ['react', 'react-dom', 'antd', '@ant-design/icons'],

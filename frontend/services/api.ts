@@ -1,14 +1,33 @@
 import axios from 'axios'
 
-// Since Railway serves both frontend and backend, use relative paths
-// This works for both local development and Railway production
-const API_BASE_URL = '/api'
+// API Base URL configuration
+// For Vercel deployment: use Railway backend URL from environment variable
+// For local development: use relative path (proxied by Vite)
+const getApiBaseUrl = () => {
+  // Check if we're in production (Vercel)
+  if (import.meta.env.PROD) {
+    // Use Railway backend URL from environment variable
+    const railwayUrl = import.meta.env.VITE_RAILWAY_BACKEND_URL || import.meta.env.VITE_API_BASE_URL
+    if (railwayUrl) {
+      return railwayUrl
+    }
+    // Fallback: try to construct from Railway domain pattern
+    // This should be set in Vercel environment variables
+    console.warn('⚠️ Railway backend URL not configured. Please set VITE_RAILWAY_BACKEND_URL in Vercel environment variables.')
+  }
+  
+  // Development: use relative path (proxied by Vite)
+  return '/api'
+}
+
+const API_BASE_URL = getApiBaseUrl()
 
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 30000, // 30 seconds timeout for API requests
 })
 
 // Token刷新函数
@@ -176,4 +195,4 @@ export const wearablesAPI = {
     const response = await api.get('/wearables/mock/summary');
     return response.data;
   }
-}; 
+};

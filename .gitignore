@@ -106,4 +106,10 @@ backend/src/config/firebase-service-account.json
 data/
 
 # Documentation folder (not to be committed)
-docs/ 
+docs/
+
+# Scripts folder (not to be committed)
+scripts/
+
+# Railway environment variables reference (generated)
+railway-env-vars.txt 
