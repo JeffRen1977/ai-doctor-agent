@@ -16,6 +16,9 @@ import {
   GlobalOutlined,
   MenuOutlined,
   CloseOutlined,
+  ThunderboltOutlined,
+  WarningOutlined,
+  FileSearchOutlined,
 } from '@ant-design/icons'
 import { useAuthStore } from '@/stores/authStore'
 import { useLanguageStore } from '@/stores/languageStore'
@@ -79,52 +82,78 @@ const Sidebar: React.FC = () => {
     }
   }
 
-  const mainMenuItems = [
+  // 按5大核心功能模块重新组织菜单
+  // 1. 智能数字孪生 (Digital Twin) - 对应健康分析
+  const digitalTwinMenuItems = [
     {
-      key: '/dashboard',
-      icon: <DashboardOutlined />,
-      label: t('sidebar.menu.dashboard'),
+      key: '/analytics',
+      icon: <BarChartOutlined />,
+      label: t('sidebar.menu.digitalTwin'),
     },
+  ]
+
+  // 2. 实时风险监测 (Risk Monitoring) - 对应设备同步
+  const riskMonitoringMenuItems = [
+    {
+      key: '/devices',
+      icon: <WarningOutlined />,
+      label: t('sidebar.menu.riskMonitoring'),
+    },
+  ]
+
+  // 3. 精准干预引擎 (Intervention Engine) - 新增
+  const interventionMenuItems = [
+    {
+      key: '/intervention',
+      icon: <ThunderboltOutlined />,
+      label: t('sidebar.menu.interventionEngine'),
+    },
+  ]
+
+  // 4. 生成式AI助理 (AI Assistant) - 对应AI对话
+  const aiAssistantMenuItems = [
     {
       key: '/chat',
       icon: <MessageOutlined />,
       label: t('sidebar.menu.aiChat'),
     },
-    {
-      key: '/health-records',
-      icon: <FileTextOutlined />,
-      label: t('sidebar.menu.healthRecords'),
-    },
   ]
 
-  const analysisMenuItems = [
-    {
-      key: '/analytics',
-      icon: <BarChartOutlined />,
-      label: t('sidebar.menu.healthAnalytics'),
-    },
-    {
-      key: '/diet-analysis',
-      icon: <CameraOutlined />,
-      label: t('sidebar.menu.dietAnalysis'),
-    },
-  ]
-
-  const managementMenuItems = [
+  // 5. 医患协作闭环 (Clinical Collaboration) - 整合预约、紧急求助、临床报告
+  const clinicalCollaborationMenuItems = [
     {
       key: '/appointments',
       icon: <CalendarOutlined />,
       label: t('sidebar.menu.appointments'),
     },
     {
-      key: '/devices',
-      icon: <SyncOutlined />,
-      label: t('sidebar.menu.deviceSync'),
-    },
-    {
       key: '/emergency',
       icon: <ExclamationCircleOutlined />,
       label: t('sidebar.menu.emergency'),
+    },
+    {
+      key: '/clinical-reports',
+      icon: <FileSearchOutlined />,
+      label: t('sidebar.menu.clinicalReports'),
+    },
+  ]
+
+  // 其他功能
+  const otherMenuItems = [
+    {
+      key: '/dashboard',
+      icon: <DashboardOutlined />,
+      label: t('sidebar.menu.dashboard'),
+    },
+    {
+      key: '/health-records',
+      icon: <FileTextOutlined />,
+      label: t('sidebar.menu.healthRecords'),
+    },
+    {
+      key: '/diet-analysis',
+      icon: <CameraOutlined />,
+      label: t('sidebar.menu.dietAnalysis'),
     },
   ]
 
@@ -151,13 +180,16 @@ const Sidebar: React.FC = () => {
     },
   ]
 
-  // 合并所有菜单项，添加分组
+  // 合并所有菜单项，按核心功能模块分组
   const allMenuItems = [
-    ...mainMenuItems,
+    ...otherMenuItems,
     { type: 'divider', key: 'divider1' },
-    ...analysisMenuItems,
+    ...digitalTwinMenuItems,
+    ...riskMonitoringMenuItems,
+    ...interventionMenuItems,
+    ...aiAssistantMenuItems,
     { type: 'divider', key: 'divider2' },
-    ...managementMenuItems,
+    ...clinicalCollaborationMenuItems,
   ]
 
   return (

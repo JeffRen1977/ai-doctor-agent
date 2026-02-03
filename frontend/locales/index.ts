@@ -63,6 +63,10 @@ export interface Translations {
       profile: string
       settings: string
       logout: string
+      digitalTwin: string
+      riskMonitoring: string
+      interventionEngine: string
+      clinicalReports: string
     }
     user: {
       role: string
@@ -474,7 +478,11 @@ export const translations: Record<Language, Translations> = {
         emergency: '紧急求助',
         profile: '个人资料',
         settings: '设置',
-        logout: '退出登录'
+        logout: '退出登录',
+        digitalTwin: '智能数字孪生',
+        riskMonitoring: '实时风险监测',
+        interventionEngine: '精准干预引擎',
+        clinicalReports: '临床报告'
       },
       user: {
         role: '健康管理师'
@@ -884,7 +892,11 @@ export const translations: Record<Language, Translations> = {
         emergency: 'Emergency Help',
         profile: 'Profile',
         settings: 'Settings',
-        logout: 'Logout'
+        logout: 'Logout',
+        digitalTwin: 'Digital Twin',
+        riskMonitoring: 'Risk Monitoring',
+        interventionEngine: 'Intervention Engine',
+        clinicalReports: 'Clinical Reports'
       },
       user: {
         role: 'Health Manager'

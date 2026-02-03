@@ -48,5 +48,6 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: ['react', 'react-dom', 'antd', '@ant-design/icons'],
+    force: true, // 强制重新预构建依赖
   },
 }) 

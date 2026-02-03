@@ -20,6 +20,8 @@ import DeviceSyncPage from '../pages/DeviceSyncPage'
 import HealthAnalyticsPage from '../pages/HealthAnalyticsPage'
 import EmergencyPage from '../pages/EmergencyPage'
 import DietAnalysisPage from '../pages/DietAnalysisPage'
+import InterventionEnginePage from '../pages/InterventionEnginePage'
+import ClinicalReportsPage from '../pages/ClinicalReportsPage'
 import { useAuthStore } from '../stores/authStore'
 import { useLanguageStore } from '../stores/languageStore'
 import { useMobile, useMobileNotifications } from '../hooks/useMobile'
@@ -136,6 +138,8 @@ const MobileApp: React.FC = () => {
           <Route path="/devices" element={<DeviceSyncPage />} />
           <Route path="/emergency" element={<EmergencyPage />} />
           <Route path="/diet-analysis" element={<DietAnalysisPage />} />
+          <Route path="/intervention" element={<InterventionEnginePage />} />
+          <Route path="/clinical-reports" element={<ClinicalReportsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
         </Routes>
       </Content>
