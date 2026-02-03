@@ -16,9 +16,25 @@ self.addEventListener('install', (event) => {
     caches.open(STATIC_CACHE)
       .then((cache) => {
         console.log('Opened static cache');
-        return cache.addAll(urlsToCache);
+        // Use addAll with error handling - only cache files that exist
+        return Promise.allSettled(
+          urlsToCache.map(url => 
+            cache.add(url).catch(err => {
+              console.warn(`Failed to cache ${url}:`, err);
+              return null; // Continue even if one file fails
+            })
+          )
+        );
       })
-      .then(() => self.skipWaiting())
+      .then(() => {
+        console.log('Service Worker installed successfully');
+        return self.skipWaiting();
+      })
+      .catch((error) => {
+        console.error('Service Worker installation failed:', error);
+        // Don't fail the installation if caching fails
+        return self.skipWaiting();
+      })
   );
 });
 
@@ -54,16 +70,33 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          if (response.ok) {
+          // Only cache successful responses
+          if (response.ok && response.status === 200) {
             const responseClone = response.clone();
             caches.open(DYNAMIC_CACHE).then((cache) => {
-              cache.put(request, responseClone);
+              cache.put(request, responseClone).catch(err => {
+                console.warn('Failed to cache API response:', err);
+              });
             });
           }
           return response;
         })
-        .catch(() => {
-          return caches.match(request);
+        .catch((error) => {
+          console.warn('API request failed, trying cache:', error);
+          return caches.match(request).then(cachedResponse => {
+            if (cachedResponse) {
+              return cachedResponse;
+            }
+            // Return a proper error response if no cache
+            return new Response(
+              JSON.stringify({ error: 'Network error and no cached response' }),
+              {
+                status: 503,
+                statusText: 'Service Unavailable',
+                headers: { 'Content-Type': 'application/json' }
+              }
+            );
+          });
         })
     );
     return;

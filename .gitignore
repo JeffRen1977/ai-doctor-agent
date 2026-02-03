@@ -103,4 +103,7 @@ backend/src/config/*-firebase-adminsdk-*.json
 backend/src/config/firebase-service-account.json
 
 # Data folder (user uploaded files and sensitive data)
-data/ 
+data/
+
+# Documentation folder (not to be committed)
+docs/ 

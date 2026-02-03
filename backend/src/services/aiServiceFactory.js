@@ -1,11 +1,15 @@
 const geminiService = require('./geminiService');
 const openaiService = require('./openaiService');
+const ernieService = require('./ernieService');
+const qwenService = require('./qwenService');
 
 class AIServiceFactory {
   constructor() {
     this.services = {
       gemini: geminiService,
-      openai: openaiService
+      openai: openaiService,
+      ernie: ernieService,
+      qwen: qwenService
     };
     
     this.availableServices = this.checkAvailableServices();
@@ -33,6 +37,26 @@ class AIServiceFactory {
         name: 'OpenAI',
         models: Array.isArray(openaiModels) ? openaiModels : (openaiModels.all || openaiModels.text || ['gpt-4', 'gpt-3.5-turbo']),
         provider: 'openai'
+      };
+    }
+    
+    // Check 文心一言 service
+    if (ernieService.isServiceAvailable && ernieService.isServiceAvailable()) {
+      const ernieModels = ernieService.getAvailableModels ? ernieService.getAvailableModels() : { text: ['ernie-bot'] };
+      available.ernie = {
+        name: '百度文心一言',
+        models: Array.isArray(ernieModels) ? ernieModels : (ernieModels.text || ['ernie-bot']),
+        provider: 'ernie'
+      };
+    }
+    
+    // Check 通义千问 service
+    if (qwenService.isServiceAvailable && qwenService.isServiceAvailable()) {
+      const qwenModels = qwenService.getAvailableModels ? qwenService.getAvailableModels() : { text: ['qwen-turbo'] };
+      available.qwen = {
+        name: '阿里通义千问',
+        models: Array.isArray(qwenModels) ? qwenModels : (qwenModels.text || ['qwen-turbo']),
+        provider: 'qwen'
       };
     }
     
@@ -153,8 +177,14 @@ class AIServiceFactory {
     // Use the appropriate method name for each service
     if (provider === 'gemini') {
       return await service.analyzeImageWithGemini(base64Image, prompt, serviceOptions);
-    } else {
+    } else if (provider === 'openai') {
       return await service.analyzeImageWithOpenAI(base64Image, prompt, serviceOptions);
+    } else if (provider === 'ernie') {
+      return await service.analyzeImageWithErnie(base64Image, prompt, serviceOptions);
+    } else if (provider === 'qwen') {
+      return await service.analyzeImageWithQwen(base64Image, prompt, serviceOptions);
+    } else {
+      throw new Error(`Unsupported provider for image analysis: ${provider}`);
     }
   }
 
