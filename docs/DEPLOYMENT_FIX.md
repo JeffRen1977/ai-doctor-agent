@@ -30,23 +30,29 @@
 ### 必需的环境变量
 
 1. **VITE_RAILWAY_BACKEND_URL**
-   - 值：你的 Railway 后端 URL（例如：`https://your-app.railway.app`）
+   - 值：`https://ai-doctor-agent-production.up.railway.app`
    - 说明：Railway 后端的基础 URL
 
 2. **VITE_API_BASE_URL**（可选）
-   - 值：完整的 API base URL（例如：`https://your-app.railway.app/api`）
+   - 值：`https://ai-doctor-agent-production.up.railway.app/api`
    - 说明：如果设置了此变量，将优先使用此值
 
 ### 配置步骤
 
-1. 登录 Vercel Dashboard
+1. 登录 [Vercel Dashboard](https://vercel.com/dashboard)
 2. 选择你的项目（ai-theron.com）
-3. 进入 Settings → Environment Variables
+3. 进入 **Settings** → **Environment Variables**
 4. 添加环境变量：
    ```
-   VITE_RAILWAY_BACKEND_URL = https://your-railway-backend.railway.app
+   VITE_RAILWAY_BACKEND_URL = https://ai-doctor-agent-production.up.railway.app
    ```
-5. 重新部署项目
+   或者（如果使用完整 API URL）：
+   ```
+   VITE_API_BASE_URL = https://ai-doctor-agent-production.up.railway.app/api
+   ```
+5. 选择环境：**Production**, **Preview**, **Development**（建议全部选择）
+6. 点击 **Save**
+7. 重新部署项目（或等待下次自动部署）
 
 ## 验证修复
 
