@@ -90,28 +90,51 @@ const allowedOrigins = [
   'http://192.168.0.39:3000', // Network access for mobile testing (new IP)
   'http://192.168.0.39:3001', // Network access for mobile testing (new IP alternative port)
   'https://*.railway.app', // Railway domains
+  'https://*.vercel.app', // Vercel domains (all Vercel deployments)
+  'https://ai-theron.com', // Custom domain
+  'https://www.ai-theron.com', // Custom domain with www
   process.env.FRONTEND_URL // Custom frontend URL if set
 ].filter(Boolean);
+
+// Log allowed origins for debugging
+console.log('=== CORS Configuration ===');
+console.log('Allowed origins:', allowedOrigins);
+console.log('FRONTEND_URL from env:', process.env.FRONTEND_URL);
+console.log('==========================');
 
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
+    if (!origin) {
+      console.log('✅ Allowing request with no origin');
+      return callback(null, true);
+    }
     
     // Check if origin is in allowed list
-    if (allowedOrigins.some(allowedOrigin => {
+    const isAllowed = allowedOrigins.some(allowedOrigin => {
       if (allowedOrigin.includes('*')) {
         // Handle wildcard domains
         const domain = allowedOrigin.replace('*.', '');
-        return origin.endsWith(domain);
+        const matches = origin.endsWith(domain);
+        if (matches) {
+          console.log(`✅ Allowed origin (wildcard): ${origin} matches ${allowedOrigin}`);
+        }
+        return matches;
       }
-      return origin === allowedOrigin;
-    })) {
+      const matches = origin === allowedOrigin;
+      if (matches) {
+        console.log(`✅ Allowed origin (exact): ${origin}`);
+      }
+      return matches;
+    });
+    
+    if (isAllowed) {
       return callback(null, true);
     }
     
     // Log blocked origins for debugging
-    console.log(`Blocked origin: ${origin}`);
+    console.log(`❌ Blocked origin: ${origin}`);
+    console.log(`   Allowed origins:`, allowedOrigins);
     return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
