@@ -41,7 +41,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
       
       const user = JSON.parse(userStr)
-      const response = await fetch('/api/auth/login', {
+      // Dynamic import to avoid circular dependency
+      const { getApiBaseUrl } = await import('../utils/apiConfig')
+      const response = await fetch(`${getApiBaseUrl()}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
