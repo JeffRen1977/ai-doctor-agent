@@ -20,8 +20,8 @@ WORKDIR /app
 
 ENV NODE_ENV production
 
-# Copy startup script
-COPY start-railway.js ./
+# Copy startup script (keep scripts directory structure)
+COPY scripts/start-railway.js ./scripts/start-railway.js
 
 # Copy dependencies and package files
 COPY package.json package-lock.json ./
@@ -43,7 +43,7 @@ RUN echo "=== BUILD VERIFICATION ===" && \
     echo "Backend/src contents:" && ls -la backend/src/ && \
     echo "Dist contents:" && ls -la dist/ && \
     echo "Package.json exists:" && test -f package.json && echo "YES" || echo "NO" && \
-    echo "Start script exists:" && test -f start-railway.js && echo "YES" || echo "NO" && \
+    echo "Start script exists:" && test -f scripts/start-railway.js && echo "YES" || echo "NO" && \
     echo "Backend index exists:" && test -f backend/src/index.js && echo "YES" || echo "NO" && \
     echo "Dist index exists:" && test -f dist/index.html && echo "YES" || echo "NO"
 
