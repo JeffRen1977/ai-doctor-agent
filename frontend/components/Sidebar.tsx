@@ -23,6 +23,7 @@ import {
 import { useAuthStore } from '@/stores/authStore'
 import { useLanguageStore } from '@/stores/languageStore'
 import { getTranslation } from '@/locales'
+import { getApiBaseUrl } from '../utils/apiConfig'
 import './Sidebar.css'
 
 const { Sider } = Layout
@@ -46,7 +47,7 @@ const Sidebar: React.FC = () => {
     try {
       const token = localStorage.getItem('token')
       if (token) {
-        await fetch('/api/user-settings/ai', {
+        await fetch(`${getApiBaseUrl()}/user-settings/ai`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',

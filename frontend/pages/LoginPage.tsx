@@ -4,6 +4,7 @@ import { UserOutlined, LockOutlined, GlobalOutlined, MessageOutlined, FileTextOu
 import { useAuthStore } from '@/stores/authStore'
 import { useLanguageStore } from '@/stores/languageStore'
 import { translations, getTranslation, Language } from '../locales'
+import { getApiBaseUrl } from '../utils/apiConfig'
 import './LoginPage.css'
 
 const { Title, Paragraph } = Typography
@@ -53,7 +54,8 @@ const LoginPage: React.FC = () => {
         // Login mode
         console.log('🔐 Attempting login with:', values.email)
         
-        const response = await fetch('/api/auth/login', {
+        const apiBaseUrl = getApiBaseUrl()
+        const response = await fetch(`${apiBaseUrl}/auth/login`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -81,7 +83,7 @@ const LoginPage: React.FC = () => {
           
           // 同步语言设置到后端用户设置
           try {
-            await fetch('/api/user-settings/ai', {
+            await fetch(`${getApiBaseUrl()}/user-settings/ai`, {
               method: 'PUT',
               headers: {
                 'Content-Type': 'application/json',
@@ -117,7 +119,7 @@ const LoginPage: React.FC = () => {
           return
         }
         
-        const response = await fetch('/api/auth/register', {
+        const response = await fetch(`${getApiBaseUrl()}/auth/register`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

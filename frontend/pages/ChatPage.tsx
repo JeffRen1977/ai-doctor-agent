@@ -55,7 +55,8 @@ const ChatPage: React.FC = () => {
     try {
       // First, ensure the current language setting is saved to backend user settings
       try {
-        await fetch('/api/user-settings/ai', {
+        const { getApiBaseUrl } = await import('../utils/apiConfig')
+        await fetch(`${getApiBaseUrl()}/user-settings/ai`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',

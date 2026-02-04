@@ -1,8 +1,8 @@
 import axios from 'axios'
+import { getApiBaseUrl } from '../utils/apiConfig'
 
-// Since Railway serves both frontend and backend, use relative paths
-// This works for both local development and Railway production
-const API_BASE_URL = '/api'
+// API base URL configuration
+const API_BASE_URL = getApiBaseUrl()
 
 const api = axios.create({
   baseURL: API_BASE_URL,
