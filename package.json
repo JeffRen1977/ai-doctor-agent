@@ -26,6 +26,7 @@
     "deploy:railway": "./scripts/deploy-railway.sh",
     "deploy:vercel": "./scripts/deploy-vercel.sh",
     "deploy:quick": "./scripts/quick-deploy.sh",
+    "trigger:vercel": "node scripts/trigger-vercel-deploy.js",
     "railway:env": "./scripts/generate-railway-env.sh",
     "lint": "eslint frontend --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "mobile:serve": "http-server dist -p 3000 -c-1 --cors"
