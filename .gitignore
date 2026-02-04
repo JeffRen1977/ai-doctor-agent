@@ -113,3 +113,4 @@ scripts/
 
 # Railway environment variables reference (generated)
 railway-env-vars.txt 
+.vercel
