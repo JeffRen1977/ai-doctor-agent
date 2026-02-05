@@ -52,5 +52,7 @@ export default defineConfig({
   optimizeDeps: {
     include: ['react', 'react-dom', 'antd', '@ant-design/icons'],
     force: true, // 强制重新预构建依赖
+    exclude: [], // 确保不排除任何依赖
   },
+  cacheDir: 'node_modules/.vite', // 明确指定缓存目录
 }) 

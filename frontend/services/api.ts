@@ -269,3 +269,36 @@ export const interventionEngineAPI = {
     return response.data;
   }
 };
+
+// Rehabilitation Assistant API
+export const rehabilitationAssistantAPI = {
+  // Explain clinical metrics
+  explainMetrics: async (metrics: any) => {
+    const response = await api.post('/rehabilitation/explain-metrics', { metrics });
+    return response.data;
+  },
+
+  // Provide emotional support
+  provideEmotionalSupport: async (context: any) => {
+    const response = await api.post('/rehabilitation/emotional-support', { context });
+    return response.data;
+  },
+
+  // Guide meditation
+  guideMeditation: async (type: string = 'breathing') => {
+    const response = await api.post('/rehabilitation/meditation', { type });
+    return response.data;
+  },
+
+  // Provide CBT support
+  provideCBT: async (situation: any) => {
+    const response = await api.post('/rehabilitation/cbt', { situation });
+    return response.data;
+  },
+
+  // Answer health questions
+  answerHealthQuestion: async (question: string) => {
+    const response = await api.post('/rehabilitation/answer', { question });
+    return response.data;
+  }
+};

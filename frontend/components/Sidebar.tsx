@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Layout, Menu, Avatar, Dropdown, Divider, Button } from 'antd'
+import { Layout, Menu, Avatar, Dropdown, Button } from 'antd'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
   DashboardOutlined,
@@ -7,11 +7,9 @@ import {
   FileTextOutlined,
   BarChartOutlined,
   CalendarOutlined,
-  SyncOutlined,
   ExclamationCircleOutlined,
   UserOutlined,
   LogoutOutlined,
-  CameraOutlined,
   SettingOutlined,
   GlobalOutlined,
   MenuOutlined,
@@ -111,12 +109,12 @@ const Sidebar: React.FC = () => {
     },
   ]
 
-  // 4. 生成式AI助理 (AI Assistant) - 对应AI对话
-  const aiAssistantMenuItems = [
+  // 4. 生成式AI康复助理 (Rehabilitation Assistant) - 整合AI对话、科普、心理支持、冥想
+  const rehabilitationAssistantMenuItems = [
     {
-      key: '/chat',
+      key: '/rehabilitation',
       icon: <MessageOutlined />,
-      label: t('sidebar.menu.aiChat'),
+      label: t('sidebar.menu.rehabilitationAssistant'),
     },
   ]
 
@@ -153,7 +151,7 @@ const Sidebar: React.FC = () => {
     },
   ]
 
-  const userMenuItems = [
+  const userMenuItems: any[] = [
     {
       key: '/profile',
       icon: <UserOutlined />,
@@ -164,7 +162,7 @@ const Sidebar: React.FC = () => {
       icon: <SettingOutlined />,
       label: t('sidebar.menu.settings'),
     },
-    { type: 'divider' },
+    { type: 'divider' as const },
     {
       key: 'logout',
       icon: <LogoutOutlined />,
@@ -177,13 +175,13 @@ const Sidebar: React.FC = () => {
   ]
 
   // 合并所有菜单项，按核心功能模块分组
-  const allMenuItems = [
+  const allMenuItems: any[] = [
     ...otherMenuItems,
     { type: 'divider', key: 'divider1' },
     ...digitalTwinMenuItems,
     ...riskMonitoringMenuItems,
     ...interventionMenuItems,
-    ...aiAssistantMenuItems,
+    ...rehabilitationAssistantMenuItems,
     { type: 'divider', key: 'divider2' },
     ...clinicalCollaborationMenuItems,
   ]

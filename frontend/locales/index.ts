@@ -67,6 +67,7 @@ export interface Translations {
       riskMonitoring: string
       interventionEngine: string
       clinicalReports: string
+      rehabilitationAssistant: string
     }
     user: {
       role: string
@@ -482,7 +483,8 @@ export const translations: Record<Language, Translations> = {
         digitalTwin: '智能数字孪生',
         riskMonitoring: '实时风险监测',
         interventionEngine: '精准干预引擎',
-        clinicalReports: '临床报告'
+        clinicalReports: '临床报告',
+        rehabilitationAssistant: '生成式AI康复助理'
       },
       user: {
         role: '健康管理师'
@@ -896,7 +898,8 @@ export const translations: Record<Language, Translations> = {
         digitalTwin: 'Digital Twin',
         riskMonitoring: 'Risk Monitoring',
         interventionEngine: 'Intervention Engine',
-        clinicalReports: 'Clinical Reports'
+        clinicalReports: 'Clinical Reports',
+        rehabilitationAssistant: 'Rehabilitation Assistant'
       },
       user: {
         role: 'Health Manager'

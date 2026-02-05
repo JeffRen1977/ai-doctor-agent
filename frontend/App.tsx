@@ -17,6 +17,7 @@ import UserSettingsPage from './pages/UserSettingsPage'
 import InterventionEnginePage from './pages/InterventionEnginePage'
 import ClinicalReportsPage from './pages/ClinicalReportsPage'
 import DigitalTwinPage from './pages/DigitalTwinPage'
+import RehabilitationAssistantPage from './pages/RehabilitationAssistantPage'
 import { useAuthStore } from './stores/authStore'
 import { useLanguageStore } from './stores/languageStore'
 import './App.css'
@@ -102,7 +103,8 @@ function App() {
           <Routes>
             <Route path="/" element={<DashboardPage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/chat" element={<ChatPage />} />
+            <Route path="/chat" element={<Navigate to="/rehabilitation" replace />} />
+            <Route path="/rehabilitation" element={<RehabilitationAssistantPage />} />
             <Route path="/health-records" element={<HealthRecordsPage />} />
             <Route path="/analytics" element={<HealthAnalyticsPage />} />
             <Route path="/digital-twin" element={<DigitalTwinPage />} />
