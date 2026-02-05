@@ -366,6 +366,75 @@ class FirebaseService {
       };
     }
   }
+
+  // 上传多个文件到 Firebase Storage
+  async uploadMultipleFiles(files, userEmail, folder = 'health-records') {
+    try {
+      const uploadResults = [];
+      
+      for (const file of files) {
+        const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
+        const timestamp = Date.now();
+        const fileName = `${timestamp}-${file.originalname}`;
+        const storagePath = `${folder}/${sanitizedEmail}/${fileName}`;
+        
+        const storageRef = ref(storage, storagePath);
+        const snapshot = await uploadBytesResumable(storageRef, file.buffer, {
+          contentType: file.mimetype,
+        });
+        const downloadURL = await getDownloadURL(snapshot.ref);
+        
+        uploadResults.push({
+          originalName: file.originalname,
+          fileName: fileName,
+          downloadURL: downloadURL,
+          storagePath: storagePath,
+          size: file.size,
+          contentType: file.mimetype,
+          uploadedAt: new Date().toISOString()
+        });
+      }
+      
+      return { success: true, files: uploadResults };
+    } catch (error) {
+      console.error('批量上传文件错误:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // 保存个人健康档案到 Firestore
+  async savePersonalHealthRecord(userEmail, healthRecordData) {
+    try {
+      const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
+      const recordDocRef = doc(db, 'personalHealthRecords', sanitizedEmail);
+      
+      const recordData = {
+        userEmail: userEmail,
+        ...healthRecordData,
+        updatedAt: new Date(),
+      };
+
+      // 检查文档是否存在
+      const existingDoc = await getDoc(recordDocRef);
+      if (!existingDoc.exists()) {
+        recordData.createdAt = new Date();
+      }
+
+      await setDoc(recordDocRef, recordData, { merge: true });
+      
+      return { 
+        success: true, 
+        id: recordDocRef.id,
+        data: recordData
+      };
+    } catch (error) {
+      console.error('保存个人健康档案错误:', error);
+      return { 
+        success: false, 
+        error: error.message 
+      };
+    }
+  }
 }
 
 module.exports = new FirebaseService(); 

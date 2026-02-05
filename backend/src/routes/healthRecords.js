@@ -251,4 +251,121 @@ router.post('/upload', upload.single('file'), async (req, res) => {
   }
 });
 
+// 保存个人健康档案（支持文本数据和文件上传）
+router.post('/personal-health-record', authenticateToken, upload.array('files', 10), async (req, res) => {
+  try {
+    const userEmail = req.user?.email;
+    
+    if (!userEmail) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    // 解析表单数据
+    const {
+      name,
+      gender,
+      birthDate,
+      bloodType,
+      medicalHistory,
+      medications,
+      familyHistory,
+      allergies,
+      emergencyContact,
+      emergencyPhone
+    } = req.body;
+
+    // 准备健康档案数据
+    const healthRecordData = {
+      basicInfo: {
+        name: name || null,
+        gender: gender || null,
+        birthDate: birthDate || null,
+        bloodType: bloodType || null,
+      },
+      medicalHistory: medicalHistory || null,
+      medications: medications || null,
+      familyHistory: familyHistory || null,
+      allergies: allergies || null,
+      emergencyContact: {
+        name: emergencyContact || null,
+        phone: emergencyPhone || null,
+      },
+      attachments: []
+    };
+
+    // 如果有文件，上传到 Firebase Storage
+    if (req.files && req.files.length > 0) {
+      console.log(`📤 Uploading ${req.files.length} file(s) to Firebase Storage...`);
+      const uploadResult = await firebaseService.uploadMultipleFiles(req.files, userEmail, 'personal-health-records');
+      
+      if (uploadResult.success) {
+        healthRecordData.attachments = uploadResult.files;
+        console.log('✅ Files uploaded successfully');
+      } else {
+        console.error('❌ File upload failed:', uploadResult.error);
+        // 继续保存文本数据，即使文件上传失败
+      }
+    }
+
+    // 保存到 Firestore
+    console.log('💾 Saving personal health record to Firestore...');
+    const saveResult = await firebaseService.savePersonalHealthRecord(userEmail, healthRecordData);
+    
+    if (!saveResult.success) {
+      throw new Error(saveResult.error);
+    }
+
+    console.log('✅ Personal health record saved successfully');
+    res.status(201).json({
+      success: true,
+      message: 'Personal health record saved successfully',
+      recordId: saveResult.id,
+      data: saveResult.data
+    });
+
+  } catch (error) {
+    console.error('❌ Save personal health record error:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to save personal health record.', 
+      details: error.message 
+    });
+  }
+});
+
+// 获取个人健康档案
+router.get('/personal-health-record', authenticateToken, async (req, res) => {
+  try {
+    const userEmail = req.user?.email;
+    
+    if (!userEmail) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
+    const recordDocRef = doc(db, 'personalHealthRecords', sanitizedEmail);
+    const recordDoc = await getDoc(recordDocRef);
+    
+    if (!recordDoc.exists()) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Personal health record not found' 
+      });
+    }
+
+    res.json({
+      success: true,
+      data: recordDoc.data()
+    });
+
+  } catch (error) {
+    console.error('Get personal health record error:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to get personal health record.', 
+      details: error.message 
+    });
+  }
+});
+
 module.exports = router; 

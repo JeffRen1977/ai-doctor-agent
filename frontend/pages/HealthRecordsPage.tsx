@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Card, Button, Space, Tag, Modal, Form, Input, DatePicker, Select, message, Tabs, Upload, Alert, Grid, List, Row, Col, Divider, Radio } from 'antd';
 import type { TabsProps } from 'antd';
 import { PlusOutlined, InboxOutlined, FileTextOutlined, UsergroupAddOutlined, MobileOutlined, DatabaseOutlined, LinkOutlined, SyncOutlined, MedicineBoxOutlined, HeartOutlined, MonitorOutlined, FileSearchOutlined, FormOutlined } from '@ant-design/icons';
+import dayjs from 'dayjs';
 import './HealthRecordsPage.css';
 import { getFhirPatientRecords } from '../services/api';
 import api from '../services/api';
@@ -132,6 +133,51 @@ const HealthRecordsPage: React.FC = () => {
                           />
                         </Form.Item>
 
+                        <Divider>{language === 'zh' ? '其他信息' : 'Additional Information'}</Divider>
+                        <Form.Item name="familyHistory" label={language === 'zh' ? '家族病史' : 'Family History'}>
+                          <TextArea 
+                            rows={3} 
+                            placeholder={language === 'zh' ? '请输入家族病史...' : 'Enter family history...'} 
+                          />
+                        </Form.Item>
+                        <Form.Item name="allergies" label={language === 'zh' ? '过敏史' : 'Allergies'}>
+                          <TextArea 
+                            rows={2} 
+                            placeholder={language === 'zh' ? '请输入过敏史...' : 'Enter allergies...'} 
+                          />
+                        </Form.Item>
+                        <Row gutter={16}>
+                          <Col span={12}>
+                            <Form.Item name="emergencyContact" label={language === 'zh' ? '紧急联系人' : 'Emergency Contact'}>
+                              <Input placeholder={language === 'zh' ? '联系人姓名' : 'Contact name'} />
+                            </Form.Item>
+                          </Col>
+                          <Col span={12}>
+                            <Form.Item name="emergencyPhone" label={language === 'zh' ? '紧急联系电话' : 'Emergency Phone'}>
+                              <Input placeholder={language === 'zh' ? '联系电话' : 'Phone number'} />
+                            </Form.Item>
+                          </Col>
+                        </Row>
+
+                        <Divider>{language === 'zh' ? '附件上传' : 'File Attachments'}</Divider>
+                        <Form.Item name="files" label={language === 'zh' ? '上传文件（可选）' : 'Upload Files (Optional)'}>
+                          <Upload
+                            multiple
+                            beforeUpload={() => false}
+                            accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
+                            onChange={(info) => {
+                              form.setFieldsValue({ files: info.fileList });
+                            }}
+                          >
+                            <Button icon={<InboxOutlined />}>
+                              {language === 'zh' ? '选择文件' : 'Select Files'}
+                            </Button>
+                          </Upload>
+                          <div style={{ marginTop: '8px', fontSize: '12px', color: '#666' }}>
+                            {language === 'zh' ? '支持图片、PDF、Word文档，最多10个文件' : 'Supports images, PDF, Word documents, up to 10 files'}
+                          </div>
+                        </Form.Item>
+
                         <Form.Item>
                           <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
                             <Button onClick={() => personalInfoModal.destroy()}>
@@ -139,12 +185,63 @@ const HealthRecordsPage: React.FC = () => {
                             </Button>
                             <Button 
                               type="primary" 
-                              onClick={() => {
-                                form.validateFields().then((values) => {
-                                  console.log('Health record data:', values);
-                                  message.success(language === 'zh' ? '健康档案已保存' : 'Health record saved');
-                                  personalInfoModal.destroy();
-                                });
+                              loading={false}
+                              onClick={async () => {
+                                try {
+                                  const values = await form.validateFields();
+                                  
+                                  // 准备 FormData
+                                  const formData = new FormData();
+                                  
+                                  // 添加文本字段
+                                  if (values.name) formData.append('name', values.name);
+                                  if (values.gender) formData.append('gender', values.gender);
+                                  if (values.birthDate) {
+                                    const birthDate = dayjs.isDayjs(values.birthDate) 
+                                      ? values.birthDate.format('YYYY-MM-DD')
+                                      : dayjs(values.birthDate).format('YYYY-MM-DD');
+                                    formData.append('birthDate', birthDate);
+                                  }
+                                  if (values.bloodType) formData.append('bloodType', values.bloodType);
+                                  if (values.medicalHistory) formData.append('medicalHistory', values.medicalHistory);
+                                  if (values.medications) formData.append('medications', values.medications);
+                                  if (values.familyHistory) formData.append('familyHistory', values.familyHistory);
+                                  if (values.allergies) formData.append('allergies', values.allergies);
+                                  if (values.emergencyContact) formData.append('emergencyContact', values.emergencyContact);
+                                  if (values.emergencyPhone) formData.append('emergencyPhone', values.emergencyPhone);
+                                  
+                                  // 添加文件
+                                  if (values.files && values.files.length > 0) {
+                                    values.files.forEach((file: any) => {
+                                      const fileObj = file.originFileObj || file;
+                                      if (fileObj instanceof File) {
+                                        formData.append('files', fileObj);
+                                      }
+                                    });
+                                  }
+                                  
+                                  // 发送请求
+                                  const response = await api.post('/health-records/personal-health-record', formData, {
+                                    headers: {
+                                      'Content-Type': 'multipart/form-data',
+                                    },
+                                  });
+                                  
+                                  if (response.data.success) {
+                                    message.success(language === 'zh' ? '健康档案已保存' : 'Health record saved');
+                                    personalInfoModal.destroy();
+                                    form.resetFields();
+                                  } else {
+                                    message.error(response.data.error || (language === 'zh' ? '保存失败' : 'Save failed'));
+                                  }
+                                } catch (error: any) {
+                                  console.error('Save health record error:', error);
+                                  message.error(
+                                    error.response?.data?.error || 
+                                    error.message || 
+                                    (language === 'zh' ? '保存失败，请重试' : 'Save failed, please try again')
+                                  );
+                                }
                               }}
                             >
                               {language === 'zh' ? '保存' : 'Save'}
