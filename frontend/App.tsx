@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { Layout } from 'antd'
 import Sidebar from './components/Sidebar'
 import MobileApp from './components/MobileApp'
@@ -109,7 +109,7 @@ function App() {
             <Route path="/appointments" element={<AppointmentPage />} />
             <Route path="/devices" element={<DeviceSyncPage />} />
             <Route path="/emergency" element={<EmergencyPage />} />
-            <Route path="/diet-analysis" element={<DietAnalysisPage />} />
+            <Route path="/diet-analysis" element={<Navigate to="/intervention" replace />} />
             <Route path="/intervention" element={<InterventionEnginePage />} />
             <Route path="/clinical-reports" element={<ClinicalReportsPage />} />
             <Route path="/profile" element={<ProfilePage />} />

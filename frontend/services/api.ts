@@ -223,3 +223,49 @@ export const riskMonitoringAPI = {
     return response.data;
   }
 };
+
+// Intervention Engine API
+export const interventionEngineAPI = {
+  // Get medication management
+  getMedication: async () => {
+    const response = await api.get('/intervention/medication');
+    return response.data;
+  },
+
+  // Analyze medication effectiveness
+  analyzeMedicationEffectiveness: async (medication: string, timeframe: string) => {
+    const response = await api.post('/intervention/medication/effectiveness', {
+      medication,
+      timeframe
+    });
+    return response.data;
+  },
+
+  // Generate nutrition advice (uses diet analysis)
+  generateNutritionAdvice: async (imageFile: File, currentMetrics?: any) => {
+    const formData = new FormData();
+    formData.append('image', imageFile);
+    if (currentMetrics) {
+      formData.append('currentMetrics', JSON.stringify(currentMetrics));
+    }
+    
+    const response = await api.post('/intervention/nutrition', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  // Generate exercise plan
+  generateExercisePlan: async (healthState: any) => {
+    const response = await api.post('/intervention/exercise', { healthState });
+    return response.data;
+  },
+
+  // Adjust intervention
+  adjustIntervention: async (feedback: any) => {
+    const response = await api.post('/intervention/adjust', { feedback });
+    return response.data;
+  }
+};

@@ -38,6 +38,9 @@ import {
 } from '@ant-design/icons';
 import { useLanguageStore } from '@/stores/languageStore';
 import { getTranslation } from '@/locales';
+import { interventionEngineAPI } from '../services/api';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 const { Title, Text, Paragraph } = Typography;
 const { TabPane } = Tabs;
@@ -85,6 +88,15 @@ const InterventionEnginePage: React.FC = () => {
   const t = (key: string) => getTranslation(language, key);
   
   const [activeTab, setActiveTab] = useState('medication');
+  
+  // Nutrition analysis state
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>('');
+  const [isAnalyzingNutrition, setIsAnalyzingNutrition] = useState(false);
+  const [nutritionResult, setNutritionResult] = useState<any>(null);
+  const [nutritionError, setNutritionError] = useState<string>('');
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const cameraRef = React.useRef<HTMLInputElement>(null);
   
   // Mock data - 在实际应用中这些数据会从后端API获取
   const [medications] = useState<Medication[]>([
@@ -382,6 +394,218 @@ const InterventionEnginePage: React.FC = () => {
                 style={{ marginBottom: '16px' }}
               />
 
+              {/* Image Upload Section */}
+              <Card title={language === 'zh' ? '上传食物照片' : 'Upload Food Photo'}>
+                {imagePreview ? (
+                  <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+                    <img 
+                      src={imagePreview} 
+                      alt="Food preview" 
+                      style={{ maxWidth: '100%', maxHeight: '400px', borderRadius: '8px' }}
+                    />
+                    <div style={{ marginTop: '16px' }}>
+                      <Button 
+                        onClick={() => {
+                          setSelectedImage(null);
+                          setImagePreview('');
+                          setNutritionResult(null);
+                          setNutritionError('');
+                        }}
+                      >
+                        {language === 'zh' ? '重新选择' : 'Reselect'}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ textAlign: 'center', padding: '40px', border: '2px dashed #d9d9d9', borderRadius: '8px' }}>
+                    <AppleOutlined style={{ fontSize: '48px', color: '#1890ff', marginBottom: '16px' }} />
+                    <div style={{ marginBottom: '16px' }}>
+                      <Button 
+                        type="primary" 
+                        icon={<AppleOutlined />}
+                        onClick={() => fileInputRef.current?.click()}
+                        style={{ marginRight: '8px' }}
+                      >
+                        {language === 'zh' ? '选择图片' : 'Select Image'}
+                      </Button>
+                      <Button 
+                        icon={<AppleOutlined />}
+                        onClick={() => cameraRef.current?.click()}
+                      >
+                        {language === 'zh' ? '拍照' : 'Take Photo'}
+                      </Button>
+                    </div>
+                    <Text type="secondary">
+                      {language === 'zh' ? '支持 JPG、PNG 格式，最大 10MB' : 'Supports JPG, PNG, max 10MB'}
+                    </Text>
+                  </div>
+                )}
+                
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setSelectedImage(file);
+                      setNutritionError('');
+                      const reader = new FileReader();
+                      reader.onload = (event) => {
+                        setImagePreview(event.target?.result as string);
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                  style={{ display: 'none' }}
+                />
+                <input
+                  type="file"
+                  ref={cameraRef}
+                  accept="image/*"
+                  capture="environment"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setSelectedImage(file);
+                      setNutritionError('');
+                      const reader = new FileReader();
+                      reader.onload = (event) => {
+                        setImagePreview(event.target?.result as string);
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                  style={{ display: 'none' }}
+                />
+              </Card>
+
+              {/* Analyze Button */}
+              {selectedImage && (
+                <Button 
+                  type="primary" 
+                  size="large" 
+                  icon={<AppleOutlined />} 
+                  block
+                  loading={isAnalyzingNutrition}
+                  onClick={async () => {
+                    if (!selectedImage) {
+                      setNutritionError(language === 'zh' ? '请先上传图片' : 'Please upload an image first');
+                      return;
+                    }
+
+                    setIsAnalyzingNutrition(true);
+                    setNutritionError('');
+
+                    try {
+                      // 获取当前健康指标（可以从可穿戴设备或健康记录获取）
+                      const currentMetrics = {
+                        glucose: 120, // 可以从实际数据源获取
+                        bloodPressure: '120/80'
+                      };
+
+                      const response = await interventionEngineAPI.generateNutritionAdvice(
+                        selectedImage,
+                        currentMetrics
+                      );
+
+                      if (response.success) {
+                        setNutritionResult(response);
+                        setNutritionError('');
+                      } else {
+                        setNutritionError(response.error || (language === 'zh' ? '分析失败' : 'Analysis failed'));
+                      }
+                    } catch (err: any) {
+                      console.error('Nutrition analysis error:', err);
+                      setNutritionError(err.message || (language === 'zh' ? '分析出错' : 'Analysis error'));
+                    } finally {
+                      setIsAnalyzingNutrition(false);
+                    }
+                  }}
+                >
+                  {isAnalyzingNutrition 
+                    ? (language === 'zh' ? '分析中...' : 'Analyzing...')
+                    : (language === 'zh' ? '开始分析' : 'Start Analysis')
+                  }
+                </Button>
+              )}
+
+              {/* Error Message */}
+              {nutritionError && (
+                <Alert
+                  message={nutritionError}
+                  type="error"
+                  showIcon
+                  closable
+                  onClose={() => setNutritionError('')}
+                />
+              )}
+
+              {/* Analysis Results */}
+              {nutritionResult && (
+                <Card title={language === 'zh' ? '分析结果' : 'Analysis Results'}>
+                  <Space direction="vertical" size="large" style={{ width: '100%' }}>
+                    {/* Instant Feedback */}
+                    {nutritionResult.instantFeedback && (
+                      <Alert
+                        message={language === 'zh' ? '即时反馈' : 'Instant Feedback'}
+                        description={
+                          <div>
+                            <Text strong>{nutritionResult.instantFeedback.message}</Text>
+                            {nutritionResult.instantFeedback.recommendations && (
+                              <ul style={{ marginTop: '8px', marginBottom: 0 }}>
+                                {nutritionResult.instantFeedback.recommendations.map((rec: string, index: number) => (
+                                  <li key={index}>{rec}</li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        }
+                        type={nutritionResult.instantFeedback.riskLevel === 'high' ? 'error' : 
+                              nutritionResult.instantFeedback.riskLevel === 'medium' ? 'warning' : 'success'}
+                        showIcon
+                      />
+                    )}
+
+                    {/* Nutrition Analysis */}
+                    {nutritionResult.nutrition && (
+                      <div>
+                        <Title level={4}>{language === 'zh' ? '营养成分分析' : 'Nutrition Analysis'}</Title>
+                        {nutritionResult.nutrition.analysis && (
+                          <div style={{ 
+                            padding: '16px', 
+                            background: '#f5f5f5', 
+                            borderRadius: '8px',
+                            marginTop: '8px'
+                          }}>
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                              {nutritionResult.nutrition.analysis}
+                            </ReactMarkdown>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Recommendations */}
+                    {nutritionResult.recommendations && nutritionResult.recommendations.length > 0 && (
+                      <div>
+                        <Title level={4}>{language === 'zh' ? '建议' : 'Recommendations'}</Title>
+                        <List
+                          dataSource={nutritionResult.recommendations}
+                          renderItem={(item: string) => (
+                            <List.Item>
+                              <CheckCircleOutlined style={{ color: '#52c41a', marginRight: '8px' }} />
+                              {item}
+                            </List.Item>
+                          )}
+                        />
+                      </div>
+                    )}
+                  </Space>
+                </Card>
+              )}
+
+              {/* Historical Nutrition Advice */}
               <List
                 itemLayout="vertical"
                 dataSource={nutritionAdvice}
@@ -438,10 +662,6 @@ const InterventionEnginePage: React.FC = () => {
                   </List.Item>
                 )}
               />
-
-              <Button type="primary" size="large" icon={<AppleOutlined />} block>
-                {language === 'zh' ? '拍摄食物照片进行分析' : 'Take Photo for Analysis'}
-              </Button>
             </Space>
           </TabPane>
 

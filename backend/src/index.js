@@ -14,6 +14,7 @@ const healthAnalysisRoutes = require('./routes/healthAnalysis');
 const userSettingsRoutes = require('./routes/userSettings');
 const digitalTwinRoutes = require('./routes/digitalTwin');
 const riskMonitoringRoutes = require('./routes/riskMonitoring');
+const interventionEngineRoutes = require('./routes/interventionEngine');
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -162,6 +163,7 @@ app.use('/api/health-analysis', healthAnalysisRoutes);
 app.use('/api/user-settings', userSettingsRoutes);
 app.use('/api/digital-twin', digitalTwinRoutes);
 app.use('/api/risk-monitoring', riskMonitoringRoutes);
+app.use('/api/intervention', interventionEngineRoutes);
 
 // Basic health check for Railway (works immediately)
 app.get('/health', (req, res) => {

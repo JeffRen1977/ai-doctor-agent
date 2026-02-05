@@ -151,11 +151,6 @@ const Sidebar: React.FC = () => {
       icon: <FileTextOutlined />,
       label: t('sidebar.menu.healthRecords'),
     },
-    {
-      key: '/diet-analysis',
-      icon: <CameraOutlined />,
-      label: t('sidebar.menu.dietAnalysis'),
-    },
   ]
 
   const userMenuItems = [
