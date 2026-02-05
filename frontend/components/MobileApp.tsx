@@ -22,6 +22,7 @@ import EmergencyPage from '../pages/EmergencyPage'
 import DietAnalysisPage from '../pages/DietAnalysisPage'
 import InterventionEnginePage from '../pages/InterventionEnginePage'
 import ClinicalReportsPage from '../pages/ClinicalReportsPage'
+import DigitalTwinPage from '../pages/DigitalTwinPage'
 import { useAuthStore } from '../stores/authStore'
 import { useLanguageStore } from '../stores/languageStore'
 import { useMobile, useMobileNotifications } from '../hooks/useMobile'
@@ -134,6 +135,7 @@ const MobileApp: React.FC = () => {
           <Route path="/chat" element={<ChatPage />} />
           <Route path="/health-records" element={<HealthRecordsPage />} />
           <Route path="/analytics" element={<HealthAnalyticsPage />} />
+          <Route path="/digital-twin" element={<DigitalTwinPage />} />
           <Route path="/appointments" element={<AppointmentPage />} />
           <Route path="/devices" element={<DeviceSyncPage />} />
           <Route path="/emergency" element={<EmergencyPage />} />

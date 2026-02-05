@@ -16,6 +16,7 @@ import DietAnalysisPage from './pages/DietAnalysisPage'
 import UserSettingsPage from './pages/UserSettingsPage'
 import InterventionEnginePage from './pages/InterventionEnginePage'
 import ClinicalReportsPage from './pages/ClinicalReportsPage'
+import DigitalTwinPage from './pages/DigitalTwinPage'
 import { useAuthStore } from './stores/authStore'
 import { useLanguageStore } from './stores/languageStore'
 import './App.css'
@@ -104,6 +105,7 @@ function App() {
             <Route path="/chat" element={<ChatPage />} />
             <Route path="/health-records" element={<HealthRecordsPage />} />
             <Route path="/analytics" element={<HealthAnalyticsPage />} />
+            <Route path="/digital-twin" element={<DigitalTwinPage />} />
             <Route path="/appointments" element={<AppointmentPage />} />
             <Route path="/devices" element={<DeviceSyncPage />} />
             <Route path="/emergency" element={<EmergencyPage />} />

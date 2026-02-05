@@ -84,10 +84,10 @@ const Sidebar: React.FC = () => {
   }
 
   // 按5大核心功能模块重新组织菜单
-  // 1. 智能数字孪生 (Digital Twin) - 对应健康分析
+  // 1. 智能数字孪生 (Digital Twin) - 数字孪生页面
   const digitalTwinMenuItems = [
     {
-      key: '/analytics',
+      key: '/digital-twin',
       icon: <BarChartOutlined />,
       label: t('sidebar.menu.digitalTwin'),
     },

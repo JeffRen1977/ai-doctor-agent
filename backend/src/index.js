@@ -12,6 +12,7 @@ const dietAnalysisRoutes = require('./routes/dietAnalysis');
 const wearableRoutes = require('./routes/wearables');
 const healthAnalysisRoutes = require('./routes/healthAnalysis');
 const userSettingsRoutes = require('./routes/userSettings');
+const digitalTwinRoutes = require('./routes/digitalTwin');
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -158,6 +159,7 @@ app.use('/api/diet-analysis', dietAnalysisRoutes);
 app.use('/api/wearables', wearableRoutes);
 app.use('/api/health-analysis', healthAnalysisRoutes);
 app.use('/api/user-settings', userSettingsRoutes);
+app.use('/api/digital-twin', digitalTwinRoutes);
 
 // Basic health check for Railway (works immediately)
 app.get('/health', (req, res) => {
