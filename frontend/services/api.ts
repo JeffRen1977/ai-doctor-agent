@@ -178,3 +178,48 @@ export const wearablesAPI = {
     return response.data;
   }
 };
+
+// Risk Monitoring API
+export const riskMonitoringAPI = {
+  // Process stream data
+  processStreamData: async (deviceType: string, data: any) => {
+    const response = await api.post('/risk-monitoring/process-stream', { deviceType, data });
+    return response.data;
+  },
+
+  // Detect anomalies
+  detectAnomalies: async (dataStream: any[]) => {
+    const response = await api.post('/risk-monitoring/detect-anomalies', { dataStream });
+    return response.data;
+  },
+
+  // Predict hypoglycemia
+  predictHypoglycemia: async (glucoseData: any[]) => {
+    const response = await api.post('/risk-monitoring/predict-hypoglycemia', { glucoseData });
+    return response.data;
+  },
+
+  // Analyze HRV trend
+  analyzeHRV: async (heartRateData: any[]) => {
+    const response = await api.post('/risk-monitoring/analyze-hrv', { heartRateData });
+    return response.data;
+  },
+
+  // Get monitoring status
+  getStatus: async () => {
+    const response = await api.get('/risk-monitoring/status');
+    return response.data;
+  },
+
+  // Get recent alerts
+  getAlerts: async (limit: number = 20) => {
+    const response = await api.get(`/risk-monitoring/alerts?limit=${limit}`);
+    return response.data;
+  },
+
+  // Acknowledge alert
+  acknowledgeAlert: async (alertId: string) => {
+    const response = await api.post(`/risk-monitoring/alerts/${alertId}/acknowledge`);
+    return response.data;
+  }
+};
