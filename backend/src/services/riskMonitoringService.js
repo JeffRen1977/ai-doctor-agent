@@ -315,24 +315,61 @@ class RiskMonitoringService {
   async getRecentAlerts(userEmail, limitCount = 20) {
     try {
       const alertsRef = collection(db, 'riskAlerts');
-      const q = query(
-        alertsRef,
-        where('userEmail', '==', userEmail),
-        orderBy('timestamp', 'desc'),
-        limit(limitCount)
-      );
       
-      const querySnapshot = await getDocs(q);
-      const alerts = [];
-      
-      querySnapshot.forEach((doc) => {
-        alerts.push({
-          id: doc.id,
-          ...doc.data()
+      // 先尝试使用索引查询（如果索引存在）
+      try {
+        const q = query(
+          alertsRef,
+          where('userEmail', '==', userEmail),
+          orderBy('timestamp', 'desc'),
+          limit(limitCount)
+        );
+        
+        const querySnapshot = await getDocs(q);
+        const alerts = [];
+        
+        querySnapshot.forEach((doc) => {
+          alerts.push({
+            id: doc.id,
+            ...doc.data()
+          });
         });
-      });
-      
-      return alerts;
+        
+        return alerts;
+      } catch (indexError) {
+        // 如果索引不存在，使用备用方案：先获取所有该用户的警报，然后在内存中排序
+        if (indexError.code === 'failed-precondition') {
+          console.warn('⚠️ Firestore index not found, using fallback query method');
+          
+          // 只使用 where 查询（不需要索引）
+          const fallbackQuery = query(
+            alertsRef,
+            where('userEmail', '==', userEmail)
+          );
+          
+          const querySnapshot = await getDocs(fallbackQuery);
+          const alerts = [];
+          
+          querySnapshot.forEach((doc) => {
+            alerts.push({
+              id: doc.id,
+              ...doc.data()
+            });
+          });
+          
+          // 在内存中按时间戳排序并限制数量
+          alerts.sort((a, b) => {
+            const timeA = new Date(a.timestamp || 0).getTime();
+            const timeB = new Date(b.timestamp || 0).getTime();
+            return timeB - timeA; // 降序
+          });
+          
+          return alerts.slice(0, limitCount);
+        } else {
+          // 其他错误，重新抛出
+          throw indexError;
+        }
+      }
     } catch (error) {
       console.error('❌ Error getting recent alerts:', error);
       return [];
@@ -380,24 +417,61 @@ class RiskMonitoringService {
   async getRecentDataPoints(userEmail, limitCount = 100) {
     try {
       const streamRef = collection(db, 'wearableStreamData');
-      const q = query(
-        streamRef,
-        where('userEmail', '==', userEmail),
-        orderBy('timestamp', 'desc'),
-        limit(limitCount)
-      );
       
-      const querySnapshot = await getDocs(q);
-      const dataPoints = [];
-      
-      querySnapshot.forEach((doc) => {
-        dataPoints.push({
-          id: doc.id,
-          ...doc.data()
+      // 先尝试使用索引查询（如果索引存在）
+      try {
+        const q = query(
+          streamRef,
+          where('userEmail', '==', userEmail),
+          orderBy('timestamp', 'desc'),
+          limit(limitCount)
+        );
+        
+        const querySnapshot = await getDocs(q);
+        const dataPoints = [];
+        
+        querySnapshot.forEach((doc) => {
+          dataPoints.push({
+            id: doc.id,
+            ...doc.data()
+          });
         });
-      });
-      
-      return dataPoints.reverse(); // 按时间正序
+        
+        return dataPoints.reverse(); // 按时间正序
+      } catch (indexError) {
+        // 如果索引不存在，使用备用方案：先获取所有该用户的数据点，然后在内存中排序
+        if (indexError.code === 'failed-precondition') {
+          console.warn('⚠️ Firestore index not found for wearableStreamData, using fallback query method');
+          
+          // 只使用 where 查询（不需要索引）
+          const fallbackQuery = query(
+            streamRef,
+            where('userEmail', '==', userEmail)
+          );
+          
+          const querySnapshot = await getDocs(fallbackQuery);
+          const dataPoints = [];
+          
+          querySnapshot.forEach((doc) => {
+            dataPoints.push({
+              id: doc.id,
+              ...doc.data()
+            });
+          });
+          
+          // 在内存中按时间戳排序并限制数量
+          dataPoints.sort((a, b) => {
+            const timeA = new Date(a.timestamp || 0).getTime();
+            const timeB = new Date(b.timestamp || 0).getTime();
+            return timeB - timeA; // 降序
+          });
+          
+          return dataPoints.slice(0, limitCount).reverse(); // 按时间正序
+        } else {
+          // 其他错误，重新抛出
+          throw indexError;
+        }
+      }
     } catch (error) {
       console.error('❌ Error getting recent data points:', error);
       return [];
