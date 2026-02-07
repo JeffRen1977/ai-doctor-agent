@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Card, 
   Row, 
@@ -19,7 +19,14 @@ import {
   Select,
   DatePicker,
   Table,
-  Badge
+  Badge,
+  Form,
+  Radio,
+  Checkbox,
+  Spin,
+  message,
+  Empty,
+  Descriptions
 } from 'antd';
 import { 
   MedicineBoxOutlined, 
@@ -34,60 +41,39 @@ import {
   BarChartOutlined,
   HeartOutlined,
   FlagOutlined,
-  PlusOutlined
+  PlusOutlined,
+  ReloadOutlined,
+  ExperimentOutlined,
+  FireOutlined,
+  SettingOutlined
 } from '@ant-design/icons';
 import { useLanguageStore } from '@/stores/languageStore';
 import { getTranslation } from '@/locales';
 import { interventionEngineAPI } from '../services/api';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import dayjs from 'dayjs';
 
 const { Title, Text, Paragraph } = Typography;
 const { TabPane } = Tabs;
 const { TextArea } = Input;
 const { Option } = Select;
 
-interface Medication {
-  id: string;
-  name: string;
-  dosage: string;
-  frequency: string;
-  time: string;
-  adherence: number;
-  effectiveness: 'good' | 'fair' | 'poor';
-  nextDose: string;
-  status: 'taken' | 'pending' | 'missed';
-}
-
-interface NutritionAdvice {
-  id: string;
-  meal: string;
-  timestamp: string;
-  carbs: number;
-  protein: number;
-  fat: number;
-  calories: number;
-  recommendation: string;
-  status: 'followed' | 'partial' | 'ignored';
-}
-
-interface HealthPlan {
-  id: string;
-  type: 'medication' | 'nutrition' | 'exercise' | 'lifestyle';
-  title: string;
-  description: string;
-  target: string;
-  progress: number;
-  status: 'active' | 'completed' | 'paused';
-  startDate: string;
-  endDate: string;
-}
-
 const InterventionEnginePage: React.FC = () => {
   const { language } = useLanguageStore();
   const t = (key: string) => getTranslation(language, key);
   
   const [activeTab, setActiveTab] = useState('medication');
+  const [loading, setLoading] = useState(false);
+  
+  // Medication management state
+  const [medicationData, setMedicationData] = useState<any>(null);
+  const [medicationLoading, setMedicationLoading] = useState(false);
+  
+  // Medication effectiveness state
+  const [effectivenessForm] = Form.useForm();
+  const [effectivenessResult, setEffectivenessResult] = useState<any>(null);
+  const [effectivenessLoading, setEffectivenessLoading] = useState(false);
   
   // Nutrition analysis state
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -98,89 +84,187 @@ const InterventionEnginePage: React.FC = () => {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const cameraRef = React.useRef<HTMLInputElement>(null);
   
-  // Mock data - 在实际应用中这些数据会从后端API获取
-  const [medications] = useState<Medication[]>([
-    {
-      id: '1',
-      name: language === 'zh' ? '二甲双胍' : 'Metformin',
-      dosage: '500mg',
-      frequency: language === 'zh' ? '每日2次' : 'Twice daily',
-      time: '08:00, 20:00',
-      adherence: 95,
-      effectiveness: 'good',
-      nextDose: '2024-01-15 20:00',
-      status: 'pending'
-    },
-    {
-      id: '2',
-      name: language === 'zh' ? '阿司匹林' : 'Aspirin',
-      dosage: '100mg',
-      frequency: language === 'zh' ? '每日1次' : 'Once daily',
-      time: '08:00',
-      adherence: 88,
-      effectiveness: 'fair',
-      nextDose: '2024-01-16 08:00',
-      status: 'taken'
-    }
-  ]);
+  // Exercise plan state
+  const [exerciseForm] = Form.useForm();
+  const [exercisePlan, setExercisePlan] = useState<any>(null);
+  const [exerciseLoading, setExerciseLoading] = useState(false);
+  
+  // Intervention adjustment state
+  const [adjustmentForm] = Form.useForm();
+  const [adjustmentResult, setAdjustmentResult] = useState<any>(null);
+  const [adjustmentLoading, setAdjustmentLoading] = useState(false);
 
-  const [nutritionAdvice] = useState<NutritionAdvice[]>([
-    {
-      id: '1',
-      meal: language === 'zh' ? '早餐' : 'Breakfast',
-      timestamp: '2024-01-15 08:30',
-      carbs: 45,
-      protein: 20,
-      fat: 15,
-      calories: 380,
-      recommendation: language === 'zh' 
-        ? '该餐碳水适中，建议餐后30分钟进行15分钟散步' 
-        : 'Carbs are moderate, suggest 15-min walk 30 mins after meal',
-      status: 'followed'
-    },
-    {
-      id: '2',
-      meal: language === 'zh' ? '午餐' : 'Lunch',
-      timestamp: '2024-01-15 12:45',
-      carbs: 65,
-      protein: 30,
-      fat: 25,
-      calories: 580,
-      recommendation: language === 'zh' 
-        ? '该餐碳水偏高，建议餐后增加20分钟散步' 
-        : 'Carbs are high, suggest 20-min walk after meal',
-      status: 'partial'
+  // Load medication data on mount and when tab changes
+  useEffect(() => {
+    if (activeTab === 'medication') {
+      loadMedicationData();
     }
-  ]);
+  }, [activeTab]);
 
-  const [healthPlans] = useState<HealthPlan[]>([
-    {
-      id: '1',
-      type: 'medication',
-      title: language === 'zh' ? '血糖控制计划' : 'Blood Glucose Control Plan',
-      description: language === 'zh' 
-        ? '通过规律服药和监测，将HbA1c控制在7%以下' 
-        : 'Control HbA1c below 7% through regular medication and monitoring',
-      target: 'HbA1c < 7%',
-      progress: 75,
-      status: 'active',
-      startDate: '2024-01-01',
-      endDate: '2024-04-01'
-    },
-    {
-      id: '2',
-      type: 'exercise',
-      title: language === 'zh' ? '每日运动计划' : 'Daily Exercise Plan',
-      description: language === 'zh' 
-        ? '每天快走30分钟，每周至少5天' 
-        : '30-min brisk walk daily, at least 5 days per week',
-      target: '150 min/week',
-      progress: 60,
-      status: 'active',
-      startDate: '2024-01-01',
-      endDate: '2024-03-31'
+  const loadMedicationData = async () => {
+    setMedicationLoading(true);
+    try {
+      const response = await interventionEngineAPI.getMedication();
+      if (response.success) {
+        setMedicationData(response);
+      } else {
+        message.error(response.error || (language === 'zh' ? '加载用药数据失败' : 'Failed to load medication data'));
+      }
+    } catch (error: any) {
+      console.error('Load medication error:', error);
+      message.error(error.message || (language === 'zh' ? '加载用药数据出错' : 'Error loading medication data'));
+    } finally {
+      setMedicationLoading(false);
     }
-  ]);
+  };
+
+  const handleRecordMedication = async (medicationId: string, time: string) => {
+    try {
+      const today = dayjs().format('YYYY-MM-DD');
+      const timeStr = time.split('T')[1]?.split(':').slice(0, 2).join(':') || time;
+      
+      const response = await interventionEngineAPI.recordMedicationHistory(
+        medicationId,
+        today,
+        timeStr,
+        'taken'
+      );
+      
+      if (response.success) {
+        message.success(language === 'zh' ? '已记录服药' : 'Medication recorded');
+        loadMedicationData();
+      } else {
+        message.error(response.error || (language === 'zh' ? '记录失败' : 'Failed to record'));
+      }
+    } catch (error: any) {
+      console.error('Record medication error:', error);
+      message.error(error.message || (language === 'zh' ? '记录出错' : 'Error recording'));
+    }
+  };
+
+  const handleAnalyzeEffectiveness = async (values: any) => {
+    setEffectivenessLoading(true);
+    setEffectivenessResult(null);
+    try {
+      const response = await interventionEngineAPI.analyzeMedicationEffectiveness(
+        values.medication,
+        values.timeframe
+      );
+      
+      if (response.success) {
+        setEffectivenessResult(response);
+        message.success(language === 'zh' ? '药效评估完成' : 'Effectiveness analysis completed');
+      } else {
+        message.error(response.error || (language === 'zh' ? '评估失败' : 'Analysis failed'));
+      }
+    } catch (error: any) {
+      console.error('Effectiveness analysis error:', error);
+      message.error(error.message || (language === 'zh' ? '评估出错' : 'Analysis error'));
+    } finally {
+      setEffectivenessLoading(false);
+    }
+  };
+
+  const handleAnalyzeNutrition = async () => {
+    if (!selectedImage) {
+      setNutritionError(language === 'zh' ? '请先上传图片' : 'Please upload an image first');
+      return;
+    }
+
+    setIsAnalyzingNutrition(true);
+    setNutritionError('');
+    setNutritionResult(null);
+
+    try {
+      const currentMetrics = {
+        glucose: 120, // TODO: Get from actual data source
+        bloodPressure: { systolic: 120, diastolic: 80 }
+      };
+
+      const response = await interventionEngineAPI.generateNutritionAdvice(
+        selectedImage,
+        currentMetrics
+      );
+
+      if (response.success) {
+        setNutritionResult(response);
+        setNutritionError('');
+      } else {
+        setNutritionError(response.error || (language === 'zh' ? '分析失败' : 'Analysis failed'));
+      }
+    } catch (err: any) {
+      console.error('Nutrition analysis error:', err);
+      setNutritionError(err.message || (language === 'zh' ? '分析出错' : 'Analysis error'));
+    } finally {
+      setIsAnalyzingNutrition(false);
+    }
+  };
+
+  const handleGenerateExercisePlan = async (values: any) => {
+    setExerciseLoading(true);
+    setExercisePlan(null);
+    try {
+      const healthState = {
+        currentFitness: values.currentFitness,
+        healthConditions: values.healthConditions || [],
+        goals: values.goals || [],
+        preferences: values.preferences || [],
+        limitations: values.limitations || [],
+        availableTime: values.availableTime
+      };
+      
+      const response = await interventionEngineAPI.generateExercisePlan(healthState);
+      
+      if (response.success) {
+        setExercisePlan(response.plan);
+        message.success(language === 'zh' ? '运动计划生成成功' : 'Exercise plan generated successfully');
+      } else {
+        message.error(response.error || (language === 'zh' ? '生成失败' : 'Generation failed'));
+      }
+    } catch (error: any) {
+      console.error('Exercise plan error:', error);
+      message.error(error.message || (language === 'zh' ? '生成出错' : 'Generation error'));
+    } finally {
+      setExerciseLoading(false);
+    }
+  };
+
+  const handleAdjustIntervention = async (values: any) => {
+    setAdjustmentLoading(true);
+    setAdjustmentResult(null);
+    try {
+      const feedback = {
+        type: values.type,
+        content: values.content,
+        effectiveness: values.effectiveness,
+        issues: values.issues || [],
+        suggestions: values.suggestions ? values.suggestions.split('\n').filter((s: string) => s.trim()) : [],
+        metrics: {
+          glucose: values.glucose,
+          bloodPressure: values.bloodPressure ? {
+            systolic: parseInt(values.bloodPressure.split('/')[0]),
+            diastolic: parseInt(values.bloodPressure.split('/')[1])
+          } : undefined,
+          weight: values.weight
+        }
+      };
+      
+      const response = await interventionEngineAPI.adjustIntervention(feedback);
+      
+      if (response.success) {
+        setAdjustmentResult(response);
+        message.success(language === 'zh' ? '干预方案调整成功' : 'Intervention adjusted successfully');
+        adjustmentForm.resetFields();
+      } else {
+        message.error(response.error || (language === 'zh' ? '调整失败' : 'Adjustment failed'));
+      }
+    } catch (error: any) {
+      console.error('Adjust intervention error:', error);
+      message.error(error.message || (language === 'zh' ? '调整出错' : 'Adjustment error'));
+    } finally {
+      setAdjustmentLoading(false);
+    }
+  };
 
   const getEffectivenessColor = (effectiveness: string) => {
     switch (effectiveness) {
@@ -196,11 +280,16 @@ const InterventionEnginePage: React.FC = () => {
       case 'taken': return 'success';
       case 'pending': return 'processing';
       case 'missed': return 'error';
-      case 'followed': return 'success';
-      case 'partial': return 'warning';
-      case 'ignored': return 'error';
       default: return 'default';
     }
+  };
+
+  // Calculate statistics
+  const stats = {
+    activePlans: exercisePlan ? 1 : 0,
+    avgAdherence: medicationData?.adherence?.overall || 0,
+    todayAdvice: nutritionResult ? 1 : 0,
+    completionRate: 75 // TODO: Calculate from actual data
   };
 
   const medicationColumns = [
@@ -218,6 +307,7 @@ const InterventionEnginePage: React.FC = () => {
       title: language === 'zh' ? '服药时间' : 'Schedule',
       dataIndex: 'time',
       key: 'time',
+      render: (times: string[]) => times ? times.join(', ') : '-',
     },
     {
       title: language === 'zh' ? '依从性' : 'Adherence',
@@ -228,14 +318,14 @@ const InterventionEnginePage: React.FC = () => {
       ),
     },
     {
-      title: language === 'zh' ? '效果评估' : 'Effectiveness',
-      dataIndex: 'effectiveness',
-      key: 'effectiveness',
-      render: (value: string) => (
-        <Tag color={getEffectivenessColor(value)}>
-          {value === 'good' ? (language === 'zh' ? '良好' : 'Good') :
-           value === 'fair' ? (language === 'zh' ? '一般' : 'Fair') :
-           (language === 'zh' ? '较差' : 'Poor')}
+      title: language === 'zh' ? '状态' : 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status: string) => (
+        <Tag color={getStatusColor(status)}>
+          {status === 'taken' ? (language === 'zh' ? '已服药' : 'Taken') :
+           status === 'pending' ? (language === 'zh' ? '待服药' : 'Pending') :
+           (language === 'zh' ? '已错过' : 'Missed')}
         </Tag>
       ),
     },
@@ -243,17 +333,32 @@ const InterventionEnginePage: React.FC = () => {
       title: language === 'zh' ? '下次服药' : 'Next Dose',
       dataIndex: 'nextDose',
       key: 'nextDose',
+      render: (nextDose: string) => nextDose ? dayjs(nextDose).format('YYYY-MM-DD HH:mm') : '-',
     },
     {
       title: language === 'zh' ? '操作' : 'Action',
       key: 'action',
-      render: (_: any, record: Medication) => (
+      render: (_: any, record: any) => (
         <Space>
-          <Button size="small" type="primary" icon={<CheckCircleOutlined />}>
-            {language === 'zh' ? '已服药' : 'Taken'}
-          </Button>
-          <Button size="small" icon={<FileTextOutlined />}>
-            {language === 'zh' ? '报告' : 'Report'}
+          {record.status === 'pending' && record.nextDose && (
+            <Button 
+              size="small" 
+              type="primary" 
+              icon={<CheckCircleOutlined />}
+              onClick={() => handleRecordMedication(record.id, record.nextDose)}
+            >
+              {language === 'zh' ? '已服药' : 'Taken'}
+            </Button>
+          )}
+          <Button 
+            size="small" 
+            icon={<ExperimentOutlined />}
+            onClick={() => {
+              setActiveTab('effectiveness');
+              effectivenessForm.setFieldsValue({ medication: record.name });
+            }}
+          >
+            {language === 'zh' ? '评估' : 'Evaluate'}
           </Button>
         </Space>
       ),
@@ -273,12 +378,13 @@ const InterventionEnginePage: React.FC = () => {
           : 'AI-driven personalized health management engine that dynamically adjusts medication, nutrition, and exercise recommendations based on real-time data for precision intervention.'}
       </Paragraph>
 
+      {/* Statistics Cards */}
       <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
         <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
               title={language === 'zh' ? '活跃计划' : 'Active Plans'}
-              value={healthPlans.filter(p => p.status === 'active').length}
+              value={stats.activePlans}
               prefix={<FlagOutlined />}
               valueStyle={{ color: '#1890ff' }}
             />
@@ -288,7 +394,7 @@ const InterventionEnginePage: React.FC = () => {
           <Card>
             <Statistic
               title={language === 'zh' ? '平均依从性' : 'Avg Adherence'}
-              value={Math.round(medications.reduce((sum, m) => sum + m.adherence, 0) / medications.length)}
+              value={stats.avgAdherence}
               suffix="%"
               prefix={<CheckCircleOutlined />}
               valueStyle={{ color: '#52c41a' }}
@@ -299,7 +405,7 @@ const InterventionEnginePage: React.FC = () => {
           <Card>
             <Statistic
               title={language === 'zh' ? '今日建议' : 'Today\'s Advice'}
-              value={nutritionAdvice.length}
+              value={stats.todayAdvice}
               prefix={<BellOutlined />}
               valueStyle={{ color: '#faad14' }}
             />
@@ -309,7 +415,7 @@ const InterventionEnginePage: React.FC = () => {
           <Card>
             <Statistic
               title={language === 'zh' ? '完成率' : 'Completion Rate'}
-              value={75}
+              value={stats.completionRate}
               suffix="%"
               prefix={<BarChartOutlined />}
               valueStyle={{ color: '#722ed1' }}
@@ -330,45 +436,285 @@ const InterventionEnginePage: React.FC = () => {
             } 
             key="medication"
           >
+            <Spin spinning={medicationLoading}>
+              <Space direction="vertical" size="large" style={{ width: '100%' }}>
+                <Alert
+                  message={language === 'zh' ? '用药管理说明' : 'Medication Management'}
+                  description={
+                    language === 'zh' 
+                      ? '监测服药依从性，并在服药后通过传感器数据闭环评估药效。如果发现某种药物在特定时间段效果不佳，AI可生成简报建议医生调整方案。'
+                      : 'Monitor medication adherence and evaluate effectiveness through sensor data. If a medication shows poor effectiveness at specific times, AI can generate reports suggesting dosage adjustments to your doctor.'}
+                  type="info"
+                  showIcon
+                  style={{ marginBottom: '16px' }}
+                  action={
+                    <Button size="small" icon={<ReloadOutlined />} onClick={loadMedicationData}>
+                      {language === 'zh' ? '刷新' : 'Refresh'}
+                    </Button>
+                  }
+                />
+                
+                {medicationData ? (
+                  <>
+                    {/* Adherence Statistics */}
+                    {medicationData.adherence && (
+                      <Row gutter={16} style={{ marginBottom: '16px' }}>
+                        <Col span={12}>
+                          <Card>
+                            <Statistic
+                              title={language === 'zh' ? '总体依从性' : 'Overall Adherence'}
+                              value={medicationData.adherence.overall}
+                              suffix="%"
+                              valueStyle={{ color: medicationData.adherence.overall >= 90 ? '#52c41a' : medicationData.adherence.overall >= 70 ? '#faad14' : '#ff4d4f' }}
+                            />
+                          </Card>
+                        </Col>
+                        <Col span={12}>
+                          <Card>
+                            <Title level={5}>{language === 'zh' ? '各药物依从性' : 'Medication Adherence'}</Title>
+                            <List
+                              size="small"
+                              dataSource={medicationData.adherence.byMedication || []}
+                              renderItem={(item: any) => (
+                                <List.Item>
+                                  <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                                    <Text>{item.medication}</Text>
+                                    <Progress 
+                                      percent={item.adherence} 
+                                      size="small" 
+                                      style={{ width: '100px' }}
+                                      status={item.adherence >= 90 ? 'success' : item.adherence >= 70 ? 'normal' : 'exception'}
+                                    />
+                                    <Text type="secondary">{item.adherence}%</Text>
+                                  </Space>
+                                </List.Item>
+                              )}
+                            />
+                          </Card>
+                        </Col>
+                      </Row>
+                    )}
+
+                    {/* Medications Table */}
+                    <Table
+                      dataSource={medicationData.medications || []}
+                      columns={medicationColumns}
+                      rowKey="id"
+                      pagination={false}
+                    />
+
+                    {/* Reminders */}
+                    {medicationData.reminders && medicationData.reminders.length > 0 && (
+                      <>
+                        <Divider>{language === 'zh' ? '用药提醒' : 'Medication Reminders'}</Divider>
+                        <List
+                          dataSource={medicationData.reminders}
+                          renderItem={(reminder: any) => (
+                            <List.Item>
+                              <List.Item.Meta
+                                avatar={<Avatar icon={<BellOutlined />} style={{ backgroundColor: '#1890ff' }} />}
+                                title={
+                                  <Space>
+                                    <Text strong>{reminder.medication}</Text>
+                                    <Text type="secondary">{reminder.dosage}</Text>
+                                  </Space>
+                                }
+                                description={
+                                  <Space>
+                                    <ClockCircleOutlined />
+                                    <Text>{dayjs(reminder.time).format('YYYY-MM-DD HH:mm')}</Text>
+                                    <Text type="secondary">{reminder.message}</Text>
+                                  </Space>
+                                }
+                              />
+                            </List.Item>
+                          )}
+                        />
+                      </>
+                    )}
+                  </>
+                ) : (
+                  !medicationLoading && (
+                    <Empty description={language === 'zh' ? '暂无用药记录' : 'No medication records'} />
+                  )
+                )}
+              </Space>
+            </Spin>
+          </TabPane>
+
+          {/* 药效评估 */}
+          <TabPane 
+            tab={
+              <span>
+                <ExperimentOutlined />
+                {language === 'zh' ? '药效评估' : 'Medication Effectiveness'}
+              </span>
+            } 
+            key="effectiveness"
+          >
             <Space direction="vertical" size="large" style={{ width: '100%' }}>
               <Alert
-                message={language === 'zh' ? '用药管理说明' : 'Medication Management'}
+                message={language === 'zh' ? '药效评估说明' : 'Effectiveness Analysis'}
                 description={
                   language === 'zh' 
-                    ? '监测服药依从性，并在服药后通过传感器数据闭环评估药效。如果发现某种药物在特定时间段效果不佳，AI可生成简报建议医生调整方案。'
-                    : 'Monitor medication adherence and evaluate effectiveness through sensor data. If a medication shows poor effectiveness at specific times, AI can generate reports suggesting dosage adjustments to your doctor.'}
+                    ? '基于可穿戴设备数据和用药记录，使用AI分析药物效果，评估药物是否有效，是否需要调整剂量或更换药物。'
+                    : 'Based on wearable device data and medication records, use AI to analyze medication effectiveness, evaluate whether medications are effective, and determine if dosage adjustments or medication changes are needed.'}
                 type="info"
                 showIcon
                 style={{ marginBottom: '16px' }}
               />
-              
-              <Table
-                dataSource={medications}
-                columns={medicationColumns}
-                rowKey="id"
-                pagination={false}
-              />
 
-              <Divider>{language === 'zh' ? '用药时间线' : 'Medication Timeline'}</Divider>
-              
-              <Timeline>
-                {medications.map((med) => (
-                  <Timeline.Item
-                    key={med.id}
-                    color={med.status === 'taken' ? 'green' : med.status === 'missed' ? 'red' : 'blue'}
+              <Card title={language === 'zh' ? '评估参数' : 'Analysis Parameters'}>
+                <Form
+                  form={effectivenessForm}
+                  layout="vertical"
+                  onFinish={handleAnalyzeEffectiveness}
+                >
+                  <Form.Item
+                    name="medication"
+                    label={language === 'zh' ? '药物名称' : 'Medication'}
+                    rules={[{ required: true, message: language === 'zh' ? '请选择药物' : 'Please select medication' }]}
                   >
-                    <Space direction="vertical" size="small">
-                      <Text strong>{med.name} - {med.dosage}</Text>
-                      <Text type="secondary">
-                        {med.status === 'taken' ? (language === 'zh' ? '已服药' : 'Taken') :
-                         med.status === 'pending' ? (language === 'zh' ? '待服药' : 'Pending') :
-                         (language === 'zh' ? '已错过' : 'Missed')}
-                      </Text>
-                      <Text type="secondary">{med.nextDose}</Text>
-                    </Space>
-                  </Timeline.Item>
-                ))}
-              </Timeline>
+                    <Select
+                      placeholder={language === 'zh' ? '请选择药物' : 'Select medication'}
+                      showSearch
+                      filterOption={(input, option) =>
+                        (option?.children as unknown as string)?.toLowerCase().includes(input.toLowerCase())
+                      }
+                    >
+                      {medicationData?.medications?.map((med: any) => (
+                        <Option key={med.id} value={med.name}>{med.name}</Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
+
+                  <Form.Item
+                    name="timeframe"
+                    label={language === 'zh' ? '评估时间段' : 'Timeframe'}
+                    rules={[{ required: true, message: language === 'zh' ? '请选择时间段' : 'Please select timeframe' }]}
+                  >
+                    <Select placeholder={language === 'zh' ? '请选择时间段' : 'Select timeframe'}>
+                      <Option value={language === 'zh' ? '最近7天' : 'Last 7 days'}>{language === 'zh' ? '最近7天' : 'Last 7 days'}</Option>
+                      <Option value={language === 'zh' ? '最近30天' : 'Last 30 days'}>{language === 'zh' ? '最近30天' : 'Last 30 days'}</Option>
+                      <Option value={language === 'zh' ? '最近90天' : 'Last 90 days'}>{language === 'zh' ? '最近90天' : 'Last 90 days'}</Option>
+                    </Select>
+                  </Form.Item>
+
+                  <Form.Item>
+                    <Button type="primary" htmlType="submit" loading={effectivenessLoading} block>
+                      {language === 'zh' ? '开始评估' : 'Start Analysis'}
+                    </Button>
+                  </Form.Item>
+                </Form>
+              </Card>
+
+              {/* Effectiveness Results */}
+              {effectivenessResult && effectivenessResult.effectiveness && (
+                <Card title={language === 'zh' ? '评估结果' : 'Analysis Results'}>
+                  <Space direction="vertical" size="large" style={{ width: '100%' }}>
+                    {/* Score and Level */}
+                    <Row gutter={16}>
+                      <Col span={8}>
+                        <Card>
+                          <Statistic
+                            title={language === 'zh' ? '效果评分' : 'Effectiveness Score'}
+                            value={effectivenessResult.effectiveness.score || 0}
+                            suffix="/100"
+                            valueStyle={{ color: effectivenessResult.effectiveness.score >= 80 ? '#52c41a' : effectivenessResult.effectiveness.score >= 60 ? '#faad14' : '#ff4d4f' }}
+                          />
+                        </Card>
+                      </Col>
+                      <Col span={8}>
+                        <Card>
+                          <Statistic
+                            title={language === 'zh' ? '效果等级' : 'Effectiveness Level'}
+                            value={
+                              effectivenessResult.effectiveness.level === 'good' ? (language === 'zh' ? '良好' : 'Good') :
+                              effectivenessResult.effectiveness.level === 'fair' ? (language === 'zh' ? '一般' : 'Fair') :
+                              (language === 'zh' ? '较差' : 'Poor')
+                            }
+                            valueStyle={{ color: getEffectivenessColor(effectivenessResult.effectiveness.level) === 'success' ? '#52c41a' : getEffectivenessColor(effectivenessResult.effectiveness.level) === 'warning' ? '#faad14' : '#ff4d4f' }}
+                          />
+                        </Card>
+                      </Col>
+                      <Col span={8}>
+                        <Card>
+                          <Statistic
+                            title={language === 'zh' ? '依从性' : 'Adherence'}
+                            value={effectivenessResult.effectiveness.adherence || 0}
+                            suffix="%"
+                            valueStyle={{ color: '#1890ff' }}
+                          />
+                        </Card>
+                      </Col>
+                    </Row>
+
+                    {/* Trends Analysis */}
+                    {effectivenessResult.effectiveness.trends && (
+                      <Card title={language === 'zh' ? '趋势分析' : 'Trends Analysis'}>
+                        <Descriptions bordered column={3}>
+                          {effectivenessResult.effectiveness.trends.before && (
+                            <>
+                              <Descriptions.Item label={language === 'zh' ? '用药前血糖' : 'Glucose (Before)'}>
+                                {effectivenessResult.effectiveness.trends.before.glucose || '-'} mg/dL
+                              </Descriptions.Item>
+                              <Descriptions.Item label={language === 'zh' ? '用药后血糖' : 'Glucose (After)'}>
+                                {effectivenessResult.effectiveness.trends.after?.glucose || '-'} mg/dL
+                              </Descriptions.Item>
+                              <Descriptions.Item label={language === 'zh' ? '改善' : 'Improvement'}>
+                                {effectivenessResult.effectiveness.trends.improvement?.glucose || 0}%
+                              </Descriptions.Item>
+                            </>
+                          )}
+                        </Descriptions>
+                      </Card>
+                    )}
+
+                    {/* Analysis Text */}
+                    {effectivenessResult.effectiveness.analysis && (
+                      <Card title={language === 'zh' ? '效果分析' : 'Effectiveness Analysis'}>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {effectivenessResult.effectiveness.analysis}
+                        </ReactMarkdown>
+                      </Card>
+                    )}
+
+                    {/* Recommendations */}
+                    {effectivenessResult.effectiveness.recommendations && effectivenessResult.effectiveness.recommendations.length > 0 && (
+                      <Card title={language === 'zh' ? '调整建议' : 'Recommendations'}>
+                        <List
+                          dataSource={effectivenessResult.effectiveness.recommendations}
+                          renderItem={(rec: any) => (
+                            <List.Item>
+                              <List.Item.Meta
+                                avatar={<Avatar icon={<FileTextOutlined />} style={{ backgroundColor: '#1890ff' }} />}
+                                title={rec.type ? (
+                                  <Tag color="blue">
+                                    {rec.type === 'dose' ? (language === 'zh' ? '剂量调整' : 'Dose Adjustment') :
+                                     rec.type === 'timing' ? (language === 'zh' ? '时间调整' : 'Timing Adjustment') :
+                                     rec.type === 'medication' ? (language === 'zh' ? '药物更换' : 'Medication Change') :
+                                     (language === 'zh' ? '生活方式' : 'Lifestyle')}
+                                  </Tag>
+                                ) : null}
+                                description={
+                                  <div>
+                                    <Text strong>{rec.suggestion || rec}</Text>
+                                    {rec.reason && (
+                                      <div style={{ marginTop: '8px' }}>
+                                        <Text type="secondary">{language === 'zh' ? '原因：' : 'Reason: '}{rec.reason}</Text>
+                                      </div>
+                                    )}
+                                  </div>
+                                }
+                              />
+                            </List.Item>
+                          )}
+                        />
+                      </Card>
+                    )}
+                  </Space>
+                </Card>
+              )}
             </Space>
           </TabPane>
 
@@ -488,40 +834,7 @@ const InterventionEnginePage: React.FC = () => {
                   icon={<AppleOutlined />} 
                   block
                   loading={isAnalyzingNutrition}
-                  onClick={async () => {
-                    if (!selectedImage) {
-                      setNutritionError(language === 'zh' ? '请先上传图片' : 'Please upload an image first');
-                      return;
-                    }
-
-                    setIsAnalyzingNutrition(true);
-                    setNutritionError('');
-
-                    try {
-                      // 获取当前健康指标（可以从可穿戴设备或健康记录获取）
-                      const currentMetrics = {
-                        glucose: 120, // 可以从实际数据源获取
-                        bloodPressure: '120/80'
-                      };
-
-                      const response = await interventionEngineAPI.generateNutritionAdvice(
-                        selectedImage,
-                        currentMetrics
-                      );
-
-                      if (response.success) {
-                        setNutritionResult(response);
-                        setNutritionError('');
-                      } else {
-                        setNutritionError(response.error || (language === 'zh' ? '分析失败' : 'Analysis failed'));
-                      }
-                    } catch (err: any) {
-                      console.error('Nutrition analysis error:', err);
-                      setNutritionError(err.message || (language === 'zh' ? '分析出错' : 'Analysis error'));
-                    } finally {
-                      setIsAnalyzingNutrition(false);
-                    }
-                  }}
+                  onClick={handleAnalyzeNutrition}
                 >
                   {isAnalyzingNutrition 
                     ? (language === 'zh' ? '分析中...' : 'Analyzing...')
@@ -552,187 +865,640 @@ const InterventionEnginePage: React.FC = () => {
                         description={
                           <div>
                             <Text strong>{nutritionResult.instantFeedback.message}</Text>
-                            {nutritionResult.instantFeedback.recommendations && (
-                              <ul style={{ marginTop: '8px', marginBottom: 0 }}>
-                                {nutritionResult.instantFeedback.recommendations.map((rec: string, index: number) => (
-                                  <li key={index}>{rec}</li>
-                                ))}
-                              </ul>
+                            {nutritionResult.instantFeedback.recommendations && nutritionResult.instantFeedback.recommendations.length > 0 && (
+                              <List
+                                size="small"
+                                style={{ marginTop: '8px' }}
+                                dataSource={nutritionResult.instantFeedback.recommendations}
+                                renderItem={(rec: any) => (
+                                  <List.Item>
+                                    <Space>
+                                      <CheckCircleOutlined style={{ color: '#52c41a' }} />
+                                      <Text>{typeof rec === 'string' ? rec : rec.action}</Text>
+                                      {typeof rec === 'object' && rec.reason && (
+                                        <Text type="secondary">({rec.reason})</Text>
+                                      )}
+                                    </Space>
+                                  </List.Item>
+                                )}
+                              />
                             )}
                           </div>
                         }
-                        type={nutritionResult.instantFeedback.riskLevel === 'high' ? 'error' : 
-                              nutritionResult.instantFeedback.riskLevel === 'medium' ? 'warning' : 'success'}
+                        type={nutritionResult.instantFeedback.status === 'warning' ? 'warning' : 
+                              nutritionResult.instantFeedback.status === 'caution' ? 'warning' : 'success'}
                         showIcon
                       />
                     )}
 
-                    {/* Nutrition Analysis */}
+                    {/* Nutrition Details */}
                     {nutritionResult.nutrition && (
-                      <div>
-                        <Title level={4}>{language === 'zh' ? '营养成分分析' : 'Nutrition Analysis'}</Title>
-                        {nutritionResult.nutrition.analysis && (
-                          <div style={{ 
-                            padding: '16px', 
-                            background: '#f5f5f5', 
-                            borderRadius: '8px',
-                            marginTop: '8px'
-                          }}>
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                              {nutritionResult.nutrition.analysis}
-                            </ReactMarkdown>
-                          </div>
+                      <>
+                        {/* Foods List */}
+                        {nutritionResult.nutrition.foods && nutritionResult.nutrition.foods.length > 0 && (
+                          <Card title={language === 'zh' ? '识别的食物' : 'Recognized Foods'} size="small">
+                            <List
+                              dataSource={nutritionResult.nutrition.foods}
+                              renderItem={(food: any) => (
+                                <List.Item>
+                                  <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                                    <Text strong>{food.name}</Text>
+                                    <Text type="secondary">{food.quantity}</Text>
+                                  </Space>
+                                </List.Item>
+                              )}
+                            />
+                          </Card>
                         )}
-                      </div>
+
+                        {/* Total Nutrition */}
+                        {nutritionResult.nutrition.total && (
+                          <Card title={language === 'zh' ? '总营养成分' : 'Total Nutrition'}>
+                            <Row gutter={16}>
+                              <Col span={6}>
+                                <Statistic
+                                  title={language === 'zh' ? '卡路里' : 'Calories'}
+                                  value={nutritionResult.nutrition.total.calories || 0}
+                                  suffix="kcal"
+                                />
+                              </Col>
+                              <Col span={6}>
+                                <Statistic
+                                  title={language === 'zh' ? '碳水' : 'Carbs'}
+                                  value={nutritionResult.nutrition.total.carbs || 0}
+                                  suffix="g"
+                                />
+                              </Col>
+                              <Col span={6}>
+                                <Statistic
+                                  title={language === 'zh' ? '蛋白质' : 'Protein'}
+                                  value={nutritionResult.nutrition.total.protein || 0}
+                                  suffix="g"
+                                />
+                              </Col>
+                              <Col span={6}>
+                                <Statistic
+                                  title={language === 'zh' ? '脂肪' : 'Fat'}
+                                  value={nutritionResult.nutrition.total.fat || 0}
+                                  suffix="g"
+                                />
+                              </Col>
+                            </Row>
+                          </Card>
+                        )}
+
+                        {/* Blood Sugar Impact */}
+                        {nutritionResult.nutrition.bloodSugarImpact && (
+                          <Card title={language === 'zh' ? '血糖影响评估' : 'Blood Sugar Impact'}>
+                            <Space direction="vertical" style={{ width: '100%' }}>
+                              <Tag color={
+                                nutritionResult.nutrition.bloodSugarImpact.level === 'high' ? 'red' :
+                                nutritionResult.nutrition.bloodSugarImpact.level === 'medium' ? 'orange' : 'green'
+                              }>
+                                {language === 'zh' ? '影响等级：' : 'Impact Level: '}
+                                {nutritionResult.nutrition.bloodSugarImpact.level === 'high' ? (language === 'zh' ? '高' : 'High') :
+                                 nutritionResult.nutrition.bloodSugarImpact.level === 'medium' ? (language === 'zh' ? '中' : 'Medium') :
+                                 (language === 'zh' ? '低' : 'Low')}
+                              </Tag>
+                              {nutritionResult.nutrition.bloodSugarImpact.estimatedGlucose && (
+                                <Text>
+                                  {language === 'zh' ? '预估血糖：' : 'Estimated Glucose: '}
+                                  <Text strong>{nutritionResult.nutrition.bloodSugarImpact.estimatedGlucose} mg/dL</Text>
+                                </Text>
+                              )}
+                              {nutritionResult.nutrition.bloodSugarImpact.timeToPeak && (
+                                <Text>
+                                  {language === 'zh' ? '峰值时间：' : 'Time to Peak: '}
+                                  <Text strong>{nutritionResult.nutrition.bloodSugarImpact.timeToPeak}</Text>
+                                </Text>
+                              )}
+                              {nutritionResult.nutrition.bloodSugarImpact.recommendation && (
+                                <Text>
+                                  {nutritionResult.nutrition.bloodSugarImpact.recommendation}
+                                </Text>
+                              )}
+                            </Space>
+                          </Card>
+                        )}
+                      </>
                     )}
 
-                    {/* Recommendations */}
-                    {nutritionResult.recommendations && nutritionResult.recommendations.length > 0 && (
-                      <div>
-                        <Title level={4}>{language === 'zh' ? '建议' : 'Recommendations'}</Title>
-                        <List
-                          dataSource={nutritionResult.recommendations}
-                          renderItem={(item: string) => (
-                            <List.Item>
-                              <CheckCircleOutlined style={{ color: '#52c41a', marginRight: '8px' }} />
-                              {item}
-                            </List.Item>
-                          )}
-                        />
-                      </div>
+                    {/* AI Analysis */}
+                    {nutritionResult.aiAnalysis && (
+                      <Card title={language === 'zh' ? 'AI分析' : 'AI Analysis'}>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {nutritionResult.aiAnalysis}
+                        </ReactMarkdown>
+                      </Card>
                     )}
                   </Space>
                 </Card>
               )}
-
-              {/* Historical Nutrition Advice */}
-              <List
-                itemLayout="vertical"
-                dataSource={nutritionAdvice}
-                renderItem={(item) => (
-                  <List.Item>
-                    <List.Item.Meta
-                      avatar={
-                        <Avatar 
-                          icon={<AppleOutlined />} 
-                          style={{ backgroundColor: getStatusColor(item.status) === 'success' ? '#52c41a' : 
-                                   getStatusColor(item.status) === 'warning' ? '#faad14' : '#ff4d4f' }}
-                        />
-                      }
-                      title={
-                        <Space>
-                          <Text strong>{item.meal}</Text>
-                          <Tag color={getStatusColor(item.status)}>
-                            {item.status === 'followed' ? (language === 'zh' ? '已遵循' : 'Followed') :
-                             item.status === 'partial' ? (language === 'zh' ? '部分遵循' : 'Partial') :
-                             (language === 'zh' ? '未遵循' : 'Ignored')}
-                          </Tag>
-                          <Text type="secondary">{item.timestamp}</Text>
-                        </Space>
-                      }
-                      description={
-                        <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                          <Row gutter={16}>
-                            <Col span={6}>
-                              <Text type="secondary">{language === 'zh' ? '碳水' : 'Carbs'}: </Text>
-                              <Text strong>{item.carbs}g</Text>
-                            </Col>
-                            <Col span={6}>
-                              <Text type="secondary">{language === 'zh' ? '蛋白质' : 'Protein'}: </Text>
-                              <Text strong>{item.protein}g</Text>
-                            </Col>
-                            <Col span={6}>
-                              <Text type="secondary">{language === 'zh' ? '脂肪' : 'Fat'}: </Text>
-                              <Text strong>{item.fat}g</Text>
-                            </Col>
-                            <Col span={6}>
-                              <Text type="secondary">{language === 'zh' ? '卡路里' : 'Calories'}: </Text>
-                              <Text strong>{item.calories}kcal</Text>
-                            </Col>
-                          </Row>
-                          <Alert
-                            message={item.recommendation}
-                            type={item.status === 'followed' ? 'success' : item.status === 'partial' ? 'warning' : 'info'}
-                            showIcon
-                            style={{ marginTop: '8px' }}
-                          />
-                        </Space>
-                      }
-                    />
-                  </List.Item>
-                )}
-              />
             </Space>
           </TabPane>
 
-          {/* 个性化健康计划 */}
+          {/* 个性化运动计划 */}
           <TabPane 
             tab={
               <span>
-                <FlagOutlined />
-                {language === 'zh' ? '个性化健康计划' : 'Personalized Health Plans'}
+                <FireOutlined />
+                {language === 'zh' ? '个性化运动计划' : 'Personalized Exercise Plan'}
               </span>
             } 
-            key="plans"
+            key="exercise"
           >
             <Space direction="vertical" size="large" style={{ width: '100%' }}>
               <Alert
-                message={language === 'zh' ? '健康计划说明' : 'Health Plans'}
+                message={language === 'zh' ? '运动计划说明' : 'Exercise Plan'}
                 description={
                   language === 'zh' 
-                    ? '基于强化学习模型，根据用户反馈和效果动态调整健康计划，支持多目标优化（血糖控制、体重管理、心血管健康）。'
-                    : 'Based on reinforcement learning models, dynamically adjust health plans based on user feedback and effectiveness, supporting multi-objective optimization (blood glucose control, weight management, cardiovascular health).'}
+                    ? '基于用户健康状态和历史数据，使用AI生成个性化的运动计划，考虑多个健康目标（血糖控制、体重管理、心血管健康等）。'
+                    : 'Based on user health status and historical data, use AI to generate personalized exercise plans, considering multiple health goals (blood glucose control, weight management, cardiovascular health, etc.).'}
                 type="info"
                 showIcon
                 style={{ marginBottom: '16px' }}
               />
 
-              <Row gutter={[16, 16]}>
-                {healthPlans.map((plan) => (
-                  <Col xs={24} sm={12} key={plan.id}>
-                    <Card
-                      title={
-                        <Space>
-                          <Badge status={plan.status === 'active' ? 'processing' : plan.status === 'completed' ? 'success' : 'default'} />
-                          <Text strong>{plan.title}</Text>
-                        </Space>
-                      }
-                      extra={
-                        <Tag color={plan.status === 'active' ? 'blue' : plan.status === 'completed' ? 'green' : 'default'}>
-                          {plan.status === 'active' ? (language === 'zh' ? '进行中' : 'Active') :
-                           plan.status === 'completed' ? (language === 'zh' ? '已完成' : 'Completed') :
-                           (language === 'zh' ? '已暂停' : 'Paused')}
-                        </Tag>
-                      }
+              {!exercisePlan ? (
+                <Card title={language === 'zh' ? '健康状态（可选）' : 'Health State (Optional)'}>
+                  <Form
+                    form={exerciseForm}
+                    layout="vertical"
+                    onFinish={handleGenerateExercisePlan}
+                  >
+                    <Form.Item
+                      name="currentFitness"
+                      label={language === 'zh' ? '当前体能水平' : 'Current Fitness Level'}
                     >
-                      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-                        <Paragraph>{plan.description}</Paragraph>
-                        <div>
-                          <Text type="secondary">{language === 'zh' ? '目标' : 'Target'}: </Text>
-                          <Text strong>{plan.target}</Text>
-                        </div>
-                        <Progress 
-                          percent={plan.progress} 
-                          status={plan.progress >= 80 ? 'success' : plan.progress >= 50 ? 'active' : 'exception'}
-                        />
-                        <div>
-                          <Text type="secondary" style={{ fontSize: '12px' }}>
-                            {language === 'zh' ? '开始日期' : 'Start'}: {plan.startDate} | 
-                            {language === 'zh' ? ' 结束日期' : ' End'}: {plan.endDate}
-                          </Text>
-                        </div>
-                        <Button type="primary" block>
-                          {language === 'zh' ? '查看详情' : 'View Details'}
-                        </Button>
-                      </Space>
-                    </Card>
-                  </Col>
-                ))}
-              </Row>
+                      <Radio.Group>
+                        <Radio value="low">{language === 'zh' ? '低' : 'Low'}</Radio>
+                        <Radio value="medium">{language === 'zh' ? '中' : 'Medium'}</Radio>
+                        <Radio value="high">{language === 'zh' ? '高' : 'High'}</Radio>
+                      </Radio.Group>
+                    </Form.Item>
 
-              <Button type="dashed" size="large" icon={<PlusOutlined />} block>
-                {language === 'zh' ? '创建新计划' : 'Create New Plan'}
-              </Button>
+                    <Form.Item
+                      name="goals"
+                      label={language === 'zh' ? '运动目标' : 'Exercise Goals'}
+                    >
+                      <Checkbox.Group>
+                        <Checkbox value="weight_loss">{language === 'zh' ? '减重' : 'Weight Loss'}</Checkbox>
+                        <Checkbox value="blood_sugar_control">{language === 'zh' ? '血糖控制' : 'Blood Sugar Control'}</Checkbox>
+                        <Checkbox value="cardiovascular_health">{language === 'zh' ? '心血管健康' : 'Cardiovascular Health'}</Checkbox>
+                        <Checkbox value="muscle_strength">{language === 'zh' ? '肌肉力量' : 'Muscle Strength'}</Checkbox>
+                      </Checkbox.Group>
+                    </Form.Item>
+
+                    <Form.Item
+                      name="preferences"
+                      label={language === 'zh' ? '运动偏好' : 'Exercise Preferences'}
+                    >
+                      <Checkbox.Group>
+                        <Checkbox value="walking">{language === 'zh' ? '快走' : 'Walking'}</Checkbox>
+                        <Checkbox value="running">{language === 'zh' ? '跑步' : 'Running'}</Checkbox>
+                        <Checkbox value="swimming">{language === 'zh' ? '游泳' : 'Swimming'}</Checkbox>
+                        <Checkbox value="cycling">{language === 'zh' ? '骑行' : 'Cycling'}</Checkbox>
+                        <Checkbox value="yoga">{language === 'zh' ? '瑜伽' : 'Yoga'}</Checkbox>
+                      </Checkbox.Group>
+                    </Form.Item>
+
+                    <Form.Item
+                      name="availableTime"
+                      label={language === 'zh' ? '每周可用时间（小时）' : 'Available Time per Week (hours)'}
+                    >
+                      <Input type="number" min={0} max={40} />
+                    </Form.Item>
+
+                    <Form.Item>
+                      <Button type="primary" htmlType="submit" loading={exerciseLoading} block>
+                        {language === 'zh' ? '生成运动计划' : 'Generate Exercise Plan'}
+                      </Button>
+                    </Form.Item>
+                  </Form>
+                </Card>
+              ) : (
+                <Card 
+                  title={language === 'zh' ? '运动计划' : 'Exercise Plan'}
+                  extra={
+                    <Button 
+                      icon={<ReloadOutlined />} 
+                      onClick={() => {
+                        setExercisePlan(null);
+                        exerciseForm.resetFields();
+                      }}
+                    >
+                      {language === 'zh' ? '重新生成' : 'Regenerate'}
+                    </Button>
+                  }
+                >
+                  <Space direction="vertical" size="large" style={{ width: '100%' }}>
+                    {/* Exercise Types */}
+                    {exercisePlan.exerciseTypes && exercisePlan.exerciseTypes.length > 0 && (
+                      <Card title={language === 'zh' ? '推荐的运动类型' : 'Recommended Exercise Types'} size="small">
+                        <List
+                          dataSource={exercisePlan.exerciseTypes}
+                          renderItem={(exercise: any) => (
+                            <List.Item>
+                              <List.Item.Meta
+                                avatar={<Avatar icon={<FireOutlined />} style={{ backgroundColor: '#ff4d4f' }} />}
+                                title={<Text strong>{exercise.type || exercise}</Text>}
+                                description={
+                                  <div>
+                                    {exercise.description && <Text>{exercise.description}</Text>}
+                                    {exercise.benefits && exercise.benefits.length > 0 && (
+                                      <div style={{ marginTop: '8px' }}>
+                                        <Text type="secondary">{language === 'zh' ? '益处：' : 'Benefits: '}</Text>
+                                        {exercise.benefits.map((benefit: string, idx: number) => (
+                                          <Tag key={idx} color="blue" style={{ marginTop: '4px' }}>{benefit}</Tag>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                }
+                              />
+                            </List.Item>
+                          )}
+                        />
+                      </Card>
+                    )}
+
+                    {/* Weekly Plan */}
+                    {exercisePlan.weeklyPlan && exercisePlan.weeklyPlan.length > 0 && (
+                      <Card title={language === 'zh' ? '每周运动计划' : 'Weekly Exercise Plan'}>
+                        <List
+                          dataSource={exercisePlan.weeklyPlan}
+                          renderItem={(day: any) => (
+                            <List.Item>
+                              <List.Item.Meta
+                                title={<Text strong>{day.day}</Text>}
+                                description={
+                                  <div>
+                                    {day.exercises && day.exercises.map((ex: any, idx: number) => (
+                                      <div key={idx} style={{ marginTop: idx > 0 ? '8px' : 0 }}>
+                                        <Space>
+                                          <Text strong>{ex.type}</Text>
+                                          <Text type="secondary">{ex.duration} {language === 'zh' ? '分钟' : 'min'}</Text>
+                                          <Tag color="orange">{ex.intensity}</Tag>
+                                          {ex.time && <Text type="secondary">{ex.time}</Text>}
+                                        </Space>
+                                        {ex.notes && (
+                                          <div style={{ marginTop: '4px' }}>
+                                            <Text type="secondary" style={{ fontSize: '12px' }}>{ex.notes}</Text>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                    {day.totalDuration && (
+                                      <div style={{ marginTop: '8px' }}>
+                                        <Text type="secondary">
+                                          {language === 'zh' ? '总时长：' : 'Total Duration: '}
+                                          <Text strong>{day.totalDuration} {language === 'zh' ? '分钟' : 'min'}</Text>
+                                        </Text>
+                                      </div>
+                                    )}
+                                  </div>
+                                }
+                              />
+                            </List.Item>
+                          )}
+                        />
+                      </Card>
+                    )}
+
+                    {/* Plan Summary */}
+                    <Row gutter={16}>
+                      <Col span={8}>
+                        <Card>
+                          <Statistic
+                            title={language === 'zh' ? '运动强度' : 'Intensity'}
+                            value={exercisePlan.intensity || 'medium'}
+                            valueStyle={{ textTransform: 'capitalize' }}
+                          />
+                        </Card>
+                      </Col>
+                      <Col span={8}>
+                        <Card>
+                          <Statistic
+                            title={language === 'zh' ? '每次时长' : 'Duration per Session'}
+                            value={exercisePlan.duration || 0}
+                            suffix={language === 'zh' ? '分钟' : 'min'}
+                          />
+                        </Card>
+                      </Col>
+                      <Col span={8}>
+                        <Card>
+                          <Statistic
+                            title={language === 'zh' ? '每周次数' : 'Frequency'}
+                            value={exercisePlan.frequency || 0}
+                            suffix={language === 'zh' ? '次/周' : '/week'}
+                          />
+                        </Card>
+                      </Col>
+                    </Row>
+
+                    {/* Progression */}
+                    {exercisePlan.progression && Object.keys(exercisePlan.progression).length > 0 && (
+                      <Card title={language === 'zh' ? '进阶计划' : 'Progression Plan'}>
+                        <Descriptions bordered column={1}>
+                          {Object.entries(exercisePlan.progression).map(([period, plan]: [string, any]) => (
+                            <Descriptions.Item key={period} label={period}>
+                              <Space>
+                                <Text>{language === 'zh' ? '强度：' : 'Intensity: '}{plan.intensity}</Text>
+                                <Text>{language === 'zh' ? '时长：' : 'Duration: '}{plan.duration} {language === 'zh' ? '分钟' : 'min'}</Text>
+                                <Text>{language === 'zh' ? '频率：' : 'Frequency: '}{plan.frequency} {language === 'zh' ? '次/周' : '/week'}</Text>
+                              </Space>
+                            </Descriptions.Item>
+                          ))}
+                        </Descriptions>
+                      </Card>
+                    )}
+
+                    {/* Precautions */}
+                    {exercisePlan.precautions && exercisePlan.precautions.length > 0 && (
+                      <Card title={language === 'zh' ? '注意事项' : 'Precautions'}>
+                        <List
+                          dataSource={exercisePlan.precautions}
+                          renderItem={(precaution: any) => (
+                            <List.Item>
+                              <Alert
+                                message={precaution.condition || precaution}
+                                description={
+                                  typeof precaution === 'object' ? (
+                                    <div>
+                                      {precaution.warning && <Text type="danger">{precaution.warning}</Text>}
+                                      {precaution.recommendation && (
+                                        <div style={{ marginTop: '8px' }}>
+                                          <Text>{precaution.recommendation}</Text>
+                                        </div>
+                                      )}
+                                    </div>
+                                  ) : null
+                                }
+                                type="warning"
+                                showIcon
+                              />
+                            </List.Item>
+                          )}
+                        />
+                      </Card>
+                    )}
+
+                    {/* Target Goals */}
+                    {exercisePlan.targetGoals && Object.keys(exercisePlan.targetGoals).length > 0 && (
+                      <Card title={language === 'zh' ? '目标设定' : 'Target Goals'}>
+                        <List
+                          dataSource={Object.entries(exercisePlan.targetGoals)}
+                          renderItem={([goal, details]: [string, any]) => (
+                            <List.Item>
+                              <List.Item.Meta
+                                title={
+                                  <Text strong>
+                                    {goal === 'bloodSugarControl' ? (language === 'zh' ? '血糖控制' : 'Blood Sugar Control') :
+                                     goal === 'weightManagement' ? (language === 'zh' ? '体重管理' : 'Weight Management') :
+                                     goal === 'cardiovascularHealth' ? (language === 'zh' ? '心血管健康' : 'Cardiovascular Health') :
+                                     goal}
+                                  </Text>
+                                }
+                                description={
+                                  <div>
+                                    {details.target && (
+                                      <Text>{language === 'zh' ? '目标：' : 'Target: '}{details.target}</Text>
+                                    )}
+                                    {details.expectedImprovement && (
+                                      <div style={{ marginTop: '4px' }}>
+                                        <Text type="secondary">{language === 'zh' ? '预期改善：' : 'Expected Improvement: '}{details.expectedImprovement}</Text>
+                                      </div>
+                                    )}
+                                  </div>
+                                }
+                              />
+                            </List.Item>
+                          )}
+                        />
+                      </Card>
+                    )}
+                  </Space>
+                </Card>
+              )}
+            </Space>
+          </TabPane>
+
+          {/* 动态调整干预方案 */}
+          <TabPane 
+            tab={
+              <span>
+                <SettingOutlined />
+                {language === 'zh' ? '动态调整干预方案' : 'Dynamic Intervention Adjustment'}
+              </span>
+            } 
+            key="adjustment"
+          >
+            <Space direction="vertical" size="large" style={{ width: '100%' }}>
+              <Alert
+                message={language === 'zh' ? '干预调整说明' : 'Intervention Adjustment'}
+                description={
+                  language === 'zh' 
+                    ? '根据用户反馈和干预效果，使用AI动态调整干预方案（用药、营养、运动），优化干预策略。'
+                    : 'Based on user feedback and intervention effectiveness, use AI to dynamically adjust intervention plans (medication, nutrition, exercise) and optimize intervention strategies.'}
+                type="info"
+                showIcon
+                style={{ marginBottom: '16px' }}
+              />
+
+              {!adjustmentResult ? (
+                <Card title={language === 'zh' ? '反馈信息' : 'Feedback Information'}>
+                  <Form
+                    form={adjustmentForm}
+                    layout="vertical"
+                    onFinish={handleAdjustIntervention}
+                  >
+                    <Form.Item
+                      name="type"
+                      label={language === 'zh' ? '反馈类型' : 'Feedback Type'}
+                      rules={[{ required: true, message: language === 'zh' ? '请选择反馈类型' : 'Please select feedback type' }]}
+                    >
+                      <Radio.Group>
+                        <Radio value="medication">{language === 'zh' ? '用药' : 'Medication'}</Radio>
+                        <Radio value="nutrition">{language === 'zh' ? '营养' : 'Nutrition'}</Radio>
+                        <Radio value="exercise">{language === 'zh' ? '运动' : 'Exercise'}</Radio>
+                        <Radio value="overall">{language === 'zh' ? '整体' : 'Overall'}</Radio>
+                      </Radio.Group>
+                    </Form.Item>
+
+                    <Form.Item
+                      name="effectiveness"
+                      label={language === 'zh' ? '效果评价' : 'Effectiveness'}
+                      rules={[{ required: true, message: language === 'zh' ? '请选择效果评价' : 'Please select effectiveness' }]}
+                    >
+                      <Radio.Group>
+                        <Radio value="good">{language === 'zh' ? '良好' : 'Good'}</Radio>
+                        <Radio value="fair">{language === 'zh' ? '一般' : 'Fair'}</Radio>
+                        <Radio value="poor">{language === 'zh' ? '较差' : 'Poor'}</Radio>
+                      </Radio.Group>
+                    </Form.Item>
+
+                    <Form.Item
+                      name="content"
+                      label={language === 'zh' ? '反馈内容' : 'Feedback Content'}
+                      rules={[{ required: true, message: language === 'zh' ? '请输入反馈内容' : 'Please enter feedback content' }]}
+                    >
+                      <TextArea rows={4} placeholder={language === 'zh' ? '请描述您的反馈...' : 'Please describe your feedback...'} />
+                    </Form.Item>
+
+                    <Form.Item
+                      name="issues"
+                      label={language === 'zh' ? '遇到的问题' : 'Issues Encountered'}
+                    >
+                      <Checkbox.Group>
+                        <Checkbox value="side_effects">{language === 'zh' ? '副作用' : 'Side Effects'}</Checkbox>
+                        <Checkbox value="difficulty_following">{language === 'zh' ? '难以遵循' : 'Difficulty Following'}</Checkbox>
+                        <Checkbox value="no_improvement">{language === 'zh' ? '没有改善' : 'No Improvement'}</Checkbox>
+                        <Checkbox value="too_strict">{language === 'zh' ? '过于严格' : 'Too Strict'}</Checkbox>
+                      </Checkbox.Group>
+                    </Form.Item>
+
+                    <Form.Item
+                      name="suggestions"
+                      label={language === 'zh' ? '您的建议' : 'Your Suggestions'}
+                    >
+                      <TextArea rows={3} placeholder={language === 'zh' ? '每行一个建议...' : 'One suggestion per line...'} />
+                    </Form.Item>
+
+                    <Divider>{language === 'zh' ? '相关指标变化（可选）' : 'Related Metrics Changes (Optional)'}</Divider>
+
+                    <Row gutter={16}>
+                      <Col span={8}>
+                        <Form.Item
+                          name="glucose"
+                          label={language === 'zh' ? '血糖 (mg/dL)' : 'Glucose (mg/dL)'}
+                        >
+                          <Input type="number" />
+                        </Form.Item>
+                      </Col>
+                      <Col span={8}>
+                        <Form.Item
+                          name="bloodPressure"
+                          label={language === 'zh' ? '血压 (mmHg)' : 'Blood Pressure (mmHg)'}
+                        >
+                          <Input placeholder="120/80" />
+                        </Form.Item>
+                      </Col>
+                      <Col span={8}>
+                        <Form.Item
+                          name="weight"
+                          label={language === 'zh' ? '体重 (kg)' : 'Weight (kg)'}
+                        >
+                          <Input type="number" />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+
+                    <Form.Item>
+                      <Button type="primary" htmlType="submit" loading={adjustmentLoading} block>
+                        {language === 'zh' ? '提交反馈并调整' : 'Submit Feedback and Adjust'}
+                      </Button>
+                    </Form.Item>
+                  </Form>
+                </Card>
+              ) : (
+                <Card 
+                  title={language === 'zh' ? '调整结果' : 'Adjustment Results'}
+                  extra={
+                    <Button 
+                      icon={<ReloadOutlined />} 
+                      onClick={() => {
+                        setAdjustmentResult(null);
+                        adjustmentForm.resetFields();
+                      }}
+                    >
+                      {language === 'zh' ? '重新调整' : 'Readjust'}
+                    </Button>
+                  }
+                >
+                  <Space direction="vertical" size="large" style={{ width: '100%' }}>
+                    {/* Adjustment Summary */}
+                    {adjustmentResult.adjustments && (
+                      <>
+                        {adjustmentResult.adjustments.summary && (
+                          <Alert
+                            message={language === 'zh' ? '调整摘要' : 'Adjustment Summary'}
+                            description={adjustmentResult.adjustments.summary}
+                            type="info"
+                            showIcon
+                          />
+                        )}
+
+                        {/* Changes */}
+                        {adjustmentResult.adjustments.changes && adjustmentResult.adjustments.changes.length > 0 && (
+                          <Card title={language === 'zh' ? '具体变化' : 'Specific Changes'} size="small">
+                            <List
+                              dataSource={adjustmentResult.adjustments.changes}
+                              renderItem={(change: any) => (
+                                <List.Item>
+                                  <List.Item.Meta
+                                    avatar={<Avatar icon={<SettingOutlined />} style={{ backgroundColor: '#1890ff' }} />}
+                                    title={
+                                      <Tag color="blue">
+                                        {change.category === 'medication' ? (language === 'zh' ? '用药' : 'Medication') :
+                                         change.category === 'nutrition' ? (language === 'zh' ? '营养' : 'Nutrition') :
+                                         change.category === 'exercise' ? (language === 'zh' ? '运动' : 'Exercise') :
+                                         change.category}
+                                      </Tag>
+                                    }
+                                    description={
+                                      <div>
+                                        <Text strong>{change.change}</Text>
+                                        {change.reason && (
+                                          <div style={{ marginTop: '4px' }}>
+                                            <Text type="secondary">{language === 'zh' ? '原因：' : 'Reason: '}{change.reason}</Text>
+                                          </div>
+                                        )}
+                                      </div>
+                                    }
+                                  />
+                                </List.Item>
+                              )}
+                            />
+                          </Card>
+                        )}
+
+                        {/* Expected Outcomes */}
+                        {adjustmentResult.adjustments.expectedOutcomes && (
+                          <Card title={language === 'zh' ? '预期效果' : 'Expected Outcomes'}>
+                            <Space direction="vertical" style={{ width: '100%' }}>
+                              {adjustmentResult.adjustments.expectedOutcomes.shortTerm && (
+                                <Alert
+                                  message={language === 'zh' ? '短期预期' : 'Short-term Expected'}
+                                  description={adjustmentResult.adjustments.expectedOutcomes.shortTerm}
+                                  type="success"
+                                  showIcon
+                                />
+                              )}
+                              {adjustmentResult.adjustments.expectedOutcomes.longTerm && (
+                                <Alert
+                                  message={language === 'zh' ? '长期预期' : 'Long-term Expected'}
+                                  description={adjustmentResult.adjustments.expectedOutcomes.longTerm}
+                                  type="info"
+                                  showIcon
+                                />
+                              )}
+                            </Space>
+                          </Card>
+                        )}
+                      </>
+                    )}
+
+                    {/* Updated Intervention */}
+                    {adjustmentResult.intervention && (
+                      <Card title={language === 'zh' ? '更新后的干预方案' : 'Updated Intervention Plan'}>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {JSON.stringify(adjustmentResult.intervention, null, 2)}
+                        </ReactMarkdown>
+                      </Card>
+                    )}
+                  </Space>
+                </Card>
+              )}
             </Space>
           </TabPane>
         </Tabs>

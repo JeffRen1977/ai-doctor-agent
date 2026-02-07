@@ -237,6 +237,24 @@ export const interventionEngineAPI = {
     return response.data;
   },
 
+  // Add or update medication
+  addOrUpdateMedication: async (medication: any) => {
+    const response = await api.post('/intervention/medication/add', { medication });
+    return response.data;
+  },
+
+  // Record medication history
+  recordMedicationHistory: async (medicationId: string, date: string, time: string, status: 'taken' | 'missed', notes?: string) => {
+    const response = await api.post('/intervention/medication/record', {
+      medicationId,
+      date,
+      time,
+      status,
+      notes
+    });
+    return response.data;
+  },
+
   // Analyze medication effectiveness
   analyzeMedicationEffectiveness: async (medication: string, timeframe: string) => {
     const response = await api.post('/intervention/medication/effectiveness', {
@@ -263,14 +281,20 @@ export const interventionEngineAPI = {
   },
 
   // Generate exercise plan
-  generateExercisePlan: async (healthState: any) => {
-    const response = await api.post('/intervention/exercise', { healthState });
+  generateExercisePlan: async (healthState?: any) => {
+    const response = await api.post('/intervention/exercise', { healthState: healthState || {} });
     return response.data;
   },
 
   // Adjust intervention
   adjustIntervention: async (feedback: any) => {
     const response = await api.post('/intervention/adjust', { feedback });
+    return response.data;
+  },
+
+  // Initialize intervention structure
+  initIntervention: async () => {
+    const response = await api.post('/intervention/init');
     return response.data;
   }
 };
