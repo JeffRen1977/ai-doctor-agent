@@ -5,21 +5,19 @@ import {
   MessageOutlined, 
   PhoneOutlined,
   HomeOutlined,
-  AppleOutlined,
+  ThunderboltOutlined,
   MobileOutlined
 } from '@ant-design/icons'
-import { Routes, Route, useLocation, useNavigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import MobileMenu from './MobileMenu'
 import MobileInstallPrompt from './MobileInstallPrompt'
 import DashboardPage from '../pages/DashboardPage'
-import ChatPage from '../pages/ChatPage'
 import HealthRecordsPage from '../pages/HealthRecordsPage'
 import ProfilePage from '../pages/ProfilePage'
 import AppointmentPage from '../pages/AppointmentPage'
 import DeviceSyncPage from '../pages/DeviceSyncPage'
 import HealthAnalyticsPage from '../pages/HealthAnalyticsPage'
 import EmergencyPage from '../pages/EmergencyPage'
-import DietAnalysisPage from '../pages/DietAnalysisPage'
 import InterventionEnginePage from '../pages/InterventionEnginePage'
 import ClinicalReportsPage from '../pages/ClinicalReportsPage'
 import DigitalTwinPage from '../pages/DigitalTwinPage'
@@ -113,7 +111,7 @@ const MobileApp: React.FC = () => {
             {location.pathname === '/analytics' && t('sidebar.menu.healthAnalytics')}
             {location.pathname === '/appointments' && t('sidebar.menu.appointments')}
             {location.pathname === '/devices' && t('sidebar.menu.deviceSync')}
-            {location.pathname === '/diet-analysis' && t('sidebar.menu.dietAnalysis')}
+            {location.pathname === '/intervention' && t('sidebar.menu.interventionEngine')}
             {location.pathname === '/emergency' && t('sidebar.menu.emergency')}
             {location.pathname === '/profile' && t('sidebar.menu.profile')}
           </h1>
@@ -133,14 +131,14 @@ const MobileApp: React.FC = () => {
         <Routes>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/chat" element={<ChatPage />} />
+          <Route path="/chat" element={<Navigate to="/rehabilitation" replace />} />
           <Route path="/health-records" element={<HealthRecordsPage />} />
           <Route path="/analytics" element={<HealthAnalyticsPage />} />
           <Route path="/digital-twin" element={<DigitalTwinPage />} />
           <Route path="/appointments" element={<AppointmentPage />} />
           <Route path="/devices" element={<DeviceSyncPage />} />
           <Route path="/emergency" element={<EmergencyPage />} />
-          <Route path="/diet-analysis" element={<DietAnalysisPage />} />
+          <Route path="/diet-analysis" element={<Navigate to="/intervention" replace />} />
           <Route path="/intervention" element={<InterventionEnginePage />} />
           <Route path="/clinical-reports" element={<ClinicalReportsPage />} />
           <Route path="/rehabilitation" element={<RehabilitationAssistantPage />} />
@@ -169,11 +167,11 @@ const MobileApp: React.FC = () => {
         </Button>
         <Button
           type="text"
-          icon={<AppleOutlined />}
-          className={`nav-button ${location.pathname === '/diet-analysis' ? 'active' : ''}`}
-          onClick={() => navigate('/diet-analysis')}
+          icon={<ThunderboltOutlined />}
+          className={`nav-button ${location.pathname === '/intervention' ? 'active' : ''}`}
+          onClick={() => navigate('/intervention')}
         >
-          {t('sidebar.menu.dietAnalysis')}
+          {t('sidebar.menu.interventionEngine')}
         </Button>
         <Button
           type="text"

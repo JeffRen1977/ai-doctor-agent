@@ -43,7 +43,7 @@ interface DietAnalysis {
   userEmail?: string;
   analysisTimestamp?: string;
   
-  // Legacy structure (for backward compatibility)
+  // Additional nutrition fields (if available from AI analysis)
   totalCalories?: number;
   totalCarbs?: number;
   totalProtein?: number;
@@ -229,7 +229,7 @@ const DietAnalysisPage: React.FC = () => {
           userEmail: analysisData.userEmail,
           analysisTimestamp: analysisData.analysisTimestamp || new Date().toISOString(),
           
-          // Legacy fields (if available)
+          // Additional nutrition fields (if available from AI analysis)
           totalCalories: analysisData.totalCalories,
           totalCarbs: analysisData.totalCarbs,
           totalProtein: analysisData.totalProtein,
@@ -458,7 +458,7 @@ const DietAnalysisPage: React.FC = () => {
               </div>
             )}
             
-            {/* Legacy Nutrition Summary - Only show if data exists */}
+            {/* Nutrition Summary - Only show if data exists */}
             {analysisResult.totalCalories && (
               <div className="nutrition-summary">
                 <h4>📊 营养分析</h4>

@@ -23,7 +23,7 @@ const ANALYSIS_TYPES = [
   'document-analysis',           // 文档分析
   'health-assessment',           // 健康评估
   'risk-prediction',             // 风险预测
-  'treatment-recommendation',     // 治疗建议
+  'treatment-recommendation',    // 治疗建议
   'nutrition-analysis',          // 营养分析
   'exercise-plan',               // 运动计划
   'medication-review',           // 用药审查

@@ -455,22 +455,23 @@ router.delete('/documents/:documentId', authenticateToken, async (req, res) => {
 
 // ========== AI分析 ==========
 
-// POST /analyze - 触发AI分析
+// POST /analyze - 触发AI分析（已废弃，请使用 /api/health-analysis/analyze 或文档上传时自动分析）
+// 保留此端点以保持向后兼容，但建议使用新的分析端点
 router.post('/analyze', authenticateToken, async (req, res) => {
   try {
     const userEmail = req.user?.email;
-    const { analysisType, documentIds, query } = req.body;
     
     if (!userEmail) {
       return res.status(401).json({ error: 'User not authenticated' });
     }
     
-    // TODO: 实现AI分析逻辑
-    // 这里应该调用相应的AI服务进行分析
-    
-    res.json({
-      success: true,
-      message: 'Analysis triggered (not yet implemented)'
+    // 此端点已废弃，建议使用 /api/health-analysis/analyze 进行文档分析
+    // 或者在上传文档时自动触发分析
+    res.status(410).json({ 
+      success: false,
+      error: 'This endpoint is deprecated. Please use /api/health-analysis/analyze for document analysis, or upload documents which will be automatically analyzed.',
+      deprecated: true,
+      alternative: '/api/health-analysis/analyze'
     });
     
   } catch (error) {

@@ -9,7 +9,7 @@ import {
   CalendarOutlined,
   MobileOutlined,
   ExclamationCircleOutlined,
-  AppleOutlined,
+  ThunderboltOutlined,
   UserOutlined,
   LogoutOutlined
 } from '@ant-design/icons'
@@ -64,9 +64,9 @@ const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose }) => {
       label: t('sidebar.menu.deviceSync'),
     },
     {
-      key: '/diet-analysis',
-      icon: <AppleOutlined />,
-      label: t('sidebar.menu.dietAnalysis'),
+      key: '/intervention',
+      icon: <ThunderboltOutlined />,
+      label: t('sidebar.menu.interventionEngine'),
     },
     {
       key: '/emergency',

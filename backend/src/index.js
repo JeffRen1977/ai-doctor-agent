@@ -91,7 +91,6 @@ if (!distPath) {
 const allowedOrigins = [
   'http://localhost:3000', // Local development
   'http://localhost:3001', // Vite dev server (alternative port)
-  'http://localhost:3002', // Vite HMR port (legacy)
   'http://localhost:3003', // Vite HMR port (new)
   'http://localhost:5173', // Vite dev server
   'http://10.17.99.248:3000', // Network access for mobile testing
