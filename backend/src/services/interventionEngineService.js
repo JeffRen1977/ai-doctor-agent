@@ -3,6 +3,12 @@ const { doc, getDoc, setDoc, updateDoc, collection, query, where, orderBy, limit
 const aiServiceFactory = require('./aiServiceFactory');
 const userSettingsService = require('./userSettingsService');
 const wearableService = require('./wearableService');
+const {
+  createMedicationsCollection,
+  createInterventionCollection,
+  validateMedicationsCollection,
+  validateInterventionCollection
+} = require('../models/interventionModels');
 
 /**
  * 个体化精准干预引擎服务
@@ -23,12 +29,33 @@ class InterventionEngineService {
       console.log(`💊 Managing medication for user: ${userEmail}`);
       
       // 从 Firestore 获取用户的用药记录
-      const medicationRef = doc(db, 'medications', userEmail);
+      const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
+      const medicationRef = doc(db, 'medications', sanitizedEmail);
       const medicationDoc = await getDoc(medicationRef);
       
       let medications = [];
+      let medicationData = null;
+      
       if (medicationDoc.exists()) {
-        medications = medicationDoc.data().medications || [];
+        medicationData = medicationDoc.data();
+        medications = medicationData.medications || [];
+        
+        // 确保数据结构完整（向后兼容）
+        medications = medications.map(med => {
+          // 如果缺少 schedule 或 history 字段，初始化为空数组
+          if (!med.schedule) med.schedule = [];
+          if (!med.history) med.history = [];
+          // 如果缺少 time 字段，从 frequency 推断
+          if (!med.time || med.time.length === 0) {
+            med.time = this.inferMedicationTimes(med.frequency);
+          }
+          return med;
+        });
+      } else {
+        // 如果文档不存在，创建初始结构
+        const initialData = createMedicationsCollection(userEmail, []);
+        await setDoc(medicationRef, initialData, { merge: true });
+        medicationData = initialData;
       }
       
       // 计算依从性
@@ -66,7 +93,8 @@ class InterventionEngineService {
       const aiModel = userSettings.success ? (userSettings.aiModel || '') : '';
       
       // 获取用药记录
-      const medicationRef = doc(db, 'medications', userEmail);
+      const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
+      const medicationRef = doc(db, 'medications', sanitizedEmail);
       const medicationDoc = await getDoc(medicationRef);
       
       // 获取可穿戴设备数据（用于评估药效）
@@ -234,9 +262,46 @@ class InterventionEngineService {
       const aiModel = userSettings.success ? (userSettings.aiModel || '') : '';
       
       // 获取当前干预方案
-      const interventionRef = doc(db, 'interventions', userEmail);
+      const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
+      const interventionRef = doc(db, 'interventions', sanitizedEmail);
       const interventionDoc = await getDoc(interventionRef);
-      const currentIntervention = interventionDoc.exists() ? interventionDoc.data() : null;
+      
+      let currentIntervention = null;
+      if (interventionDoc.exists()) {
+        currentIntervention = interventionDoc.data();
+        // 确保数据结构完整（向后兼容）
+        if (!currentIntervention.medication) {
+          currentIntervention.medication = {
+            adjustments: [],
+            currentPlan: { medications: [], schedule: {}, targets: {} }
+          };
+        }
+        if (!currentIntervention.nutrition) {
+          currentIntervention.nutrition = {
+            adjustments: [],
+            mealPlan: { breakfast: {}, lunch: {}, dinner: {}, snacks: [] },
+            dailyTargets: { calories: 0, carbs: 0, protein: 0, fat: 0, fiber: 0, sugar: 0 }
+          };
+        }
+        if (!currentIntervention.exercise) {
+          currentIntervention.exercise = {
+            adjustments: [],
+            weeklyPlan: {},
+            progression: {},
+            targets: { steps: 0, calories: 0, duration: 0, frequency: 0 }
+          };
+        }
+        if (!currentIntervention.lastAdjusted) {
+          currentIntervention.lastAdjusted = new Date().toISOString();
+        }
+        if (!currentIntervention.version) {
+          currentIntervention.version = 1;
+        }
+      } else {
+        // 如果文档不存在，创建初始结构
+        currentIntervention = createInterventionCollection(userEmail, {});
+        await setDoc(interventionRef, currentIntervention, { merge: true });
+      }
       
       // 构建调整提示
       const prompt = this.buildAdjustmentPrompt(currentIntervention, feedback);
@@ -260,10 +325,17 @@ class InterventionEngineService {
         ...currentIntervention,
         ...adjustments,
         lastAdjusted: new Date().toISOString(),
-        feedback: feedback
+        feedback: feedback,
+        version: (currentIntervention.version || 1) + 1
       };
       
-      await setDoc(interventionRef, updatedIntervention, { merge: true });
+      // 验证数据结构
+      const validation = validateInterventionCollection(updatedIntervention);
+      if (!validation.valid) {
+        console.warn('⚠️ Intervention validation warning:', validation.error);
+      }
+      
+      await setDoc(interventionRef, validation.value || updatedIntervention, { merge: true });
       
       return {
         success: true,
@@ -309,16 +381,60 @@ class InterventionEngineService {
   }
 
   /**
+   * 从频率推断服药时间
+   * @param {string} frequency - 频率（如："每日2次"、"每日3次"）
+   * @returns {Array<string>} 时间数组（如：["08:00", "20:00"]）
+   */
+  inferMedicationTimes(frequency) {
+    if (!frequency) return ['08:00', '20:00']; // 默认每日2次
+    
+    const times = [];
+    const lowerFreq = frequency.toLowerCase();
+    
+    // 提取数字
+    const match = lowerFreq.match(/(\d+)/);
+    const count = match ? parseInt(match[1]) : 2;
+    
+    // 根据次数分配时间
+    if (count === 1) {
+      times.push('08:00');
+    } else if (count === 2) {
+      times.push('08:00', '20:00');
+    } else if (count === 3) {
+      times.push('08:00', '14:00', '20:00');
+    } else if (count === 4) {
+      times.push('08:00', '12:00', '18:00', '22:00');
+    } else {
+      // 默认均匀分布
+      const interval = 24 / count;
+      for (let i = 0; i < count; i++) {
+        const hour = Math.floor(8 + i * interval);
+        const minute = Math.floor((8 + i * interval - hour) * 60);
+        times.push(`${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`);
+      }
+    }
+    
+    return times;
+  }
+
+  /**
    * 生成用药提醒
    */
   generateMedicationReminders(medications) {
     const now = new Date();
     const reminders = [];
+    const today = now.toISOString().split('T')[0];
     
     medications.forEach(med => {
-      if (med.schedule) {
-        med.schedule.forEach(time => {
-          const [hours, minutes] = time.split(':');
+      // 优先使用 time 字段（如果存在）
+      const times = med.time && med.time.length > 0 ? med.time : this.inferMedicationTimes(med.frequency);
+      
+      times.forEach(timeStr => {
+        // 检查 schedule 中是否已有今天的记录
+        const existingSchedule = med.schedule?.find(s => s.date === today && s.time === timeStr);
+        
+        if (!existingSchedule || existingSchedule.status === 'pending') {
+          const [hours, minutes] = timeStr.split(':');
           const reminderTime = new Date();
           reminderTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
           
@@ -329,12 +445,13 @@ class InterventionEngineService {
           
           reminders.push({
             medication: med.name,
+            medicationId: med.id,
             dosage: med.dosage,
             time: reminderTime.toISOString(),
             status: 'pending'
           });
-        });
-      }
+        }
+      });
     });
     
     return reminders.sort((a, b) => new Date(a.time) - new Date(b.time));
@@ -647,6 +764,222 @@ ${JSON.stringify(feedback, null, 2)}
     } catch (error) {
       console.error('❌ Error parsing adjustments:', error);
       return {};
+    }
+  }
+
+  /**
+   * 添加或更新用药记录
+   * @param {string} userEmail - 用户邮箱
+   * @param {Object} medication - 用药记录对象
+   * @returns {Promise<Object>} 操作结果
+   */
+  async addOrUpdateMedication(userEmail, medication) {
+    try {
+      const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
+      const medicationRef = doc(db, 'medications', sanitizedEmail);
+      const medicationDoc = await getDoc(medicationRef);
+      
+      let medications = [];
+      if (medicationDoc.exists()) {
+        medications = medicationDoc.data().medications || [];
+      }
+      
+      // 检查是否已存在（通过 id 或 name）
+      const existingIndex = medications.findIndex(
+        m => m.id === medication.id || (m.name === medication.name && m.status === 'active')
+      );
+      
+      if (existingIndex >= 0) {
+        // 更新现有记录
+        medications[existingIndex] = {
+          ...medications[existingIndex],
+          ...medication,
+          // 保留 schedule 和 history
+          schedule: medications[existingIndex].schedule || medication.schedule || [],
+          history: medications[existingIndex].history || medication.history || []
+        };
+      } else {
+        // 添加新记录
+        const newMed = {
+          ...medication,
+          schedule: medication.schedule || [],
+          history: medication.history || []
+        };
+        medications.push(newMed);
+      }
+      
+      // 保存到 Firestore
+      const medicationData = createMedicationsCollection(userEmail, medications);
+      const validation = validateMedicationsCollection(medicationData);
+      
+      if (!validation.valid) {
+        console.warn('⚠️ Medications validation warning:', validation.error);
+      }
+      
+      await setDoc(medicationRef, validation.value || medicationData, { merge: true });
+      
+      return {
+        success: true,
+        medication: existingIndex >= 0 ? medications[existingIndex] : medications[medications.length - 1]
+      };
+    } catch (error) {
+      console.error('❌ Error adding/updating medication:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * 记录用药历史（标记为已服用/未服用）
+   * @param {string} userEmail - 用户邮箱
+   * @param {string} medicationId - 药物ID
+   * @param {string} date - 日期 (ISO 8601)
+   * @param {string} time - 时间（如："08:00"）
+   * @param {string} status - 状态 ('taken' | 'missed')
+   * @param {string} notes - 备注（可选）
+   * @returns {Promise<Object>} 操作结果
+   */
+  async recordMedicationHistory(userEmail, medicationId, date, time, status, notes = null) {
+    try {
+      const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
+      const medicationRef = doc(db, 'medications', sanitizedEmail);
+      const medicationDoc = await getDoc(medicationRef);
+      
+      if (!medicationDoc.exists()) {
+        return {
+          success: false,
+          error: 'Medication record not found'
+        };
+      }
+      
+      const medicationData = medicationDoc.data();
+      const medications = medicationData.medications || [];
+      
+      // 找到对应的用药记录
+      const medIndex = medications.findIndex(m => m.id === medicationId);
+      if (medIndex < 0) {
+        return {
+          success: false,
+          error: 'Medication not found'
+        };
+      }
+      
+      const medication = medications[medIndex];
+      
+      // 确保 schedule 和 history 存在
+      if (!medication.schedule) medication.schedule = [];
+      if (!medication.history) medication.history = [];
+      
+      // 更新或添加 schedule 项
+      const scheduleIndex = medication.schedule.findIndex(
+        s => s.date === date && s.time === time
+      );
+      
+      const scheduleItem = {
+        date: date,
+        time: time,
+        status: status,
+        timestamp: new Date().toISOString()
+      };
+      
+      if (scheduleIndex >= 0) {
+        medication.schedule[scheduleIndex] = scheduleItem;
+      } else {
+        medication.schedule.push(scheduleItem);
+      }
+      
+      // 添加 history 项
+      const historyItem = {
+        date: date,
+        time: time,
+        status: status,
+        timestamp: new Date().toISOString(),
+        notes: notes
+      };
+      medication.history.push(historyItem);
+      
+      // 保存更新
+      medications[medIndex] = medication;
+      const updatedData = createMedicationsCollection(userEmail, medications);
+      await setDoc(medicationRef, updatedData, { merge: true });
+      
+      return {
+        success: true,
+        medication: medication
+      };
+    } catch (error) {
+      console.error('❌ Error recording medication history:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * 初始化或确保干预方案数据结构完整
+   * @param {string} userEmail - 用户邮箱
+   * @returns {Promise<Object>} 干预方案数据
+   */
+  async ensureInterventionStructure(userEmail) {
+    try {
+      const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
+      const interventionRef = doc(db, 'interventions', sanitizedEmail);
+      const interventionDoc = await getDoc(interventionRef);
+      
+      let interventionData = null;
+      
+      if (interventionDoc.exists()) {
+        interventionData = interventionDoc.data();
+        // 确保所有必需字段存在
+        if (!interventionData.medication) {
+          interventionData.medication = {
+            adjustments: [],
+            currentPlan: { medications: [], schedule: {}, targets: {} }
+          };
+        }
+        if (!interventionData.nutrition) {
+          interventionData.nutrition = {
+            adjustments: [],
+            mealPlan: { breakfast: {}, lunch: {}, dinner: {}, snacks: [] },
+            dailyTargets: { calories: 0, carbs: 0, protein: 0, fat: 0, fiber: 0, sugar: 0 }
+          };
+        }
+        if (!interventionData.exercise) {
+          interventionData.exercise = {
+            adjustments: [],
+            weeklyPlan: {},
+            progression: {},
+            targets: { steps: 0, calories: 0, duration: 0, frequency: 0 }
+          };
+        }
+        if (!interventionData.lastAdjusted) {
+          interventionData.lastAdjusted = new Date().toISOString();
+        }
+        if (!interventionData.version) {
+          interventionData.version = 1;
+        }
+        
+        // 保存更新后的数据
+        await setDoc(interventionRef, interventionData, { merge: true });
+      } else {
+        // 创建新的干预方案
+        interventionData = createInterventionCollection(userEmail, {});
+        await setDoc(interventionRef, interventionData, { merge: true });
+      }
+      
+      return {
+        success: true,
+        intervention: interventionData
+      };
+    } catch (error) {
+      console.error('❌ Error ensuring intervention structure:', error);
+      return {
+        success: false,
+        error: error.message
+      };
     }
   }
 }

@@ -198,4 +198,106 @@ router.post('/adjust', authenticateToken, async (req, res) => {
   }
 });
 
+/**
+ * POST /api/intervention/medication/add
+ * 添加或更新用药记录
+ */
+router.post('/medication/add', authenticateToken, async (req, res) => {
+  try {
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const { medication } = req.body;
+    
+    if (!medication) {
+      return res.status(400).json({ error: 'medication is required' });
+    }
+
+    const result = await interventionEngineService.addOrUpdateMedication(
+      userEmail,
+      medication
+    );
+    
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('Add/update medication error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to add/update medication',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/intervention/medication/record
+ * 记录用药历史（标记为已服用/未服用）
+ */
+router.post('/medication/record', authenticateToken, async (req, res) => {
+  try {
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const { medicationId, date, time, status, notes } = req.body;
+    
+    if (!medicationId || !date || !time || !status) {
+      return res.status(400).json({ 
+        error: 'medicationId, date, time, and status are required' 
+      });
+    }
+
+    if (!['taken', 'missed'].includes(status)) {
+      return res.status(400).json({ 
+        error: 'status must be "taken" or "missed"' 
+      });
+    }
+
+    const result = await interventionEngineService.recordMedicationHistory(
+      userEmail,
+      medicationId,
+      date,
+      time,
+      status,
+      notes
+    );
+    
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('Record medication history error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to record medication history',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/intervention/init
+ * 初始化或确保干预方案数据结构完整
+ */
+router.post('/init', authenticateToken, async (req, res) => {
+  try {
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const result = await interventionEngineService.ensureInterventionStructure(userEmail);
+    
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('Initialize intervention structure error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to initialize intervention structure',
+      details: error.message
+    });
+  }
+});
+
 module.exports = router;
