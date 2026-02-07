@@ -3,23 +3,18 @@ import {
   AlertTriangle, 
   RefreshCw, 
   CheckCircle, 
-  XCircle,
   Bell,
   Heart,
   Activity,
   TrendingUp,
-  TrendingDown,
   Clock,
-  Zap,
   Shield,
-  AlertCircle,
   Info,
   Play
 } from 'lucide-react';
 import { riskMonitoringAPI } from '../services/api';
 import { useLanguageStore } from '@/stores/languageStore';
-import { getTranslation } from '@/locales';
-import { Card, Button, Input, Table, Tag, Space, Alert, Statistic, Row, Col, Divider, Form, message } from 'antd';
+import { Card, Button, Input, Table, Tag, Space, Alert, Statistic, Row, Col, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import './DeviceSyncPage.css';
 
@@ -57,7 +52,6 @@ interface MonitoringStatus {
 
 const DeviceSyncPage: React.FC = () => {
   const { language } = useLanguageStore();
-  const t = (key: string) => getTranslation(language, key);
   
   // Risk monitoring state
   const [monitoringStatus, setMonitoringStatus] = useState<MonitoringStatus | null>(null);
