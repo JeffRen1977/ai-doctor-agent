@@ -59,7 +59,71 @@ class DigitalTwinService {
             familyHistory: personalData.familyHistory || ''
           };
           aggregatedData.currentState.medications = personalData.medications ? 
-            personalData.medications.split(',').map(m => m.trim()) : [];
+            (typeof personalData.medications === 'string' ? 
+              personalData.medications.split(',').map(m => m.trim()) : 
+              Array.isArray(personalData.medications) ? personalData.medications : []) : [];
+          
+          // ========== 新增：整合时间序列数据 ==========
+          if (personalData.timeSeriesData) {
+            // 提取当前生命体征
+            for (const [metric, data] of Object.entries(personalData.timeSeriesData)) {
+              if (data.dataPoints && data.dataPoints.length > 0) {
+                const latestPoint = data.dataPoints[data.dataPoints.length - 1];
+                aggregatedData.currentState.vitalSigns[metric] = {
+                  value: latestPoint.value,
+                  unit: data.unit,
+                  timestamp: latestPoint.timestamp,
+                  source: latestPoint.source
+                };
+              }
+              // 添加统计信息
+              if (data.statistics) {
+                aggregatedData.currentState.vitalSigns[`${metric}_stats`] = data.statistics;
+              }
+            }
+            // 添加时间序列历史数据
+            aggregatedData.historicalData.timeSeriesData = personalData.timeSeriesData;
+          }
+          
+          // ========== 新增：整合干预历史 ==========
+          if (personalData.interventionHistory && Array.isArray(personalData.interventionHistory)) {
+            aggregatedData.historicalData.interventionHistory = personalData.interventionHistory;
+            // 提取当前活跃的干预
+            const activeInterventions = personalData.interventionHistory.filter(
+              intervention => intervention.status === 'active'
+            );
+            aggregatedData.currentState.activeInterventions = activeInterventions;
+          }
+          
+          // ========== 新增：整合AI分析结果 ==========
+          if (personalData.aiAnalyses && Array.isArray(personalData.aiAnalyses)) {
+            aggregatedData.historicalData.analysisHistory = personalData.aiAnalyses.slice(-20); // 最近20次分析
+            // 提取最新的分析结果
+            if (personalData.aiAnalyses.length > 0) {
+              const latestAnalysis = personalData.aiAnalyses[personalData.aiAnalyses.length - 1];
+              aggregatedData.currentState.latestAnalysis = latestAnalysis;
+              // 提取健康评分
+              if (latestAnalysis.results?.healthScore) {
+                aggregatedData.currentState.healthScore = latestAnalysis.results.healthScore;
+              }
+              // 提取风险因素
+              if (latestAnalysis.results?.riskFactors) {
+                aggregatedData.currentState.riskFactors = latestAnalysis.results.riskFactors;
+              }
+            }
+          }
+          
+          // ========== 新增：整合医疗文档 ==========
+          if (personalData.medicalDocuments && Array.isArray(personalData.medicalDocuments)) {
+            aggregatedData.historicalData.medicalDocuments = personalData.medicalDocuments;
+            // 提取最近的检验结果
+            const labReports = personalData.medicalDocuments.filter(
+              doc => doc.documentType === 'lab-report'
+            );
+            if (labReports.length > 0) {
+              aggregatedData.currentState.labResults = labReports.slice(-5); // 最近5次检验
+            }
+          }
         }
       } catch (error) {
         console.error('❌ Error fetching personal health record:', error);

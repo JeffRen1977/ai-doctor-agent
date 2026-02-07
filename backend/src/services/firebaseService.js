@@ -273,36 +273,6 @@ class FirebaseService {
   }
 
   // Upload health record file to Firebase Storage
-  async uploadHealthRecordFile(file, userEmail) {
-    try {
-      const storageRef = ref(storage, `health-records/${userEmail}/${Date.now()}-${file.originalname}`);
-      const snapshot = await uploadBytesResumable(storageRef, file.buffer, {
-        contentType: file.mimetype,
-      });
-      const downloadURL = await getDownloadURL(snapshot.ref);
-      return { success: true, url: downloadURL, path: snapshot.ref.fullPath };
-    } catch (error) {
-      console.error('文件上传至Firebase Storage错误:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  // Add or overwrite a health record document in Firestore using the user's email as the ID.
-  async addHealthRecord(userEmail, fileData) {
-    try {
-      const recordDocRef = doc(db, 'healthRecords', userEmail);
-      await setDoc(recordDocRef, {
-        userEmail,
-        ...fileData,
-        updatedAt: new Date(),
-      }, { merge: true }); // Using merge to avoid overwriting fields unintentionally
-
-      return { success: true, id: recordDocRef.id };
-    } catch (error) {
-      console.error('添加健康记录至Firestore错误:', error);
-      return { success: false, error: error.message };
-    }
-  }
 
   // 获取用户详细资料
   async getUserProfile(email) {
@@ -503,7 +473,7 @@ class FirebaseService {
     }
   }
 
-  // 保存个人健康档案到 Firestore
+  // 保存个人健康档案到 Firestore（新格式）
   async savePersonalHealthRecord(userEmail, healthRecordData) {
     try {
       const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
@@ -529,17 +499,24 @@ class FirebaseService {
         return obj;
       };
       
+      // 检查文档是否存在
+      const existingDoc = await getDoc(recordDocRef);
+      const now = new Date();
+      
+      // 准备新格式数据
       const recordData = removeUndefined({
         userEmail: userEmail,
         ...healthRecordData,
-        updatedAt: new Date(),
+        // 确保必要字段存在
+        medicalDocuments: healthRecordData.medicalDocuments || [],
+        wearableDataRefs: healthRecordData.wearableDataRefs || {},
+        aiAnalyses: healthRecordData.aiAnalyses || [],
+        // 新增字段
+        timeSeriesData: healthRecordData.timeSeriesData || {},
+        interventionHistory: healthRecordData.interventionHistory || [],
+        updatedAt: now,
+        createdAt: existingDoc.exists() ? existingDoc.data().createdAt || now : now
       });
-
-      // 检查文档是否存在
-      const existingDoc = await getDoc(recordDocRef);
-      if (!existingDoc.exists()) {
-        recordData.createdAt = new Date();
-      }
 
       await setDoc(recordDocRef, recordData, { merge: true });
       
@@ -554,6 +531,338 @@ class FirebaseService {
         success: false, 
         error: error.message 
       };
+    }
+  }
+  
+  // 添加医疗文档到个人健康档案
+  async addMedicalDocument(userEmail, documentData) {
+    try {
+      const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
+      const recordDocRef = doc(db, 'personalHealthRecords', sanitizedEmail);
+      const existingDoc = await getDoc(recordDocRef);
+      
+      if (!existingDoc.exists()) {
+        return { success: false, error: 'Personal health record not found' };
+      }
+      
+      const existingData = existingDoc.data();
+      const medicalDocuments = existingData.medicalDocuments || [];
+      
+      // 添加新文档
+      medicalDocuments.push(documentData);
+      
+      await updateDoc(recordDocRef, {
+        medicalDocuments: medicalDocuments,
+        updatedAt: new Date()
+      });
+      
+      return { success: true, documentId: documentData.documentId };
+    } catch (error) {
+      console.error('添加医疗文档错误:', error);
+      return { success: false, error: error.message };
+    }
+  }
+  
+  // 删除医疗文档
+  async deleteMedicalDocument(userEmail, documentId) {
+    try {
+      const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
+      const recordDocRef = doc(db, 'personalHealthRecords', sanitizedEmail);
+      const existingDoc = await getDoc(recordDocRef);
+      
+      if (!existingDoc.exists()) {
+        return { success: false, error: 'Personal health record not found' };
+      }
+      
+      const existingData = existingDoc.data();
+      const medicalDocuments = (existingData.medicalDocuments || []).filter(
+        doc => doc.documentId !== documentId
+      );
+      
+      await updateDoc(recordDocRef, {
+        medicalDocuments: medicalDocuments,
+        updatedAt: new Date()
+      });
+      
+      return { success: true };
+    } catch (error) {
+      console.error('删除医疗文档错误:', error);
+      return { success: false, error: error.message };
+    }
+  }
+  
+  // 添加AI分析结果到个人健康档案
+  async addAIAnalysis(userEmail, analysisData) {
+    try {
+      const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
+      const recordDocRef = doc(db, 'personalHealthRecords', sanitizedEmail);
+      const existingDoc = await getDoc(recordDocRef);
+      
+      if (!existingDoc.exists()) {
+        return { success: false, error: 'Personal health record not found' };
+      }
+      
+      const existingData = existingDoc.data();
+      const aiAnalyses = existingData.aiAnalyses || [];
+      
+      // 添加新分析
+      aiAnalyses.push(analysisData);
+      
+      // 只保留最近50条分析记录
+      const trimmedAnalyses = aiAnalyses.slice(-50);
+      
+      await updateDoc(recordDocRef, {
+        aiAnalyses: trimmedAnalyses,
+        updatedAt: new Date()
+      });
+      
+      return { success: true, analysisId: analysisData.analysisId };
+    } catch (error) {
+      console.error('添加AI分析错误:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // ========== 时间序列数据管理 ==========
+
+  // 添加时间序列数据点
+  async addTimeSeriesDataPoint(userEmail, metric, unit, dataPoint) {
+    try {
+      const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
+      const recordDocRef = doc(db, 'personalHealthRecords', sanitizedEmail);
+      const existingDoc = await getDoc(recordDocRef);
+      
+      if (!existingDoc.exists()) {
+        return { success: false, error: 'Personal health record not found' };
+      }
+      
+      const existingData = existingDoc.data();
+      const timeSeriesData = existingData.timeSeriesData || {};
+      
+      // 获取或创建该指标的时间序列数据
+      if (!timeSeriesData[metric]) {
+        timeSeriesData[metric] = {
+          metric: metric,
+          unit: unit,
+          dataPoints: [],
+          lastUpdated: new Date().toISOString()
+        };
+      }
+      
+      // 添加新数据点
+      timeSeriesData[metric].dataPoints.push({
+        timestamp: dataPoint.timestamp || new Date().toISOString(),
+        value: dataPoint.value,
+        source: dataPoint.source || 'manual',
+        quality: dataPoint.quality || 'medium',
+        metadata: dataPoint.metadata || {}
+      });
+      
+      // 只保留最近1000个数据点
+      if (timeSeriesData[metric].dataPoints.length > 1000) {
+        timeSeriesData[metric].dataPoints = timeSeriesData[metric].dataPoints.slice(-1000);
+      }
+      
+      // 更新统计信息
+      const values = timeSeriesData[metric].dataPoints.map(dp => dp.value);
+      const mean = values.reduce((a, b) => a + b, 0) / values.length;
+      const sorted = [...values].sort((a, b) => a - b);
+      const median = sorted[Math.floor(sorted.length / 2)];
+      const min = Math.min(...values);
+      const max = Math.max(...values);
+      const variance = values.reduce((acc, val) => acc + Math.pow(val - mean, 2), 0) / values.length;
+      const stdDev = Math.sqrt(variance);
+      
+      // 计算趋势（简单线性回归）
+      let trend = 'stable';
+      if (values.length >= 2) {
+        const recent = values.slice(-10);
+        const older = values.slice(-20, -10);
+        if (older.length > 0) {
+          const recentAvg = recent.reduce((a, b) => a + b, 0) / recent.length;
+          const olderAvg = older.reduce((a, b) => a + b, 0) / older.length;
+          const change = (recentAvg - olderAvg) / olderAvg;
+          if (change > 0.05) trend = 'increasing';
+          else if (change < -0.05) trend = 'decreasing';
+        }
+      }
+      
+      timeSeriesData[metric].statistics = {
+        mean: mean,
+        median: median,
+        min: min,
+        max: max,
+        stdDev: stdDev,
+        trend: trend
+      };
+      timeSeriesData[metric].lastUpdated = new Date().toISOString();
+      
+      await updateDoc(recordDocRef, {
+        timeSeriesData: timeSeriesData,
+        updatedAt: new Date()
+      });
+      
+      return { success: true, metric: metric };
+    } catch (error) {
+      console.error('添加时间序列数据点错误:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // 获取时间序列数据
+  async getTimeSeriesData(userEmail, metric = null, startDate = null, endDate = null) {
+    try {
+      const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
+      const recordDocRef = doc(db, 'personalHealthRecords', sanitizedEmail);
+      const existingDoc = await getDoc(recordDocRef);
+      
+      if (!existingDoc.exists()) {
+        return { success: false, error: 'Personal health record not found' };
+      }
+      
+      const existingData = existingDoc.data();
+      const timeSeriesData = existingData.timeSeriesData || {};
+      
+      if (metric) {
+        // 返回特定指标的数据
+        const metricData = timeSeriesData[metric];
+        if (!metricData) {
+          return { success: true, data: null };
+        }
+        
+        // 过滤时间范围
+        let dataPoints = metricData.dataPoints || [];
+        if (startDate || endDate) {
+          dataPoints = dataPoints.filter(dp => {
+            const timestamp = new Date(dp.timestamp);
+            if (startDate && timestamp < new Date(startDate)) return false;
+            if (endDate && timestamp > new Date(endDate)) return false;
+            return true;
+          });
+        }
+        
+        return {
+          success: true,
+          data: {
+            ...metricData,
+            dataPoints: dataPoints
+          }
+        };
+      } else {
+        // 返回所有指标的数据
+        return { success: true, data: timeSeriesData };
+      }
+    } catch (error) {
+      console.error('获取时间序列数据错误:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // ========== 干预历史管理 ==========
+
+  // 添加干预历史记录
+  async addInterventionHistory(userEmail, interventionData) {
+    try {
+      const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
+      const recordDocRef = doc(db, 'personalHealthRecords', sanitizedEmail);
+      const existingDoc = await getDoc(recordDocRef);
+      
+      if (!existingDoc.exists()) {
+        return { success: false, error: 'Personal health record not found' };
+      }
+      
+      const existingData = existingDoc.data();
+      const interventionHistory = existingData.interventionHistory || [];
+      
+      // 添加新干预记录
+      interventionHistory.push(interventionData);
+      
+      // 只保留最近100条干预记录
+      const trimmedHistory = interventionHistory.slice(-100);
+      
+      await updateDoc(recordDocRef, {
+        interventionHistory: trimmedHistory,
+        updatedAt: new Date()
+      });
+      
+      return { success: true, interventionId: interventionData.interventionId };
+    } catch (error) {
+      console.error('添加干预历史错误:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // 更新干预历史记录
+  async updateInterventionHistory(userEmail, interventionId, updates) {
+    try {
+      const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
+      const recordDocRef = doc(db, 'personalHealthRecords', sanitizedEmail);
+      const existingDoc = await getDoc(recordDocRef);
+      
+      if (!existingDoc.exists()) {
+        return { success: false, error: 'Personal health record not found' };
+      }
+      
+      const existingData = existingDoc.data();
+      const interventionHistory = existingData.interventionHistory || [];
+      
+      // 查找并更新干预记录
+      const index = interventionHistory.findIndex(
+        item => item.interventionId === interventionId
+      );
+      
+      if (index === -1) {
+        return { success: false, error: 'Intervention not found' };
+      }
+      
+      interventionHistory[index] = {
+        ...interventionHistory[index],
+        ...updates,
+        updatedAt: new Date().toISOString()
+      };
+      
+      await updateDoc(recordDocRef, {
+        interventionHistory: interventionHistory,
+        updatedAt: new Date()
+      });
+      
+      return { success: true, interventionId: interventionId };
+    } catch (error) {
+      console.error('更新干预历史错误:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // 获取干预历史
+  async getInterventionHistory(userEmail, status = null) {
+    try {
+      const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
+      const recordDocRef = doc(db, 'personalHealthRecords', sanitizedEmail);
+      const existingDoc = await getDoc(recordDocRef);
+      
+      if (!existingDoc.exists()) {
+        return { success: false, error: 'Personal health record not found' };
+      }
+      
+      const existingData = existingDoc.data();
+      let interventionHistory = existingData.interventionHistory || [];
+      
+      // 按状态过滤
+      if (status) {
+        interventionHistory = interventionHistory.filter(
+          item => item.status === status
+        );
+      }
+      
+      // 按开始日期排序（最新的在前）
+      interventionHistory.sort((a, b) => {
+        return new Date(b.startDate) - new Date(a.startDate);
+      });
+      
+      return { success: true, data: interventionHistory };
+    } catch (error) {
+      console.error('获取干预历史错误:', error);
+      return { success: false, error: error.message };
     }
   }
 }
