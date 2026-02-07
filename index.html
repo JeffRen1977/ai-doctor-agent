@@ -24,9 +24,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     
-    <!-- Service Worker Registration -->
+    <!-- Service Worker Registration (Disabled in development) -->
     <script>
-      if ('serviceWorker' in navigator) {
+      // 在开发环境中禁用 Service Worker，避免缓存问题
+      if ('serviceWorker' in navigator && !window.location.hostname.includes('localhost')) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js')
             .then((registration) => {
@@ -35,6 +36,14 @@
             .catch((registrationError) => {
               console.log('SW registration failed: ', registrationError);
             });
+        });
+      } else if ('serviceWorker' in navigator && window.location.hostname.includes('localhost')) {
+        // 在开发环境中，取消注册所有 Service Worker
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+          registrations.forEach((registration) => {
+            registration.unregister();
+            console.log('SW unregistered in development mode');
+          });
         });
       }
     </script>

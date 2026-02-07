@@ -1,6 +1,7 @@
 const { 
   getStorage, 
   ref, 
+  uploadBytes,
   uploadBytesResumable, 
   getDownloadURL 
 } = require('firebase/storage');
@@ -370,35 +371,135 @@ class FirebaseService {
   // 上传多个文件到 Firebase Storage
   async uploadMultipleFiles(files, userEmail, folder = 'health-records') {
     try {
-      const uploadResults = [];
-      
-      for (const file of files) {
-        const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
-        const timestamp = Date.now();
-        const fileName = `${timestamp}-${file.originalname}`;
-        const storagePath = `${folder}/${sanitizedEmail}/${fileName}`;
-        
-        const storageRef = ref(storage, storagePath);
-        const snapshot = await uploadBytesResumable(storageRef, file.buffer, {
-          contentType: file.mimetype,
-        });
-        const downloadURL = await getDownloadURL(snapshot.ref);
-        
-        uploadResults.push({
-          originalName: file.originalname,
-          fileName: fileName,
-          downloadURL: downloadURL,
-          storagePath: storagePath,
-          size: file.size,
-          contentType: file.mimetype,
-          uploadedAt: new Date().toISOString()
-        });
+      if (!files || files.length === 0) {
+        console.warn('⚠️ No files to upload');
+        return { success: false, error: 'No files provided' };
+      }
+
+      if (!storage) {
+        console.error('❌ Firebase Storage is not initialized');
+        return { success: false, error: 'Firebase Storage not initialized' };
       }
       
-      return { success: true, files: uploadResults };
+      // 调试信息：检查 Storage 实例
+      console.log('🔍 Storage instance check:', {
+        hasStorage: !!storage,
+        storageType: typeof storage,
+        storageApp: storage?.app?.name || 'unknown'
+      });
+
+      const uploadResults = [];
+      const errors = [];
+      
+      for (const file of files) {
+        try {
+          console.log(`📤 Uploading file: ${file.originalname} (${file.size} bytes, ${file.mimetype})`);
+          
+          const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
+          const timestamp = Date.now();
+          // 清理文件名，移除特殊字符
+          const safeFileName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+          const fileName = `${timestamp}-${safeFileName}`;
+          const storagePath = `${folder}/${sanitizedEmail}/${fileName}`;
+          
+          console.log(`📁 Storage path: ${storagePath}`);
+          
+          const storageRef = ref(storage, storagePath);
+          
+          // 确保文件有正确的 MIME 类型
+          const contentType = file.mimetype || (file.originalname.endsWith('.pdf') ? 'application/pdf' : 'application/octet-stream');
+          
+          // 使用 uploadBytes 而不是 uploadBytesResumable（更简单，适合小文件）
+          // uploadBytesResumable 需要监听上传进度，对于小文件使用 uploadBytes 更直接
+          console.log(`📦 Storage reference created`);
+          console.log(`📦 Full path: ${storageRef.fullPath}`);
+          console.log(`📦 Bucket: ${storageRef.bucket || 'default'}`);
+          
+          const snapshot = await uploadBytes(storageRef, file.buffer, {
+            contentType: contentType,
+            customMetadata: {
+              originalName: file.originalname,
+              uploadedBy: userEmail,
+              uploadedAt: new Date().toISOString()
+            }
+          });
+          
+          console.log(`✅ Upload snapshot created, getting download URL...`);
+          const downloadURL = await getDownloadURL(snapshot.ref);
+          
+          console.log(`✅ File uploaded successfully: ${file.originalname}`);
+          console.log(`🔗 Download URL: ${downloadURL}`);
+          
+          uploadResults.push({
+            originalName: file.originalname,
+            fileName: fileName,
+            downloadURL: downloadURL,
+            storagePath: storagePath,
+            size: file.size,
+            contentType: contentType,
+            uploadedAt: new Date().toISOString()
+          });
+        } catch (fileError) {
+          console.error(`❌ Error uploading file ${file.originalname}:`, fileError);
+          console.error(`❌ Error details:`, {
+            code: fileError.code,
+            status: fileError.status_,
+            message: fileError.message,
+            customData: fileError.customData,
+            serverResponse: fileError.customData?.serverResponse || 'No server response'
+          });
+          
+          // 如果是 404 错误，提供更详细的诊断信息
+          if (fileError.code === 'storage/unknown' && fileError.status_ === 404) {
+            console.error(`🔍 404 错误诊断:`);
+            console.error(`   - 检查 Storage Bucket 是否正确`);
+            console.error(`   - 检查 Storage 规则是否允许上传`);
+            console.error(`   - 检查 Storage 服务是否已启用`);
+            console.error(`   - 尝试在 Firebase 控制台手动上传文件测试`);
+          }
+          
+          errors.push({
+            fileName: file.originalname,
+            error: fileError.message,
+            code: fileError.code || 'unknown',
+            status: fileError.status_,
+            details: fileError.customData?.serverResponse || 'No server response'
+          });
+          // 继续处理其他文件，即使某个文件失败
+        }
+      }
+      
+      // 如果所有文件都失败，返回错误
+      if (uploadResults.length === 0 && errors.length > 0) {
+        const firstError = errors[0];
+        return { 
+          success: false, 
+          error: `All file uploads failed. First error: ${firstError.error}`,
+          code: firstError.code || 'unknown',
+          errors: errors
+        };
+      }
+      
+      // 如果至少有一个文件成功，返回成功（但包含错误信息）
+      return { 
+        success: true, 
+        files: uploadResults,
+        ...(errors.length > 0 && { errors: errors })
+      };
     } catch (error) {
-      console.error('批量上传文件错误:', error);
-      return { success: false, error: error.message };
+      console.error('❌ 批量上传文件错误:', error);
+      console.error('错误详情:', {
+        message: error.message,
+        code: error.code,
+        status: error.status_,
+        customData: error.customData,
+        stack: error.stack
+      });
+      return { 
+        success: false, 
+        error: error.message || 'Unknown error',
+        code: error.code || (error.status_ ? `http-${error.status_}` : 'unknown')
+      };
     }
   }
 
@@ -408,11 +509,31 @@ class FirebaseService {
       const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
       const recordDocRef = doc(db, 'personalHealthRecords', sanitizedEmail);
       
-      const recordData = {
+      // 递归函数：移除所有 undefined 值（Firestore 不支持 undefined）
+      const removeUndefined = (obj) => {
+        if (obj === null || obj === undefined) {
+          return null;
+        }
+        if (Array.isArray(obj)) {
+          return obj.map(removeUndefined).filter(item => item !== undefined);
+        }
+        if (typeof obj === 'object') {
+          const cleaned = {};
+          for (const [key, value] of Object.entries(obj)) {
+            if (value !== undefined) {
+              cleaned[key] = removeUndefined(value);
+            }
+          }
+          return cleaned;
+        }
+        return obj;
+      };
+      
+      const recordData = removeUndefined({
         userEmail: userEmail,
         ...healthRecordData,
         updatedAt: new Date(),
-      };
+      });
 
       // 检查文档是否存在
       const existingDoc = await getDoc(recordDocRef);

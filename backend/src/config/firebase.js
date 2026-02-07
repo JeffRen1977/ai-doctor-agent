@@ -32,13 +32,13 @@ if (missingVars.length > 0 && !serviceAccount) {
   console.error('请参考 backend/FIREBASE_SETUP.md 进行配置');
   console.error('或者创建 .env 文件并添加以下配置:');
   console.error(`
-# Firebase配置
-FIREBASE_API_KEY=your-firebase-api-key
-FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-FIREBASE_PROJECT_ID=your-project-id
-FIREBASE_STORAGE_BUCKET=your-project.appspot.com
-FIREBASE_MESSAGING_SENDER_ID=your-messaging-sender-id
-FIREBASE_APP_ID=your-app-id
+            # Firebase配置
+            FIREBASE_API_KEY=your-firebase-api-key
+            FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+            FIREBASE_PROJECT_ID=your-project-id
+            FIREBASE_STORAGE_BUCKET=your-project.appspot.com
+            FIREBASE_MESSAGING_SENDER_ID=your-messaging-sender-id
+            FIREBASE_APP_ID=your-app-id
   `);
   
   // 如果缺少环境变量，退出程序
@@ -50,21 +50,43 @@ FIREBASE_APP_ID=your-app-id
 let firebaseConfig;
 if (serviceAccount) {
   // 使用服务账号文件中的信息
+  // 优先使用环境变量中的 storageBucket，否则使用默认格式
+  const storageBucket = process.env.FIREBASE_STORAGE_BUCKET || `${serviceAccount.project_id}.firebasestorage.app`;
+  
   firebaseConfig = {
     apiKey: process.env.FIREBASE_API_KEY || "AIzaSyDummyKey", // 需要从Firebase控制台获取Web API Key
     authDomain: `${serviceAccount.project_id}.firebaseapp.com`,
     projectId: serviceAccount.project_id,
-    storageBucket: `${serviceAccount.project_id}.firebasestorage.app`,
+    storageBucket: storageBucket,
     messagingSenderId: serviceAccount.client_id,
     appId: process.env.FIREBASE_APP_ID || "1:103828834479878192658:web:dummy" // 需要从Firebase控制台获取
   };
 } else {
   // 使用环境变量
+  // 如果提供了完整的 gs:// URL，提取 bucket 名称
+  let storageBucket = process.env.FIREBASE_STORAGE_BUCKET;
+  if (storageBucket && storageBucket.startsWith('gs://')) {
+    storageBucket = storageBucket.replace('gs://', '');
+  }
+  // 如果没有提供，使用默认格式（优先使用新格式）
+  if (!storageBucket) {
+    storageBucket = `${process.env.FIREBASE_PROJECT_ID}.firebasestorage.app`;
+  }
+  
+  // 如果使用的是旧格式 (.appspot.com)，尝试转换为新格式 (.firebasestorage.app)
+  if (storageBucket.endsWith('.appspot.com')) {
+    const projectId = storageBucket.replace('.appspot.com', '');
+    console.warn(`⚠️ 检测到旧格式的 bucket: ${storageBucket}`);
+    console.warn(`⚠️ 尝试使用新格式: ${projectId}.firebasestorage.app`);
+    // 优先尝试新格式
+    storageBucket = `${projectId}.firebasestorage.app`;
+  }
+  
   firebaseConfig = {
     apiKey: process.env.FIREBASE_API_KEY,
     authDomain: process.env.FIREBASE_AUTH_DOMAIN,
     projectId: process.env.FIREBASE_PROJECT_ID,
-    storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${process.env.FIREBASE_PROJECT_ID}.firebasestorage.app`,
+    storageBucket: storageBucket,
     messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
     appId: process.env.FIREBASE_APP_ID
   };
@@ -77,14 +99,49 @@ try {
   // 获取Firebase服务
   const auth = getAuth(app);
   const db = getFirestore(app);
-  const storage = getStorage(app);
+  
+  // 初始化 Storage
+  // 注意：getStorage 的第二个参数应该是 bucket URL（带或不带 gs:// 都可以）
+  // 如果不提供，会使用 firebaseConfig 中的 storageBucket
+  let storage;
+  try {
+    // 尝试使用配置中的 bucket（不指定第二个参数，使用 firebaseConfig 中的 storageBucket）
+    storage = getStorage(app);
+    console.log('✅ Firebase Storage 初始化成功（使用默认 bucket）');
+    console.log(`📦 Storage Bucket from config: ${firebaseConfig.storageBucket}`);
+  } catch (storageError) {
+    console.warn('⚠️ 使用默认 bucket 初始化失败，尝试明确指定 bucket:', storageError.message);
+    // 如果失败，尝试明确指定 bucket（不带 gs:// 前缀）
+    try {
+      storage = getStorage(app, firebaseConfig.storageBucket);
+      console.log('✅ Firebase Storage 初始化成功（明确指定 bucket，不带 gs://）');
+    } catch (storageError2) {
+      console.warn('⚠️ 不带 gs:// 前缀失败，尝试带 gs:// 前缀:', storageError2.message);
+      // 最后尝试带 gs:// 前缀
+      try {
+        storage = getStorage(app, `gs://${firebaseConfig.storageBucket}`);
+        console.log('✅ Firebase Storage 初始化成功（明确指定 bucket，带 gs://）');
+      } catch (storageError3) {
+        console.error('❌ Firebase Storage 初始化失败:', storageError3.message);
+        console.error('所有初始化尝试都失败了');
+        // 仍然继续，但 storage 会是 undefined
+        storage = null;
+      }
+    }
+  }
   
   console.log('✅ Firebase配置成功');
   console.log(`📍 项目ID: ${firebaseConfig.projectId}`);
+  console.log(`📦 Storage Bucket: ${firebaseConfig.storageBucket}`);
+  
+  if (!storage) {
+    console.warn('⚠️ Firebase Storage 未初始化，文件上传功能将不可用');
+  }
   
   module.exports = { app, auth, db, storage };
 } catch (error) {
   console.error('❌ Firebase初始化失败:', error.message);
   console.error('请检查配置是否正确');
+  console.error('Storage Bucket 应该是: ai-doctor-agent-b3101.firebasestorage.app');
   process.exit(1);
 } 

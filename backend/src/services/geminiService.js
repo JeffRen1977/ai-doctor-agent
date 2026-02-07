@@ -74,9 +74,13 @@ class GeminiService {
   }
 
   // 分析PDF文档
-  async analyzePDFDocument(base64PDF) {
+  async analyzePDFDocument(base64PDF, options = {}) {
     try {
       console.log('📄 Analyzing PDF document with Gemini Vision...');
+      
+      // 尝试使用 gemini-1.5-flash 模型（支持更多格式）
+      const modelToUse = options.model || 'gemini-1.5-flash';
+      const pdfModel = this.genAI.getGenerativeModel({ model: modelToUse });
       
       const prompt = `
         请仔细分析这个PDF文档中的所有内容，包括：
@@ -96,27 +100,57 @@ class GeminiService {
         请以结构化的方式组织提取的内容，便于后续的健康分析。
       `;
 
-      const result = await this.imageModel.generateContent([
-        prompt,
-        {
-          inlineData: {
-            data: base64PDF,
-            mimeType: 'application/pdf'
+      // 尝试使用文件API（如果支持）
+      try {
+        const result = await pdfModel.generateContent([
+          prompt,
+          {
+            inlineData: {
+              data: base64PDF,
+              mimeType: 'application/pdf'
+            }
           }
-        }
-      ]);
+        ]);
 
-      const response = await result.response;
-      const extractedText = response.text();
+        const response = await result.response;
+        const extractedText = response.text();
 
-      console.log('✅ PDF analysis completed, length:', extractedText.length);
+        console.log('✅ PDF analysis completed, length:', extractedText.length);
 
-      return {
-        success: true,
-        text: extractedText,
-        pages: 1, // Gemini会处理整个PDF
-        model: 'gemini-1.5-pro'
-      };
+        return {
+          success: true,
+          text: extractedText,
+          pages: 1,
+          model: modelToUse
+        };
+      } catch (pdfError) {
+        // 如果PDF直接分析失败，尝试作为图片处理
+        console.warn('⚠️ PDF direct analysis failed, trying as image:', pdfError.message);
+        
+        // 将PDF作为图片处理（Gemini可能不支持PDF，但支持图片）
+        const imageResult = await this.imageModel.generateContent([
+          prompt,
+          {
+            inlineData: {
+              data: base64PDF,
+              mimeType: 'image/png' // 尝试作为图片
+            }
+          }
+        ]);
+
+        const imageResponse = await imageResult.response;
+        const extractedText = imageResponse.text();
+
+        console.log('✅ PDF analysis completed (as image), length:', extractedText.length);
+
+        return {
+          success: true,
+          text: extractedText,
+          pages: 1,
+          model: 'gemini-1.5-pro (image fallback)',
+          warning: 'PDF was processed as image, some content may be lost'
+        };
+      }
 
     } catch (error) {
       console.error('❌ PDF analysis error:', error);

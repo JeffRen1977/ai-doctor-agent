@@ -12,6 +12,13 @@ export const getApiBaseUrl = (): string => {
   if (import.meta.env.VITE_RAILWAY_BACKEND_URL) {
     return `${import.meta.env.VITE_RAILWAY_BACKEND_URL}/api`
   }
+  // In development, try direct backend URL first, fallback to proxy
+  if (import.meta.env.DEV) {
+    // Try direct backend URL (more reliable than proxy)
+    const directBackendUrl = 'http://localhost:8000/api'
+    console.log('🔧 Using direct backend URL:', directBackendUrl)
+    return directBackendUrl
+  }
   // Default to relative path (works for local dev and same-domain deployments)
   return '/api'
 }

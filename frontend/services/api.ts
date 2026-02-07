@@ -4,6 +4,11 @@ import { getApiBaseUrl } from '../utils/apiConfig'
 // API base URL configuration
 const API_BASE_URL = getApiBaseUrl()
 
+// Debug: Log API base URL in development
+if (import.meta.env.DEV) {
+  console.log('🔧 API Base URL:', API_BASE_URL)
+}
+
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {

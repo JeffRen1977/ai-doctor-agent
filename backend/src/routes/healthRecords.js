@@ -110,10 +110,11 @@ router.post('/', authenticateToken, async (req, res) => {
 });
 
 // 更新健康记录
-router.put('/:id', (req, res) => {
+router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.headers['user-id'] || '1';
+    const userId = req.headers['user-id'] || req.user?.id || '1';
+    const userEmail = req.user?.email;
     
     // 验证输入
     const { error, value } = healthRecordSchema.validate(req.body);
@@ -121,22 +122,32 @@ router.put('/:id', (req, res) => {
       return res.status(400).json({ error: error.details[0].message });
     }
 
-    const userRecords = healthRecords.get(userId) || [];
-    const recordIndex = userRecords.findIndex(record => record.id === id);
-
-    if (recordIndex === -1) {
+    // 从 Firestore 获取记录
+    const recordDocRef = doc(db, 'healthRecords', id);
+    const recordDoc = await getDoc(recordDocRef);
+    
+    if (!recordDoc.exists()) {
       return res.status(404).json({ error: '健康记录不存在' });
     }
 
+    const recordData = recordDoc.data();
+    if (recordData.userId !== userId && recordData.userEmail !== userEmail) {
+      return res.status(403).json({ error: '无权访问此记录' });
+    }
+
+    // 更新记录
     const updatedRecord = {
-      ...userRecords[recordIndex],
       ...value,
       updatedAt: new Date()
     };
 
-    userRecords[recordIndex] = updatedRecord;
+    await updateDoc(recordDocRef, updatedRecord);
 
-    res.json(updatedRecord);
+    res.json({
+      id: recordDoc.id,
+      ...recordData,
+      ...updatedRecord
+    });
   } catch (error) {
     console.error('更新健康记录错误:', error);
     res.status(500).json({ error: '服务器内部错误' });
@@ -144,19 +155,26 @@ router.put('/:id', (req, res) => {
 });
 
 // 删除健康记录
-router.delete('/:id', (req, res) => {
+router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.headers['user-id'] || '1';
+    const userId = req.headers['user-id'] || req.user?.id || '1';
+    const userEmail = req.user?.email;
     
-    const userRecords = healthRecords.get(userId) || [];
-    const recordIndex = userRecords.findIndex(record => record.id === id);
-
-    if (recordIndex === -1) {
+    // 从 Firestore 获取记录
+    const recordDocRef = doc(db, 'healthRecords', id);
+    const recordDoc = await getDoc(recordDocRef);
+    
+    if (!recordDoc.exists()) {
       return res.status(404).json({ error: '健康记录不存在' });
     }
 
-    userRecords.splice(recordIndex, 1);
+    const recordData = recordDoc.data();
+    if (recordData.userId !== userId && recordData.userEmail !== userEmail) {
+      return res.status(403).json({ error: '无权访问此记录' });
+    }
+
+    await deleteDoc(recordDocRef);
 
     res.json({ message: '健康记录删除成功' });
   } catch (error) {
@@ -166,19 +184,87 @@ router.delete('/:id', (req, res) => {
 });
 
 // 获取单个健康记录
-router.get('/:id', (req, res) => {
+// 注意：具体路由必须在参数路由之前定义
+// GET /personal-health-record - 获取个人健康档案（必须在 /:id 之前）
+router.get('/personal-health-record', authenticateToken, async (req, res) => {
+  console.log('✅ GET /personal-health-record route matched');
+  try {
+    const userEmail = req.user?.email;
+    
+    if (!userEmail) {
+      console.warn('⚠️ No user email in request');
+      return res.status(401).json({ 
+        success: false,
+        error: 'User not authenticated' 
+      });
+    }
+
+    console.log(`🔍 Fetching personal health record for: ${userEmail}`);
+    
+    const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
+    const recordDocRef = doc(db, 'personalHealthRecords', sanitizedEmail);
+    const recordDoc = await getDoc(recordDocRef);
+    
+    if (!recordDoc.exists()) {
+      console.log(`⚠️ Personal health record not found for: ${userEmail}`);
+      // 返回空数据而不是 404，让前端可以正常处理
+      return res.json({ 
+        success: true,
+        data: null,
+        message: 'Personal health record not found'
+      });
+    }
+
+    console.log(`✅ Personal health record found for: ${userEmail}`);
+    res.json({
+      success: true,
+      data: recordDoc.data()
+    });
+
+  } catch (error) {
+    console.error('❌ Get personal health record error:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to get personal health record.', 
+      details: error.message 
+    });
+  }
+});
+
+router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.headers['user-id'] || '1';
     
-    const userRecords = healthRecords.get(userId) || [];
-    const record = userRecords.find(record => record.id === id);
-
-    if (!record) {
+    // 如果 id 是 'personal-health-record'，说明路由顺序有问题
+    if (id === 'personal-health-record') {
+      console.error('❌ Route order issue: /personal-health-record matched /:id route');
+      console.error('❌ This should not happen - /personal-health-record route should be defined before /:id');
+      return res.status(404).json({ 
+        success: false,
+        error: 'Route not found. Route order issue detected.' 
+      });
+    }
+    
+    const userId = req.headers['user-id'] || req.user?.id || '1';
+    const userEmail = req.user?.email;
+    
+    // 从 Firestore 获取记录
+    const recordDocRef = doc(db, 'healthRecords', id);
+    const recordDoc = await getDoc(recordDocRef);
+    
+    if (!recordDoc.exists()) {
       return res.status(404).json({ error: '健康记录不存在' });
     }
 
-    res.json(record);
+    const recordData = recordDoc.data();
+    if (recordData.userId !== userId && recordData.userEmail !== userEmail) {
+      return res.status(403).json({ error: '无权访问此记录' });
+    }
+
+    res.json({
+      id: recordDoc.id,
+      ...recordData
+    });
   } catch (error) {
     console.error('获取健康记录错误:', error);
     res.status(500).json({ error: '服务器内部错误' });
@@ -187,11 +273,19 @@ router.get('/:id', (req, res) => {
 
 const fhirService = require('../services/fhirService');
 const firebaseService = require('../services/firebaseService');
+const pdfCaseExtractionService = require('../services/pdfCaseExtractionService');
 const multer = require('multer');
 
 // Configure multer for memory storage to handle file uploads
 const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
+const upload = multer({ 
+  storage: storage,
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB limit for PDF files
+    files: 10, // Maximum 10 files
+    fieldSize: 10 * 1024 * 1024, // 10MB for form fields
+  }
+});
 
 // Get patient records from FHIR server
 router.get('/fhir/:patientId', async (req, res) => {
@@ -275,7 +369,7 @@ router.post('/personal-health-record', authenticateToken, upload.array('files', 
     } = req.body;
 
     // 准备健康档案数据
-    const healthRecordData = {
+    let healthRecordData = {
       basicInfo: {
         name: name || null,
         gender: gender || null,
@@ -293,17 +387,93 @@ router.post('/personal-health-record', authenticateToken, upload.array('files', 
       attachments: []
     };
 
-    // 如果有文件，上传到 Firebase Storage
+    // 处理PDF文件：提取医疗信息
+    let extractedMedicalInfo = null;
     if (req.files && req.files.length > 0) {
-      console.log(`📤 Uploading ${req.files.length} file(s) to Firebase Storage...`);
-      const uploadResult = await firebaseService.uploadMultipleFiles(req.files, userEmail, 'personal-health-records');
+      // 查找PDF文件
+      const pdfFiles = req.files.filter(file => file.mimetype === 'application/pdf');
       
-      if (uploadResult.success) {
-        healthRecordData.attachments = uploadResult.files;
-        console.log('✅ Files uploaded successfully');
-      } else {
-        console.error('❌ File upload failed:', uploadResult.error);
+      if (pdfFiles.length > 0) {
+        console.log(`📄 Found ${pdfFiles.length} PDF file(s), extracting medical information...`);
+        
+        // 处理第一个PDF文件（可以扩展为处理多个）
+        const pdfFile = pdfFiles[0];
+        try {
+          extractedMedicalInfo = await pdfCaseExtractionService.extractMedicalInfoFromPDF(
+            pdfFile.buffer,
+            userEmail
+          );
+          
+          if (extractedMedicalInfo.success) {
+            console.log('✅ Medical information extracted from PDF');
+            
+            // 如果用户没有手动填写，使用提取的信息
+            if (!healthRecordData.medicalHistory && extractedMedicalInfo.medicalHistory) {
+              healthRecordData.medicalHistory = extractedMedicalInfo.medicalHistory;
+              console.log('📝 Using extracted medical history');
+            } else if (healthRecordData.medicalHistory && extractedMedicalInfo.medicalHistory) {
+              // 如果用户已填写，合并信息
+              healthRecordData.medicalHistory = `${healthRecordData.medicalHistory}\n\n[从PDF提取的补充信息]\n${extractedMedicalInfo.medicalHistory}`;
+            }
+            
+            if (!healthRecordData.medications && extractedMedicalInfo.medications) {
+              healthRecordData.medications = extractedMedicalInfo.medications;
+              console.log('💊 Using extracted medications');
+            } else if (healthRecordData.medications && extractedMedicalInfo.medications) {
+              // 如果用户已填写，合并信息
+              healthRecordData.medications = `${healthRecordData.medications}\n\n[从PDF提取的补充信息]\n${extractedMedicalInfo.medications}`;
+            }
+            
+            // 保存提取的原始信息，用于后续参考
+            healthRecordData.pdfExtraction = {
+              extractedAt: new Date().toISOString(),
+              medicalHistory: extractedMedicalInfo.medicalHistory,
+              medications: extractedMedicalInfo.medications,
+              additionalInfo: extractedMedicalInfo.additionalInfo,
+              provider: extractedMedicalInfo.provider,
+              model: extractedMedicalInfo.model
+            };
+          } else {
+            console.warn('⚠️ PDF extraction failed:', extractedMedicalInfo.error);
+          }
+        } catch (extractionError) {
+          console.error('❌ Error extracting medical info from PDF:', extractionError);
+          // 继续处理，即使提取失败
+        }
+      }
+      
+      // 上传所有文件到 Firebase Storage
+      console.log(`📤 Uploading ${req.files.length} file(s) to Firebase Storage...`);
+      try {
+        const uploadResult = await firebaseService.uploadMultipleFiles(req.files, userEmail, 'personal-health-records');
+        
+        if (uploadResult.success) {
+          healthRecordData.attachments = uploadResult.files;
+          console.log(`✅ ${uploadResult.files.length} file(s) uploaded successfully`);
+          
+          // 如果有部分文件上传失败，记录警告
+          if (uploadResult.errors && uploadResult.errors.length > 0) {
+            console.warn(`⚠️ ${uploadResult.errors.length} file(s) failed to upload:`, uploadResult.errors);
+          }
+        } else {
+          console.error('❌ File upload failed:', uploadResult.error);
+          console.error('错误代码:', uploadResult.code || 'unknown');
+          // 继续保存文本数据，即使文件上传失败
+          // 但记录错误信息到数据中（过滤掉 undefined 值）
+          healthRecordData.uploadErrors = {
+            error: uploadResult.error || 'Unknown error',
+            ...(uploadResult.code && { code: uploadResult.code }),
+            timestamp: new Date().toISOString()
+          };
+        }
+      } catch (uploadError) {
+        console.error('❌ Exception during file upload:', uploadError);
         // 继续保存文本数据，即使文件上传失败
+        healthRecordData.uploadErrors = {
+          error: uploadError.message || 'Unknown error',
+          ...(uploadError.code && { code: uploadError.code }),
+          timestamp: new Date().toISOString()
+        };
       }
     }
 
@@ -320,7 +490,12 @@ router.post('/personal-health-record', authenticateToken, upload.array('files', 
       success: true,
       message: 'Personal health record saved successfully',
       recordId: saveResult.id,
-      data: saveResult.data
+      data: saveResult.data,
+      pdfExtraction: extractedMedicalInfo ? {
+        success: extractedMedicalInfo.success,
+        medicalHistory: extractedMedicalInfo.medicalHistory,
+        medications: extractedMedicalInfo.medications
+      } : null
     });
 
   } catch (error) {
@@ -333,39 +508,7 @@ router.post('/personal-health-record', authenticateToken, upload.array('files', 
   }
 });
 
-// 获取个人健康档案
-router.get('/personal-health-record', authenticateToken, async (req, res) => {
-  try {
-    const userEmail = req.user?.email;
-    
-    if (!userEmail) {
-      return res.status(401).json({ error: 'User not authenticated' });
-    }
-
-    const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
-    const recordDocRef = doc(db, 'personalHealthRecords', sanitizedEmail);
-    const recordDoc = await getDoc(recordDocRef);
-    
-    if (!recordDoc.exists()) {
-      return res.status(404).json({ 
-        success: false,
-        error: 'Personal health record not found' 
-      });
-    }
-
-    res.json({
-      success: true,
-      data: recordDoc.data()
-    });
-
-  } catch (error) {
-    console.error('Get personal health record error:', error);
-    res.status(500).json({ 
-      success: false,
-      error: 'Failed to get personal health record.', 
-      details: error.message 
-    });
-  }
-});
+// 注意：这个路由已经在第189行定义了，这里删除重复定义
+// 路由顺序很重要：具体路由（如 /personal-health-record）必须在参数路由（如 /:id）之前
 
 module.exports = router; 

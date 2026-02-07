@@ -156,46 +156,64 @@ class OpenAIService {
     try {
       const {
         model = 'gpt-4o',
-        maxTokens = 2000
+        maxTokens = 4000,
+        pdfText = null // 如果提供了提取的文本，直接使用
       } = options;
 
       console.log('📄 OpenAI analyzing PDF document with model:', model);
 
-      const response = await this.client.chat.completions.create({
-        model: model,
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: 'Please analyze this PDF document. Extract all text and provide a comprehensive health analysis if it contains medical information.'
-              },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: `data:application/pdf;base64,${base64PDF}`
-                }
-              }
-            ]
-          }
-        ],
-        max_tokens: maxTokens,
-      });
+      // OpenAI Vision API 不支持 PDF，只能处理图像
+      // 如果提供了提取的文本，直接使用文本分析
+      if (pdfText) {
+        console.log('📝 Using extracted PDF text for OpenAI analysis');
+        const response = await this.client.chat.completions.create({
+          model: model,
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a professional medical AI assistant. Extract ONLY CORE and ESSENTIAL medical information with TIMELINES from medical documents. Focus on actionable information, summarize and condense, avoid verbatim copying. Respond in JSON format with fields: medicalHistory, medications, additionalInfo. Keep each section concise (under 500 words) and include dates/timelines.'
+            },
+            {
+              role: 'user',
+              content: `Please analyze this medical document text and extract ONLY CORE information with TIMELINES:
 
-      const analysis = response.choices[0]?.message?.content;
-      
-      if (!analysis) {
-        throw new Error('No analysis received from OpenAI for PDF');
+1. Medical History (既往病史): Extract ONLY key past medical conditions, diseases, surgical history. For each item include: condition name, date/time, brief description (1-2 sentences max). Format as concise timeline-organized text.
+
+2. Medications (用药记录): Extract ONLY current and recent medications with: medication name, dosage, frequency, start date (if mentioned), purpose. Format as concise list with dates.
+
+3. Additional Information: Extract ONLY critical information: major diagnoses (with dates), significant test results (with dates, only abnormal values), current treatment plans (brief), known allergies (list only), family history (only if significant).
+
+**Rules:**
+- Keep each section under 500 words
+- Use bullet points or short sentences
+- Include dates in format: YYYY-MM-DD or relative time (e.g., "3 years ago")
+- If information is not found, use "Not mentioned"
+
+Medical Document Text:
+${pdfText.substring(0, 15000)}` // 限制长度以适应 token 限制
+            }
+          ],
+          max_tokens: maxTokens,
+          temperature: 0.3, // 降低温度以获得更准确的结构化输出
+        });
+
+        const analysis = response.choices[0]?.message?.content;
+        
+        if (!analysis) {
+          throw new Error('No analysis received from OpenAI for PDF text');
+        }
+
+        console.log('✅ OpenAI PDF text analysis completed');
+        return {
+          success: true,
+          text: analysis,
+          model: model,
+          provider: 'openai'
+        };
       }
 
-      console.log('✅ OpenAI PDF analysis completed');
-      return {
-        success: true,
-        text: analysis,
-        model: model,
-        provider: 'openai'
-      };
+      // 如果没有提供文本，返回错误提示
+      throw new Error('OpenAI Vision API does not support PDF files. Please provide extracted text using pdf-parse.');
 
     } catch (error) {
       console.error('❌ OpenAI PDF analysis error:', error);
@@ -208,24 +226,45 @@ class OpenAIService {
   }
 
   buildHealthAnalysisPrompt(healthData) {
-    const { documents, userProfile } = healthData;
+    const { documents, userProfile } = healthData || {};
     
     let prompt = `请分析以下健康文档并提供专业的健康建议：
 
-            用户信息：
+            `;
+
+    // 如果有用户信息，添加用户信息
+    if (userProfile && userProfile.email) {
+      prompt += `用户信息：
             - 邮箱: ${userProfile.email}
-            - 分析日期: ${userProfile.analysisDate}
+            - 分析日期: ${userProfile.analysisDate || new Date().toISOString()}
 
-            文档内容：
+            `;
+    }
+
+    prompt += `文档内容：
             `;
 
-                documents.forEach((doc, index) => {
-                prompt += `
-            文档 ${index + 1}: ${doc.filename}
-            类型: ${doc.type}
-            内容: ${doc.content}
+    // 处理文档数组
+    if (Array.isArray(documents)) {
+      documents.forEach((doc, index) => {
+        // 支持不同的文档格式
+        const docText = doc.text || doc.content || '';
+        const docFilename = doc.filename || doc.name || `文档 ${index + 1}`;
+        const docType = doc.type || 'text';
+        
+        prompt += `
+            文档 ${index + 1}: ${docFilename}
+            类型: ${docType}
+            内容: ${docText}
             `;
-    });
+      });
+    } else if (documents && typeof documents === 'object') {
+      // 处理单个文档对象
+      const docText = documents.text || documents.content || '';
+      prompt += `
+            内容: ${docText}
+            `;
+    }
 
     prompt += `
             请提供以下分析：

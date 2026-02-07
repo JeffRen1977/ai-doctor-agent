@@ -114,3 +114,9 @@ scripts/
 # Railway environment variables reference (generated)
 railway-env-vars.txt 
 .vercel
+
+# Medical records and sensitive medical files
+Medical/
+medical/
+**/Medical/
+**/medical/

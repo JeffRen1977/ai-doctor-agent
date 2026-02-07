@@ -26,6 +26,6 @@
       "@/*": ["frontend/*"]
     }
   },
-  "include": ["frontend"],
+  "include": ["frontend", "frontend/**/*.ts", "frontend/**/*.tsx", "frontend/vite-env.d.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]
 } 

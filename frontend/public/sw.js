@@ -102,7 +102,32 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Handle static assets with cache-first strategy
+  // Check if we're in development mode (localhost)
+  const isDevelopment = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+  
+  // In development, use network-first strategy to avoid cache issues
+  if (isDevelopment) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          // Don't cache in development
+          return response;
+        })
+        .catch((error) => {
+          console.warn('Network request failed in development:', error);
+          // Fallback to cache only if network fails
+          return caches.match(request).then(cachedResponse => {
+            if (cachedResponse) {
+              return cachedResponse;
+            }
+            throw error;
+          });
+        })
+    );
+    return;
+  }
+  
+  // In production, use cache-first strategy for static assets
   event.respondWith(
     caches.match(request)
       .then((response) => {
