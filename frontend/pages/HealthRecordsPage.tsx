@@ -394,6 +394,12 @@ const HealthRecordsPage: React.FC = () => {
                                       if (response.data.pdfExtraction.medications && !values.medications) {
                                         form.setFieldsValue({ medications: response.data.pdfExtraction.medications });
                                       }
+                                      if (response.data.pdfExtraction.familyHistory && !values.familyHistory) {
+                                        form.setFieldsValue({ familyHistory: response.data.pdfExtraction.familyHistory });
+                                      }
+                                      if (response.data.pdfExtraction.allergies && !values.allergies) {
+                                        form.setFieldsValue({ allergies: response.data.pdfExtraction.allergies });
+                                      }
                                     } else {
                                       message.success(language === 'zh' ? '健康档案已保存' : 'Health record saved');
                                     }

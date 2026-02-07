@@ -89,17 +89,29 @@ class PDFCaseExtractionService {
    - Purpose/indication (brief)
    Format as a concise list with dates.
 
-3. **Key Medical Information**: Extract ONLY critical information:
+3. **Family History (家族病史)**: Extract ONLY significant family medical history:
+   - Family member relationship (e.g., father, mother, sibling)
+   - Medical condition or disease
+   - Age of onset (if mentioned)
+   Format as a concise list.
+
+4. **Allergies (过敏史)**: Extract ALL known allergies and adverse reactions:
+   - Allergen name (drug, food, substance, etc.)
+   - Reaction type (if mentioned)
+   - Severity (if mentioned)
+   Format as a concise list.
+
+5. **Additional Medical Information**: Extract ONLY critical information:
    - Major diagnoses (with dates)
    - Significant test results (with dates, only abnormal values)
    - Current treatment plans (brief summary)
-   - Known allergies (list only)
-   - Family history (only if significant)
 
 Please return the result in the following JSON format:
 {
   "medicalHistory": "concise medical history with timelines",
   "medications": "concise medication list with dates and dosages",
+  "familyHistory": "concise family medical history",
+  "allergies": "concise list of allergies and adverse reactions",
   "additionalInfo": "only critical additional medical information"
 }
 
@@ -130,17 +142,29 @@ Please return the result in the following JSON format:
    - 用途/适应症（简要）
    格式化为带日期的简洁列表。
 
-3. **关键医疗信息**: 只提取关键信息：
+3. **家族病史 (Family History)**: 只提取重要的家族医疗史：
+   - 家族成员关系（如：父亲、母亲、兄弟姐妹）
+   - 疾病或医疗状况
+   - 发病年龄（如有提及）
+   格式化为简洁列表。
+
+4. **过敏史 (Allergies)**: 提取所有已知的过敏和不良反应：
+   - 过敏原名称（药物、食物、物质等）
+   - 反应类型（如有提及）
+   - 严重程度（如有提及）
+   格式化为简洁列表。
+
+5. **关键医疗信息**: 只提取关键信息：
    - 主要诊断（带日期）
    - 重要检查结果（带日期，仅异常值）
    - 当前治疗方案（简要总结）
-   - 已知过敏（仅列表）
-   - 家族史（仅重要信息）
 
 请以以下JSON格式返回结果：
 {
   "medicalHistory": "带时间线的简洁既往病史",
   "medications": "带日期和剂量的简洁用药列表",
+  "familyHistory": "简洁的家族病史",
+  "allergies": "简洁的过敏和不良反应列表",
   "additionalInfo": "仅关键的其他医疗信息"
 }
 
@@ -219,12 +243,18 @@ Please return the result in the following JSON format:
 
 2. **Medication Records**: Extract ONLY current and recent medications with: medication name, dosage, frequency, start date (if mentioned), purpose. Format as concise list with dates.
 
-3. **Additional Information**: Extract ONLY critical information: major diagnoses (with dates), significant test results (with dates, only abnormal values), current treatment plans (brief), known allergies (list only), family history (only if significant).
+3. **Family History**: Extract ONLY significant family medical history: family member relationship, medical condition, age of onset (if mentioned). Format as concise list.
+
+4. **Allergies**: Extract ALL known allergies and adverse reactions: allergen name (drug, food, substance), reaction type (if mentioned), severity (if mentioned). Format as concise list.
+
+5. **Additional Information**: Extract ONLY critical information: major diagnoses (with dates), significant test results (with dates, only abnormal values), current treatment plans (brief).
 
 Return the result in JSON format:
 {
   "medicalHistory": "concise medical history with timelines",
   "medications": "concise medication list with dates and dosages",
+  "familyHistory": "concise family medical history",
+  "allergies": "concise list of allergies and adverse reactions",
   "additionalInfo": "only critical additional medical information"
 }
 
@@ -248,12 +278,18 @@ ${pdfText.substring(0, 10000)}` // 限制长度
 
 2. **用药记录**: 只提取当前和最近的用药，包括：药物名称、剂量、频率、开始日期（如有提及）、用途。格式化为带日期的简洁列表。
 
-3. **关键医疗信息**: 只提取关键信息：主要诊断（带日期）、重要检查结果（带日期，仅异常值）、当前治疗方案（简要）、已知过敏（仅列表）、家族史（仅重要信息）。
+3. **家族病史**: 只提取重要的家族医疗史：家族成员关系、疾病或医疗状况、发病年龄（如有提及）。格式化为简洁列表。
+
+4. **过敏史**: 提取所有已知的过敏和不良反应：过敏原名称（药物、食物、物质等）、反应类型（如有提及）、严重程度（如有提及）。格式化为简洁列表。
+
+5. **关键医疗信息**: 只提取关键信息：主要诊断（带日期）、重要检查结果（带日期，仅异常值）、当前治疗方案（简要）。
 
 请以JSON格式返回结果：
 {
   "medicalHistory": "带时间线的简洁既往病史",
   "medications": "带日期和剂量的简洁用药列表",
+  "familyHistory": "简洁的家族病史",
+  "allergies": "简洁的过敏和不良反应列表",
   "additionalInfo": "仅关键的其他医疗信息"
 }
 
@@ -307,6 +343,8 @@ ${pdfText.substring(0, 10000)}`; // 限制长度
         success: true,
         medicalHistory: extractedInfo.medicalHistory || '',
         medications: extractedInfo.medications || '',
+        familyHistory: extractedInfo.familyHistory || '',
+        allergies: extractedInfo.allergies || '',
         additionalInfo: extractedInfo.additionalInfo || '',
         rawText: finalAnalysisText, // 使用最终分析文本
         provider: aiProvider,
@@ -320,7 +358,9 @@ ${pdfText.substring(0, 10000)}`; // 限制长度
         success: false,
         error: error.message,
         medicalHistory: '',
-        medications: ''
+        medications: '',
+        familyHistory: '',
+        allergies: ''
       };
     }
   }
@@ -340,6 +380,8 @@ ${pdfText.substring(0, 10000)}`; // 限制长度
         return {
           medicalHistory: parsed.medicalHistory || parsed.既往病史 || '',
           medications: parsed.medications || parsed.用药记录 || '',
+          familyHistory: parsed.familyHistory || parsed.家族病史 || '',
+          allergies: parsed.allergies || parsed.过敏史 || '',
           additionalInfo: parsed.additionalInfo || parsed.其他信息 || ''
         };
       }
@@ -349,6 +391,8 @@ ${pdfText.substring(0, 10000)}`; // 限制长度
       
       let medicalHistory = '';
       let medications = '';
+      let familyHistory = '';
+      let allergies = '';
       let additionalInfo = '';
 
       // 提取既往病史
@@ -368,10 +412,10 @@ ${pdfText.substring(0, 10000)}`; // 限制长度
 
       // 提取用药记录
       const medicationPatterns = [
-        /用药记录[：:]\s*([^\n]+(?:\n(?!既往|诊断|检查)[^\n]+)*)/i,
-        /Medication[：:]\s*([^\n]+(?:\n(?!History|Diagnosis|Test)[^\n]+)*)/i,
-        /药物[：:]\s*([^\n]+(?:\n(?!既往|诊断)[^\n]+)*)/i,
-        /处方[：:]\s*([^\n]+(?:\n(?!既往|诊断)[^\n]+)*)/i
+        /用药记录[：:]\s*([^\n]+(?:\n(?!既往|诊断|检查|家族|过敏)[^\n]+)*)/i,
+        /Medication[：:]\s*([^\n]+(?:\n(?!History|Diagnosis|Test|Family|Allerg)[^\n]+)*)/i,
+        /药物[：:]\s*([^\n]+(?:\n(?!既往|诊断|家族|过敏)[^\n]+)*)/i,
+        /处方[：:]\s*([^\n]+(?:\n(?!既往|诊断|家族|过敏)[^\n]+)*)/i
       ];
       
       for (const pattern of medicationPatterns) {
@@ -382,22 +426,72 @@ ${pdfText.substring(0, 10000)}`; // 限制长度
         }
       }
 
+      // 提取家族病史
+      const familyHistoryPatterns = [
+        /家族病史[：:]\s*([^\n]+(?:\n(?!既往|用药|诊断|检查|过敏)[^\n]+)*)/i,
+        /Family History[：:]\s*([^\n]+(?:\n(?!Medical|Medication|Diagnosis|Test|Allerg)[^\n]+)*)/i,
+        /家族史[：:]\s*([^\n]+(?:\n(?!既往|用药|诊断|过敏)[^\n]+)*)/i
+      ];
+      
+      for (const pattern of familyHistoryPatterns) {
+        const match = aiText.match(pattern);
+        if (match && match[1]) {
+          familyHistory = match[1].trim();
+          break;
+        }
+      }
+
+      // 提取过敏史
+      const allergyPatterns = [
+        /过敏史[：:]\s*([^\n]+(?:\n(?!既往|用药|诊断|检查|家族)[^\n]+)*)/i,
+        /Allerg[^y]*[：:]\s*([^\n]+(?:\n(?!Medical|Medication|Diagnosis|Test|Family)[^\n]+)*)/i,
+        /过敏[：:]\s*([^\n]+(?:\n(?!既往|用药|诊断|家族)[^\n]+)*)/i
+      ];
+      
+      for (const pattern of allergyPatterns) {
+        const match = aiText.match(pattern);
+        if (match && match[1]) {
+          allergies = match[1].trim();
+          break;
+        }
+      }
+
       // 如果都没有找到，使用整个文本作为参考
-      if (!medicalHistory && !medications) {
+      if (!medicalHistory && !medications && !familyHistory && !allergies) {
         // 尝试智能分割
         const lines = aiText.split('\n');
         let inMedicalHistory = false;
         let inMedications = false;
+        let inFamilyHistory = false;
+        let inAllergies = false;
 
         for (const line of lines) {
           if (line.match(/既往|病史|Medical History/i)) {
             inMedicalHistory = true;
             inMedications = false;
+            inFamilyHistory = false;
+            inAllergies = false;
             continue;
           }
           if (line.match(/用药|药物|处方|Medication/i)) {
             inMedicalHistory = false;
             inMedications = true;
+            inFamilyHistory = false;
+            inAllergies = false;
+            continue;
+          }
+          if (line.match(/家族|Family/i)) {
+            inMedicalHistory = false;
+            inMedications = false;
+            inFamilyHistory = true;
+            inAllergies = false;
+            continue;
+          }
+          if (line.match(/过敏|Allerg/i)) {
+            inMedicalHistory = false;
+            inMedications = false;
+            inFamilyHistory = false;
+            inAllergies = true;
             continue;
           }
           
@@ -407,12 +501,20 @@ ${pdfText.substring(0, 10000)}`; // 限制长度
           if (inMedications) {
             medications += (medications ? '\n' : '') + line.trim();
           }
+          if (inFamilyHistory) {
+            familyHistory += (familyHistory ? '\n' : '') + line.trim();
+          }
+          if (inAllergies) {
+            allergies += (allergies ? '\n' : '') + line.trim();
+          }
         }
       }
 
       return {
         medicalHistory: medicalHistory || notMentioned,
         medications: medications || notMentioned,
+        familyHistory: familyHistory || notMentioned,
+        allergies: allergies || notMentioned,
         additionalInfo: additionalInfo || ''
       };
 
@@ -422,6 +524,8 @@ ${pdfText.substring(0, 10000)}`; // 限制长度
       return {
         medicalHistory: notMentioned,
         medications: notMentioned,
+        familyHistory: notMentioned,
+        allergies: notMentioned,
         additionalInfo: ''
       };
     }

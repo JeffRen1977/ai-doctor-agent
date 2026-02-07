@@ -191,6 +191,8 @@ router.post('/personal-health-record', authenticateToken, upload.array('files', 
                   extractedData: {
                     medicalHistory: extractedMedicalInfo.medicalHistory,
                     medications: extractedMedicalInfo.medications,
+                    familyHistory: extractedMedicalInfo.familyHistory,
+                    allergies: extractedMedicalInfo.allergies,
                     additionalInfo: extractedMedicalInfo.additionalInfo
                   },
                   confidence: 0.8 // 默认置信度
@@ -203,6 +205,14 @@ router.post('/personal-health-record', authenticateToken, upload.array('files', 
                 
                 if (!healthRecordData.medications && extractedMedicalInfo.medications) {
                   healthRecordData.medications = extractedMedicalInfo.medications;
+                }
+                
+                if (!healthRecordData.familyHistory && extractedMedicalInfo.familyHistory) {
+                  healthRecordData.familyHistory = extractedMedicalInfo.familyHistory;
+                }
+                
+                if (!healthRecordData.allergies && extractedMedicalInfo.allergies) {
+                  healthRecordData.allergies = extractedMedicalInfo.allergies;
                 }
                 
                 // 创建AI分析记录
@@ -219,6 +229,8 @@ router.post('/personal-health-record', authenticateToken, upload.array('files', 
                     extractedData: {
                       medicalHistory: extractedMedicalInfo.medicalHistory,
                       medications: extractedMedicalInfo.medications,
+                      familyHistory: extractedMedicalInfo.familyHistory,
+                      allergies: extractedMedicalInfo.allergies,
                       additionalInfo: extractedMedicalInfo.additionalInfo
                     }
                   }
@@ -255,10 +267,12 @@ router.post('/personal-health-record', authenticateToken, upload.array('files', 
       recordId: saveResult.id,
       data: saveResult.data,
       documentsProcessed: healthRecordData.medicalDocuments.length,
-      aiExtraction: extractedMedicalInfo ? {
+      pdfExtraction: extractedMedicalInfo ? {
         success: extractedMedicalInfo.success,
         medicalHistory: extractedMedicalInfo.medicalHistory,
-        medications: extractedMedicalInfo.medications
+        medications: extractedMedicalInfo.medications,
+        familyHistory: extractedMedicalInfo.familyHistory,
+        allergies: extractedMedicalInfo.allergies
       } : null
     });
 
