@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   Card,
   Button,
@@ -98,6 +99,7 @@ interface HealthProjection {
 const DigitalTwinPage: React.FC = () => {
   const { language } = useLanguageStore();
   const screens = useBreakpoint();
+  const location = useLocation();
 
   const [digitalTwin, setDigitalTwin] = useState<DigitalTwin | null>(null);
   const [loading, setLoading] = useState(false);
@@ -120,15 +122,21 @@ const DigitalTwinPage: React.FC = () => {
       
       if (response.data.success) {
         setDigitalTwin(response.data.data);
-        message.success(language === 'zh' ? '数字孪生模型加载成功' : 'Digital twin loaded successfully');
+        // 不显示成功消息，避免频繁提示
       } else if (response.data.needsBuild) {
-        message.info(language === 'zh' ? '请先构建数字孪生模型' : 'Please build digital twin first');
+        setDigitalTwin(null);
+        // 不显示提示消息，避免频繁提示
       }
     } catch (error: any) {
       if (error.response?.status === 404) {
-        message.info(language === 'zh' ? '数字孪生模型不存在，请先构建' : 'Digital twin not found, please build first');
+        setDigitalTwin(null);
+        // 不显示提示消息，避免频繁提示
       } else {
-        message.error(language === 'zh' ? '加载数字孪生模型失败' : 'Failed to load digital twin');
+        console.error('Failed to load digital twin:', error);
+        // 只在非404错误时显示错误消息
+        if (error.response?.status !== 404) {
+          message.error(language === 'zh' ? '加载数字孪生模型失败' : 'Failed to load digital twin');
+        }
       }
     } finally {
       setLoading(false);
@@ -240,9 +248,10 @@ const DigitalTwinPage: React.FC = () => {
     }
   };
 
+  // 组件挂载时、路由变化时和语言变化时加载数据
   useEffect(() => {
     fetchDigitalTwin();
-  }, []);
+  }, [location.pathname, language]); // 监听路由变化，确保切换回来时重新加载
 
   const getRiskLevelColor = (level?: string) => {
     if (level === 'low') return 'green';

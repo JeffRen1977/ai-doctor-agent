@@ -47,8 +47,48 @@ router.post('/build', authenticateToken, async (req, res) => {
 
 /**
  * 获取数字孪生模型
- * GET /api/digital-twin/get
+ * GET /api/digital-twin/get 或 GET /api/digital-twin
  */
+router.get('/', authenticateToken, async (req, res) => {
+  try {
+    const userEmail = req.user?.email;
+    
+    if (!userEmail) {
+      return res.status(401).json({ 
+        success: false,
+        error: 'User not authenticated' 
+      });
+    }
+
+    const { db } = require('../config/firebase');
+    const { doc, getDoc } = require('firebase/firestore');
+    
+    const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
+    const digitalTwinRef = doc(db, 'digitalTwins', sanitizedEmail);
+    const digitalTwinDoc = await getDoc(digitalTwinRef);
+    
+    if (!digitalTwinDoc.exists()) {
+      return res.status(404).json({
+        success: false,
+        error: 'Digital twin not found. Please build it first.',
+        needsBuild: true
+      });
+    }
+
+    res.json({
+      success: true,
+      data: digitalTwinDoc.data()
+    });
+  } catch (error) {
+    console.error('❌ Error in get digital twin endpoint:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      details: error.message
+    });
+  }
+});
+
 router.get('/get', authenticateToken, async (req, res) => {
   try {
     const userEmail = req.user?.email;
