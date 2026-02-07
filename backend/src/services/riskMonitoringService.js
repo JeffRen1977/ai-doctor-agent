@@ -1,5 +1,5 @@
 const { db } = require('../config/firebase');
-const { doc, getDoc, setDoc, updateDoc, collection, query, where, orderBy, limit, addDoc, getDocs } = require('firebase/firestore');
+const { doc, getDoc, collection, query, where, orderBy, limit, addDoc, getDocs } = require('firebase/firestore');
 const aiServiceFactory = require('./aiServiceFactory');
 const userSettingsService = require('./userSettingsService');
 const openaiService = require('./openaiService');
@@ -38,14 +38,10 @@ class RiskMonitoringService {
       const streamRef = collection(db, 'wearableStreamData');
       await addDoc(streamRef, dataPoint);
 
-      // ⚠️ 不自动触发异常检测（改为手动触发）
-      // 异常检测应通过 POST /api/risk-monitoring/detect-anomalies API手动触发
-      // 这样可以避免频繁的LLM调用，降低成本，并支持批量处理
-      
+      // 不自动触发异常检测（改为手动触发）
       return {
         success: true,
-        dataPoint,
-        message: 'Data point saved successfully. Anomaly detection should be triggered manually.'
+        dataPoint
       };
     } catch (error) {
       console.error('❌ Error processing stream data:', error);
@@ -273,7 +269,7 @@ class RiskMonitoringService {
       const alertDoc = await addDoc(alertsRef, alert);
       
       // 发送通知（这里可以集成推送通知服务）
-      await this.sendNotification(userEmail, alert);
+      await this.sendNotification(userEmail, { ...alert, id: alertDoc.id });
       
       return {
         id: alertDoc.id,
@@ -292,10 +288,6 @@ class RiskMonitoringService {
    */
   async sendNotification(userEmail, alert) {
     try {
-      console.log(`📱 Sending notification to user: ${userEmail}`);
-      
-      // 这里可以集成推送通知服务（如 Firebase Cloud Messaging）
-      // 目前先保存到通知集合
       const notificationsRef = collection(db, 'notifications');
       await addDoc(notificationsRef, {
         userEmail,
@@ -306,8 +298,6 @@ class RiskMonitoringService {
         timestamp: new Date().toISOString(),
         read: false
       });
-      
-      console.log('✅ Notification sent successfully');
     } catch (error) {
       console.error('❌ Error sending notification:', error);
     }
@@ -399,7 +389,7 @@ class RiskMonitoringService {
       // 分析当前状态
       const status = {
         isMonitoring: recentData.length > 0,
-        lastDataPoint: recentData[0]?.timestamp || null,
+        lastDataPoint: recentData.length > 0 ? recentData[recentData.length - 1]?.timestamp : null,
         activeAlerts: recentAlerts.filter(a => !a.acknowledged && a.severity !== 'low'),
         riskLevel: this.calculateOverallRiskLevel(recentAlerts),
         metrics: this.extractCurrentMetrics(recentData)
