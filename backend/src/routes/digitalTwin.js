@@ -47,9 +47,9 @@ router.post('/build', authenticateToken, async (req, res) => {
 
 /**
  * 获取数字孪生模型
- * GET /api/digital-twin
+ * GET /api/digital-twin/get
  */
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/get', authenticateToken, async (req, res) => {
   try {
     const userEmail = req.user?.email;
     
@@ -91,9 +91,9 @@ router.get('/', authenticateToken, async (req, res) => {
 
 /**
  * 更新数字孪生模型
- * PUT /api/digital-twin
+ * PUT /api/digital-twin/update
  */
-router.put('/', authenticateToken, async (req, res) => {
+router.put('/update', authenticateToken, async (req, res) => {
   try {
     const userEmail = req.user?.email;
     const newData = req.body;
