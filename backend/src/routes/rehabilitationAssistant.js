@@ -152,4 +152,98 @@ router.post('/answer', authenticateToken, async (req, res) => {
   }
 });
 
+/**
+ * GET /api/rehabilitation/records
+ * 获取康复记录历史
+ */
+router.get('/records', authenticateToken, async (req, res) => {
+  try {
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const { type, subtype, limit } = req.query;
+    
+    const result = await rehabilitationAssistantService.getRehabilitationRecords(userEmail, {
+      type: type || null,
+      subtype: subtype || null,
+      limitCount: limit ? parseInt(limit) : 20
+    });
+    
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('Get records error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get records',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/rehabilitation/context
+ * 获取用户上下文
+ */
+router.get('/context', authenticateToken, async (req, res) => {
+  try {
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const userContextService = require('../services/userContextService');
+    const context = await userContextService.getUserContext(userEmail);
+    
+    res.status(200).json({
+      success: true,
+      context: context
+    });
+  } catch (error) {
+    console.error('Get context error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get context',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/rehabilitation/feedback
+ * 提交反馈
+ */
+router.post('/feedback', authenticateToken, async (req, res) => {
+  try {
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const { recordId, effectiveness, helpful, comments } = req.body;
+    
+    if (!recordId || !effectiveness) {
+      return res.status(400).json({ 
+        error: 'recordId and effectiveness are required' 
+      });
+    }
+
+    const result = await rehabilitationAssistantService.saveFeedback(
+      userEmail,
+      recordId,
+      { effectiveness, helpful, comments }
+    );
+    
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('Save feedback error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to save feedback',
+      details: error.message
+    });
+  }
+});
+
 module.exports = router;

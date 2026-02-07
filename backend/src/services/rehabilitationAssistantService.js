@@ -1,7 +1,10 @@
 const { db } = require('../config/firebase');
-const { doc, getDoc, setDoc, updateDoc, collection, query, where, orderBy, limit, addDoc, getDocs } = require('firebase/firestore');
+const { doc, getDoc, updateDoc, collection, query, where, orderBy, limit, addDoc, getDocs } = require('firebase/firestore');
 const aiServiceFactory = require('./aiServiceFactory');
 const userSettingsService = require('./userSettingsService');
+const userContextService = require('./userContextService');
+const openaiService = require('./openaiService');
+const { createRehabilitationRecord, validateRehabilitationRecord } = require('../models/rehabilitationModels');
 
 /**
  * 生成式AI康复助理服务
@@ -24,8 +27,7 @@ class RehabilitationAssistantService {
       
       // 获取用户AI设置
       const userSettings = await userSettingsService.getUserAISettings(userEmail);
-      const aiProvider = userSettings.success ? (userSettings.aiProvider || 'gemini') : 'gemini';
-      const aiModel = userSettings.success ? (userSettings.aiModel || '') : '';
+      const { aiProvider, aiModel } = this.getAIServiceConfig(userSettings);
       const userLanguage = userSettings.success ? (userSettings.language || 'zh') : 'zh';
       
       // 构建科普解读提示
@@ -42,8 +44,22 @@ class RehabilitationAssistantService {
         throw new Error(aiResult.error || 'AI analysis failed');
       }
       
-      // 保存解读记录
-      await this.saveExplanation(userEmail, 'metrics', metrics, aiResult.message);
+      // 保存解读记录（使用新格式）
+      await this.saveRehabilitationRecord(
+        userEmail,
+        'explanation',
+        'metrics',
+        { metrics },
+        {
+          explanation: aiResult.message,
+          metrics: metrics
+        },
+        {
+          aiProvider,
+          aiModel: aiModel || 'default',
+          language: userLanguage
+        }
+      );
       
       return {
         success: true,
@@ -71,8 +87,7 @@ class RehabilitationAssistantService {
       
       // 获取用户AI设置
       const userSettings = await userSettingsService.getUserAISettings(userEmail);
-      const aiProvider = userSettings.success ? (userSettings.aiProvider || 'gemini') : 'gemini';
-      const aiModel = userSettings.success ? (userSettings.aiModel || '') : '';
+      const { aiProvider, aiModel } = this.getAIServiceConfig(userSettings);
       const userLanguage = userSettings.success ? (userSettings.language || 'zh') : 'zh';
       
       // 检测焦虑情绪
@@ -92,14 +107,31 @@ class RehabilitationAssistantService {
         throw new Error(aiResult.error || 'AI analysis failed');
       }
       
-      // 保存支持记录
-      await this.saveSupportRecord(userEmail, 'emotional', context, aiResult.message);
+      const recommendations = this.generateEmotionalRecommendations(anxietyLevel, userLanguage);
+      
+      // 保存支持记录（使用新格式）
+      await this.saveRehabilitationRecord(
+        userEmail,
+        'support',
+        'emotional',
+        { context },
+        {
+          support: aiResult.message,
+          anxietyLevel: anxietyLevel,
+          recommendations: recommendations
+        },
+        {
+          aiProvider,
+          aiModel: aiModel || 'default',
+          language: userLanguage
+        }
+      );
       
       return {
         success: true,
         support: aiResult.message,
         anxietyLevel: anxietyLevel,
-        recommendations: this.generateEmotionalRecommendations(anxietyLevel, userLanguage)
+        recommendations: recommendations
       };
     } catch (error) {
       console.error('❌ Error providing emotional support:', error);
@@ -122,8 +154,7 @@ class RehabilitationAssistantService {
       
       // 获取用户AI设置
       const userSettings = await userSettingsService.getUserAISettings(userEmail);
-      const aiProvider = userSettings.success ? (userSettings.aiProvider || 'gemini') : 'gemini';
-      const aiModel = userSettings.success ? (userSettings.aiModel || '') : '';
+      const { aiProvider, aiModel } = this.getAIServiceConfig(userSettings);
       const userLanguage = userSettings.success ? (userSettings.language || 'zh') : 'zh';
       
       // 构建冥想引导提示
@@ -140,8 +171,22 @@ class RehabilitationAssistantService {
         throw new Error(aiResult.error || 'AI analysis failed');
       }
       
-      // 保存冥想记录
-      await this.saveMeditationRecord(userEmail, type, aiResult.message);
+      // 保存冥想记录（使用新格式）
+      await this.saveRehabilitationRecord(
+        userEmail,
+        'meditation',
+        type,
+        { type },
+        {
+          guidance: aiResult.message,
+          duration: this.getMeditationDuration(type)
+        },
+        {
+          aiProvider,
+          aiModel: aiModel || 'default',
+          language: userLanguage
+        }
+      );
       
       return {
         success: true,
@@ -170,8 +215,7 @@ class RehabilitationAssistantService {
       
       // 获取用户AI设置
       const userSettings = await userSettingsService.getUserAISettings(userEmail);
-      const aiProvider = userSettings.success ? (userSettings.aiProvider || 'gemini') : 'gemini';
-      const aiModel = userSettings.success ? (userSettings.aiModel || '') : '';
+      const { aiProvider, aiModel } = this.getAIServiceConfig(userSettings);
       const userLanguage = userSettings.success ? (userSettings.language || 'zh') : 'zh';
       
       // 构建CBT提示
@@ -188,13 +232,29 @@ class RehabilitationAssistantService {
         throw new Error(aiResult.error || 'AI analysis failed');
       }
       
-      // 保存CBT记录
-      await this.saveSupportRecord(userEmail, 'cbt', situation, aiResult.message);
+      const techniques = this.extractCBTTechniques(aiResult.message);
+      
+      // 保存CBT记录（使用新格式）
+      await this.saveRehabilitationRecord(
+        userEmail,
+        'support',
+        'cbt',
+        { situation },
+        {
+          cbtSupport: aiResult.message,
+          techniques: techniques
+        },
+        {
+          aiProvider,
+          aiModel: aiModel || 'default',
+          language: userLanguage
+        }
+      );
       
       return {
         success: true,
         cbtSupport: aiResult.message,
-        techniques: this.extractCBTTechniques(aiResult.message)
+        techniques: techniques
       };
     } catch (error) {
       console.error('❌ Error providing CBT:', error);
@@ -217,20 +277,24 @@ class RehabilitationAssistantService {
       
       // 获取用户AI设置
       const userSettings = await userSettingsService.getUserAISettings(userEmail);
-      const aiProvider = userSettings.success ? (userSettings.aiProvider || 'gemini') : 'gemini';
-      const aiModel = userSettings.success ? (userSettings.aiModel || '') : '';
+      const { aiProvider, aiModel } = this.getAIServiceConfig(userSettings);
       const userLanguage = userSettings.success ? (userSettings.language || 'zh') : 'zh';
       
-      // 获取用户历史对话上下文
-      const context = await this.getUserContext(userEmail);
+      // 获取用户完整上下文
+      const userContext = await userContextService.getUserContext(userEmail);
       
       // 构建问答提示（有温度、专业、个性化）
-      const prompt = this.buildHealthQuestionPrompt(question, context, userLanguage);
+      const prompt = this.buildHealthQuestionPrompt(question, userContext, userLanguage);
+      
+      // 准备对话上下文（用于AI服务）
+      const conversationContext = userContext.conversationContext?.recentMessages 
+        ? JSON.stringify(userContext.conversationContext.recentMessages) 
+        : '';
       
       // 使用LLM回答问题
       const aiResult = await aiServiceFactory.healthChat(
         prompt,
-        context,
+        conversationContext,
         { provider: aiProvider, model: aiModel, language: userLanguage }
       );
       
@@ -238,8 +302,21 @@ class RehabilitationAssistantService {
         throw new Error(aiResult.error || 'AI analysis failed');
       }
       
-      // 保存问答记录
-      await this.saveQARecord(userEmail, question, aiResult.message);
+      // 保存问答记录（使用新格式）
+      await this.saveRehabilitationRecord(
+        userEmail,
+        'qa',
+        null,
+        { question, context: userContext },
+        {
+          answer: aiResult.message
+        },
+        {
+          aiProvider,
+          aiModel: aiModel || 'default',
+          language: userLanguage
+        }
+      );
       
       return {
         success: true,
@@ -256,6 +333,46 @@ class RehabilitationAssistantService {
   }
 
   // ========== Helper Methods ==========
+
+  /**
+   * 获取AI服务配置（优先使用OpenAI）
+   * 优先使用OpenAI（如果可用），否则使用用户设置，最后使用Gemini（gemini-2.5）
+   * 
+   * @param {Object} userSettings 用户AI设置
+   * @returns {Object} { aiProvider, aiModel }
+   */
+  getAIServiceConfig(userSettings) {
+    // 优先检查OpenAI是否可用
+    if (openaiService.isServiceAvailable && openaiService.isServiceAvailable()) {
+      const openaiModels = openaiService.getAvailableModels ? openaiService.getAvailableModels() : ['gpt-4o', 'gpt-4-turbo'];
+      const models = Array.isArray(openaiModels) ? openaiModels : (openaiModels.all || ['gpt-4o']);
+      return {
+        aiProvider: 'openai',
+        aiModel: models[0] || 'gpt-4o'
+      };
+    }
+    
+    // 如果OpenAI不可用，使用用户设置
+    if (userSettings.success && userSettings.aiProvider) {
+      // 如果用户选择的是Gemini，使用gemini-2.5模型
+      if (userSettings.aiProvider === 'gemini') {
+        return {
+          aiProvider: 'gemini',
+          aiModel: userSettings.aiModel || 'gemini-2.5'
+        };
+      }
+      return {
+        aiProvider: userSettings.aiProvider,
+        aiModel: userSettings.aiModel || ''
+      };
+    }
+    
+    // 最后使用Gemini作为后备，使用gemini-2.5模型
+    return {
+      aiProvider: 'gemini',
+      aiModel: 'gemini-2.5'
+    };
+  }
 
   /**
    * 构建临床指标解读提示
@@ -395,18 +512,35 @@ Please respond in a professional, supportive, and empowering tone.`;
   /**
    * 构建健康问答提示
    */
-  buildHealthQuestionPrompt(question, context, language = 'zh') {
+  buildHealthQuestionPrompt(question, userContext, language = 'zh') {
+    // 构建上下文摘要
+    const contextSummary = {
+      health: userContext.healthSnapshot ? {
+        currentMetrics: userContext.healthSnapshot.currentMetrics,
+        medications: userContext.healthSnapshot.medications?.length || 0,
+        hasMedicalHistory: !!userContext.healthSnapshot.medicalHistory,
+        recentAlerts: userContext.healthSnapshot.recentAlerts?.length || 0
+      } : null,
+      conversations: userContext.conversationContext?.recentMessages?.length || 0
+    };
+
     if (language === 'en') {
       return `You are a professional, warm, and empathetic AI medical assistant. A user asks:
 
 Question: ${question}
 
 User Context:
-${context ? JSON.stringify(context, null, 2) : 'No previous context'}
+${JSON.stringify(contextSummary, null, 2)}
+
+Health Snapshot:
+${userContext.healthSnapshot ? JSON.stringify(userContext.healthSnapshot, null, 2) : 'No health data available'}
+
+Recent Conversations:
+${userContext.conversationContext?.recentMessages ? JSON.stringify(userContext.conversationContext.recentMessages.slice(-3), null, 2) : 'No recent conversations'}
 
 Please provide:
 1. Professional and accurate health information
-2. Personalized advice based on user context
+2. Personalized advice based on user context and health data
 3. Warm and empathetic tone
 4. Clear explanations
 5. Next steps or recommendations
@@ -418,11 +552,17 @@ Please respond in a warm, professional, and easy-to-understand manner.`;
 问题：${question}
 
 用户上下文：
-${context ? JSON.stringify(context, null, 2) : '无历史上下文'}
+${JSON.stringify(contextSummary, null, 2)}
+
+健康快照：
+${userContext.healthSnapshot ? JSON.stringify(userContext.healthSnapshot, null, 2) : '无健康数据'}
+
+最近对话：
+${userContext.conversationContext?.recentMessages ? JSON.stringify(userContext.conversationContext.recentMessages.slice(-3), null, 2) : '无最近对话'}
 
 请提供：
 1. 专业准确的健康信息
-2. 基于用户上下文的个性化建议
+2. 基于用户上下文和健康数据的个性化建议
 3. 有温度且富有同理心的语调
 4. 清晰的解释
 5. 下一步行动或建议
@@ -532,106 +672,207 @@ ${context ? JSON.stringify(context, null, 2) : '无历史上下文'}
   }
 
   /**
-   * 获取用户上下文
+   * 保存康复记录（统一格式）
+   * @param {string} userEmail 用户邮箱
+   * @param {string} type 记录类型
+   * @param {string} subtype 子类型
+   * @param {any} input 输入数据
+   * @param {any} output 输出数据
+   * @param {Object} metadata 元数据
+   * @param {Object} references 关联数据
    */
-  async getUserContext(userEmail) {
+  async saveRehabilitationRecord(userEmail, type, subtype, input, output, metadata, references = {}) {
     try {
-      // 获取最近的对话历史
-      const chatRef = collection(db, 'chatMessages');
-      const q = query(
-        chatRef,
+      const record = createRehabilitationRecord(userEmail, type, input, output, metadata, references);
+      
+      // 验证记录
+      const validation = validateRehabilitationRecord(record);
+      if (!validation.valid) {
+        console.warn('⚠️ Rehabilitation record validation warning:', validation.error);
+      }
+      
+      // 保存到 Firestore
+      const recordRef = collection(db, 'rehabilitationRecords');
+      await addDoc(recordRef, validation.value || record);
+      
+      console.log(`✅ Saved rehabilitation record: ${record.recordId} (${type}/${subtype || 'none'})`);
+    } catch (error) {
+      console.error('❌ Error saving rehabilitation record:', error);
+    }
+  }
+
+  /**
+   * 获取康复记录历史
+   * @param {string} userEmail 用户邮箱
+   * @param {Object} options 查询选项
+   * @returns {Promise<Object>} 记录列表
+   */
+  async getRehabilitationRecords(userEmail, options = {}) {
+    try {
+      const {
+        type = null,
+        subtype = null,
+        limitCount = 20,
+        startAfter = null
+      } = options;
+
+      const recordsRef = collection(db, 'rehabilitationRecords');
+      let q = query(
+        recordsRef,
         where('userEmail', '==', userEmail),
-        orderBy('timestamp', 'desc'),
-        limit(5)
+        orderBy('timestamp', 'desc')
       );
-      
+
+      // 如果指定了类型，添加类型过滤
+      if (type) {
+        q = query(q, where('type', '==', type));
+      }
+
+      // 如果指定了子类型，添加子类型过滤（需要先有类型过滤）
+      if (subtype && type) {
+        q = query(q, where('subtype', '==', subtype));
+      }
+
+      // 添加限制
+      q = query(q, limit(limitCount));
+
       const querySnapshot = await getDocs(q);
-      const recentMessages = [];
-      
+      const records = [];
+
       querySnapshot.forEach((doc) => {
-        recentMessages.push(doc.data());
+        records.push({
+          id: doc.id,
+          ...doc.data()
+        });
       });
+
+      return {
+        success: true,
+        records: records,
+        count: records.length
+      };
+    } catch (error) {
+      console.error('❌ Error getting rehabilitation records:', error);
       
-      return recentMessages.length > 0 ? JSON.stringify(recentMessages.reverse()) : null;
-    } catch (error) {
-      console.error('❌ Error getting user context:', error);
-      return null;
+      // Fallback: 如果索引不存在，使用内存排序
+      try {
+        const recordsRef = collection(db, 'rehabilitationRecords');
+        const allSnapshot = await getDocs(recordsRef);
+        let allRecords = allSnapshot.docs
+          .map(doc => ({ id: doc.id, ...doc.data() }))
+          .filter(record => record.userEmail === userEmail);
+
+        // 应用类型和子类型过滤
+        if (type) {
+          allRecords = allRecords.filter(record => record.type === type);
+        }
+        if (subtype) {
+          allRecords = allRecords.filter(record => record.subtype === subtype);
+        }
+
+        // 排序
+        allRecords.sort((a, b) => {
+          const timeA = a.timestamp ? new Date(a.timestamp) : new Date(0);
+          const timeB = b.timestamp ? new Date(b.timestamp) : new Date(0);
+          return timeB - timeA;
+        });
+
+        // 限制数量
+        allRecords = allRecords.slice(0, limitCount);
+
+        return {
+          success: true,
+          records: allRecords,
+          count: allRecords.length
+        };
+      } catch (fallbackError) {
+        console.error('❌ Fallback query also failed:', fallbackError);
+        return {
+          success: false,
+          error: fallbackError.message,
+          records: [],
+          count: 0
+        };
+      }
     }
   }
 
   /**
-   * 保存解读记录
+   * 保存反馈
+   * @param {string} userEmail 用户邮箱
+   * @param {string} recordId 记录ID
+   * @param {Object} feedback 反馈数据
+   * @returns {Promise<Object>} 保存结果
    */
-  async saveExplanation(userEmail, type, data, explanation) {
+  async saveFeedback(userEmail, recordId, feedback) {
     try {
-      const recordRef = collection(db, 'rehabilitationRecords');
-      await addDoc(recordRef, {
+      const feedbackData = {
+        recordId,
         userEmail,
-        type: 'explanation',
-        subtype: type,
-        data,
-        explanation,
+        effectiveness: feedback.effectiveness,
+        helpful: feedback.helpful || null,
+        comments: feedback.comments || '',
         timestamp: new Date().toISOString()
-      });
+      };
+
+      // 验证反馈
+      const { validateFeedback } = require('../models/rehabilitationModels');
+      const validation = validateFeedback(feedbackData);
+      if (!validation.valid) {
+        return {
+          success: false,
+          error: validation.error
+        };
+      }
+
+      // 保存反馈
+      const feedbackRef = collection(db, 'rehabilitationFeedback');
+      await addDoc(feedbackRef, validation.value);
+
+      // 更新记录的反馈字段（可选）
+      try {
+        const recordsRef = collection(db, 'rehabilitationRecords');
+        const recordsQuery = query(
+          recordsRef,
+          where('recordId', '==', recordId),
+          where('userEmail', '==', userEmail),
+          limit(1)
+        );
+        const recordsSnapshot = await getDocs(recordsQuery);
+        
+        if (!recordsSnapshot.empty) {
+          const recordDoc = recordsSnapshot.docs[0];
+          await updateDoc(recordDoc.ref, {
+            feedback: {
+              effectiveness: feedback.effectiveness,
+              helpful: feedback.helpful,
+              comments: feedback.comments,
+              timestamp: feedbackData.timestamp
+            },
+            updatedAt: new Date().toISOString()
+          });
+        }
+      } catch (updateError) {
+        console.warn('⚠️ Could not update record with feedback:', updateError.message);
+      }
+
+      return {
+        success: true,
+        message: 'Feedback saved successfully'
+      };
     } catch (error) {
-      console.error('❌ Error saving explanation:', error);
+      console.error('❌ Error saving feedback:', error);
+      return {
+        success: false,
+        error: error.message
+      };
     }
   }
 
-  /**
-   * 保存支持记录
-   */
-  async saveSupportRecord(userEmail, type, context, support) {
-    try {
-      const recordRef = collection(db, 'rehabilitationRecords');
-      await addDoc(recordRef, {
-        userEmail,
-        type: 'support',
-        subtype: type,
-        context,
-        support,
-        timestamp: new Date().toISOString()
-      });
-    } catch (error) {
-      console.error('❌ Error saving support record:', error);
-    }
-  }
-
-  /**
-   * 保存冥想记录
-   */
-  async saveMeditationRecord(userEmail, type, guidance) {
-    try {
-      const recordRef = collection(db, 'rehabilitationRecords');
-      await addDoc(recordRef, {
-        userEmail,
-        type: 'meditation',
-        subtype: type,
-        guidance,
-        timestamp: new Date().toISOString()
-      });
-    } catch (error) {
-      console.error('❌ Error saving meditation record:', error);
-    }
-  }
-
-  /**
-   * 保存问答记录
-   */
-  async saveQARecord(userEmail, question, answer) {
-    try {
-      const recordRef = collection(db, 'rehabilitationRecords');
-      await addDoc(recordRef, {
-        userEmail,
-        type: 'qa',
-        question,
-        answer,
-        timestamp: new Date().toISOString()
-      });
-    } catch (error) {
-      console.error('❌ Error saving QA record:', error);
-    }
-  }
 }
 
 module.exports = new RehabilitationAssistantService();
+
+
+
+
