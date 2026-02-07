@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, Space, Tag, Modal, Form, Input, DatePicker, Select, message, Tabs, Upload, Alert, Grid, List, Row, Col, Divider, Radio, Spin, Descriptions, Typography } from 'antd';
+import { Card, Button, Space, Tag, Modal, Form, Input, DatePicker, Select, message, Tabs, Upload, Alert, Grid, List, Row, Col, Divider, Spin, Descriptions, Typography } from 'antd';
 import type { TabsProps } from 'antd';
-import { PlusOutlined, InboxOutlined, FileTextOutlined, UsergroupAddOutlined, MobileOutlined, DatabaseOutlined, LinkOutlined, SyncOutlined, MedicineBoxOutlined, HeartOutlined, MonitorOutlined, FileSearchOutlined, FormOutlined, EditOutlined, ReloadOutlined } from '@ant-design/icons';
+import { PlusOutlined, InboxOutlined, FileTextOutlined, UsergroupAddOutlined, MobileOutlined, DatabaseOutlined, LinkOutlined, SyncOutlined, MedicineBoxOutlined, HeartOutlined, MonitorOutlined, FileSearchOutlined, EditOutlined, ReloadOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import './HealthRecordsPage.css';
 import { getFhirPatientRecords } from '../services/api';
@@ -1075,116 +1075,6 @@ const HealthRecordsPage: React.FC = () => {
                     <List.Item.Meta
                     avatar={item.icon}
                     title={item.name}
-                    description={item.description}
-                    />
-                  </List.Item>
-                )}
-              />
-            </Card>
-        </div>
-      ),
-    },
-    {
-      key: 'mobileReporting',
-      label: language === 'zh' ? '移动端上报' : 'Mobile Reporting',
-      children: (
-        <div style={{ padding: screens.xs ? '8px' : '16px' }}>
-          <Alert
-            message={language === 'zh' ? '移动端数据上报' : 'Mobile Data Reporting'}
-            description={language === 'zh' 
-              ? '通过APP/小程序填写问卷、上传自测数据，方便快捷地记录健康信息。'
-              : 'Fill questionnaires and upload self-test data through APP/Mini Program to easily record health information.'}
-            type="info"
-            showIcon
-            style={{ marginBottom: '16px' }}
-          />
-            <Card 
-            title={
-              <Space>
-                <FormOutlined />
-                <span>{language === 'zh' ? '数据上报' : 'Data Reporting'}</span>
-              </Space>
-            }
-            extra={
-              <Button 
-                type="primary" 
-                icon={<PlusOutlined />}
-                onClick={() => {
-                  const mobileReportModal = Modal.info({
-                    title: language === 'zh' ? '移动端数据上报' : 'Mobile Data Reporting',
-                    width: screens.xs ? '95%' : 600,
-                    content: (
-                      <Form layout="vertical">
-                        <Form.Item label={language === 'zh' ? '上报类型' : 'Report Type'}>
-                          <Radio.Group>
-                            <Radio value="questionnaire">{language === 'zh' ? '问卷填写' : 'Questionnaire'}</Radio>
-                            <Radio value="selfTest">{language === 'zh' ? '自测数据' : 'Self-Test Data'}</Radio>
-                          </Radio.Group>
-                        </Form.Item>
-
-                        <Form.Item label={language === 'zh' ? '数据内容' : 'Data Content'}>
-                          <TextArea 
-                            rows={6} 
-                            placeholder={language === 'zh' ? '请填写问卷内容或自测数据...' : 'Enter questionnaire content or self-test data...'} 
-                          />
-                        </Form.Item>
-
-                        <Form.Item label={language === 'zh' ? '上传附件（可选）' : 'Upload Attachments (Optional)'}>
-                          <Upload
-                            multiple
-                            beforeUpload={() => false}
-                            accept=".jpg,.jpeg,.png,.pdf"
-                          >
-                            <Button icon={<InboxOutlined />}>
-                              {language === 'zh' ? '选择文件' : 'Select Files'}
-                            </Button>
-                          </Upload>
-                        </Form.Item>
-
-                        <Form.Item>
-                          <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-                            <Button onClick={() => mobileReportModal.destroy()}>
-                              {language === 'zh' ? '取消' : 'Cancel'}
-                            </Button>
-                      <Button 
-                              type="primary"
-                        onClick={() => {
-                                message.success(language === 'zh' ? '数据上报成功' : 'Data reported successfully');
-                                mobileReportModal.destroy();
-                        }}
-                      >
-                              {language === 'zh' ? '提交' : 'Submit'}
-                      </Button>
-                          </Space>
-                        </Form.Item>
-                      </Form>
-                    ),
-                  });
-                }}
-              >
-                {language === 'zh' ? '新建上报' : 'New Report'}
-              </Button>
-            }
-          >
-            <List
-              size="small"
-              dataSource={[
-                { 
-                  label: language === 'zh' ? '问卷填写' : 'Questionnaire', 
-                  icon: <FormOutlined />,
-                  description: language === 'zh' ? 'APP/小程序填写问卷' : 'Fill questionnaires via APP/Mini Program'
-                },
-                { 
-                  label: language === 'zh' ? '自测数据' : 'Self-Test Data', 
-                  icon: <MobileOutlined />,
-                  description: language === 'zh' ? '上传自测数据、照片等' : 'Upload self-test data, photos, etc.'
-                },
-              ]}
-              renderItem={(item) => (
-                <List.Item>
-                  <List.Item.Meta
-                    avatar={item.icon}
-                    title={item.label}
                     description={item.description}
                     />
                   </List.Item>
