@@ -51,7 +51,6 @@ import {
   TeamOutlined
 } from '@ant-design/icons';
 import { useLanguageStore } from '@/stores/languageStore';
-import { getTranslation } from '@/locales';
 import { collaborationAPI } from '@/services/api';
 
 const { Title, Text, Paragraph } = Typography;
@@ -118,7 +117,6 @@ interface EmergencyInfo {
 const CollaborationPage: React.FC = () => {
   const { language } = useLanguageStore();
   const screens = useBreakpoint();
-  const t = (key: string) => getTranslation(language, key);
   const [searchParams, setSearchParams] = useSearchParams();
   const tabFromUrl = searchParams.get('tab') || 'appointments';
   const [activeTab, setActiveTab] = useState(tabFromUrl);
