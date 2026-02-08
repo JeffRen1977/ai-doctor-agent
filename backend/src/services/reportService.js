@@ -245,29 +245,47 @@ class ReportService {
         q = query(q, where('reportType', '==', filters.reportType));
       }
 
-      // 排序
+      let reports = [];
       try {
-        q = query(q, orderBy('generatedAt', 'desc'));
-      } catch (error) {
-        console.warn('⚠️ Index not found, skipping orderBy');
-      }
-
-      // 限制数量
-      if (filters.limit) {
-        q = query(q, limit(filters.limit));
-      }
-
-      const querySnapshot = await getDocs(q);
-      let reports = querySnapshot.docs.map(doc => ({
-        reportId: doc.id,
-        ...doc.data()
-      }));
-
-      // 如果无法使用orderBy，在内存中排序
-      if (!filters.limit || reports.length < filters.limit) {
-        reports.sort((a, b) => {
-          return new Date(b.generatedAt) - new Date(a.generatedAt);
-        });
+        // 尝试使用索引查询
+        q = query(q, orderBy('generatedAt', 'desc')); // 尝试排序
+        if (filters.limit) {
+          q = query(q, limit(filters.limit));
+        }
+        const querySnapshot = await getDocs(q);
+        reports = querySnapshot.docs.map(doc => ({
+          reportId: doc.id,
+          ...doc.data()
+        }));
+      } catch (indexError) {
+        // 如果索引不存在，使用备用方案：只使用 where 查询，然后在内存中排序和限制
+        if (indexError.code === 'failed-precondition') {
+          console.warn('⚠️ Firestore index not found for reports, using fallback query method');
+          const fallbackQuery = query(
+            reportsRef,
+            where('userEmail', '==', userEmail)
+          );
+          const fallbackSnapshot = await getDocs(fallbackQuery);
+          reports = fallbackSnapshot.docs.map(doc => ({
+            reportId: doc.id,
+            ...doc.data()
+          }));
+          
+          // 在内存中按类型过滤
+          if (filters.reportType) {
+            reports = reports.filter(r => r.reportType === filters.reportType);
+          }
+          
+          // 在内存中按时间戳排序并限制数量
+          reports.sort((a, b) => {
+            return new Date(b.generatedAt || 0) - new Date(a.generatedAt || 0);
+          });
+          if (filters.limit) {
+            reports = reports.slice(0, filters.limit);
+          }
+        } else {
+          throw indexError; // 其他错误重新抛出
+        }
       }
 
       return {
