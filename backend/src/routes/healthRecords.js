@@ -115,6 +115,8 @@ router.post('/personal-health-record', authenticateToken, upload.array('files', 
       medications: medications || null,
       familyHistory: familyHistory || null,
       allergies: allergies || null,
+      // 注意：紧急联系人的基本信息保存在健康档案中，但详细的紧急联系人管理（多个联系人、通知设置等）
+      // 应使用紧急求助服务（/api/emergency/contacts）
       emergencyContact: {
         name: emergencyContact || null,
         phone: emergencyPhone || null,

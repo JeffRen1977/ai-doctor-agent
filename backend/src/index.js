@@ -21,6 +21,7 @@ const interventionsRoutes = require('./routes/interventions');
 const conversationsRoutes = require('./routes/conversations');
 const appointmentsRoutes = require('./routes/appointments');
 const reportsRoutes = require('./routes/reports');
+const emergencyRoutes = require('./routes/emergency');
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -176,6 +177,7 @@ app.use('/api/interventions', interventionsRoutes);
 app.use('/api/conversations', conversationsRoutes);
 app.use('/api/appointments', appointmentsRoutes);
 app.use('/api/reports', reportsRoutes);
+app.use('/api/emergency', emergencyRoutes);
 
 // Basic health check for Railway (works immediately)
 app.get('/health', (req, res) => {
