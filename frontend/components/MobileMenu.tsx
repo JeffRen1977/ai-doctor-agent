@@ -7,7 +7,6 @@ import {
   FileTextOutlined,
   BarChartOutlined,
   CalendarOutlined,
-  MobileOutlined,
   ExclamationCircleOutlined,
   ThunderboltOutlined,
   UserOutlined,
@@ -32,6 +31,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose }) => {
   const { user, logout } = useAuthStore()
   const { t } = useLanguageStore()
 
+  // 按最新设计组织菜单，与桌面端保持一致
   const menuItems = [
     {
       key: '/dashboard',
@@ -39,29 +39,19 @@ const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose }) => {
       label: t('sidebar.menu.dashboard'),
     },
     {
-      key: '/chat',
-      icon: <MessageOutlined />,
-      label: t('sidebar.menu.aiChat'),
-    },
-    {
       key: '/health-records',
       icon: <FileTextOutlined />,
       label: t('sidebar.menu.healthRecords'),
     },
     {
-      key: '/analytics',
+      key: '/digital-twin',
       icon: <BarChartOutlined />,
-      label: t('sidebar.menu.healthAnalytics'),
-    },
-    {
-      key: '/appointments',
-      icon: <CalendarOutlined />,
-      label: t('sidebar.menu.appointments'),
+      label: t('sidebar.menu.digitalTwin'),
     },
     {
       key: '/devices',
-      icon: <MobileOutlined />,
-      label: t('sidebar.menu.deviceSync'),
+      icon: <ExclamationCircleOutlined />,
+      label: t('sidebar.menu.riskMonitoring'),
     },
     {
       key: '/intervention',
@@ -69,9 +59,14 @@ const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose }) => {
       label: t('sidebar.menu.interventionEngine'),
     },
     {
-      key: '/emergency',
-      icon: <ExclamationCircleOutlined />,
-      label: t('sidebar.menu.emergency'),
+      key: '/rehabilitation',
+      icon: <MessageOutlined />,
+      label: t('sidebar.menu.rehabilitationAssistant'),
+    },
+    {
+      key: '/collaboration',
+      icon: <CalendarOutlined />,
+      label: t('sidebar.menu.clinicalCollaboration'),
     },
     {
       key: '/profile',

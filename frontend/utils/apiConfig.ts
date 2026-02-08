@@ -12,12 +12,23 @@ export const getApiBaseUrl = (): string => {
   if (import.meta.env.VITE_RAILWAY_BACKEND_URL) {
     return `${import.meta.env.VITE_RAILWAY_BACKEND_URL}/api`
   }
-  // In development, try direct backend URL first, fallback to proxy
+  // In development, detect if accessing from mobile device
   if (import.meta.env.DEV) {
-    // Try direct backend URL (more reliable than proxy)
-    const directBackendUrl = 'http://localhost:8000/api'
-    console.log('🔧 Using direct backend URL:', directBackendUrl)
-    return directBackendUrl
+    // Check if we're accessing from a mobile device or different host
+    const hostname = window.location.hostname
+    const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1'
+    
+    if (isLocalhost) {
+      // Desktop browser: use localhost
+      const directBackendUrl = 'http://localhost:8000/api'
+      console.log('🔧 Using direct backend URL (desktop):', directBackendUrl)
+      return directBackendUrl
+    } else {
+      // Mobile device or remote access: use the same hostname with port 8000
+      const mobileBackendUrl = `http://${hostname}:8000/api`
+      console.log('🔧 Using backend URL (mobile/remote):', mobileBackendUrl)
+      return mobileBackendUrl
+    }
   }
   // Default to relative path (works for local dev and same-domain deployments)
   return '/api'

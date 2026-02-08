@@ -6,7 +6,7 @@ import {
   PhoneOutlined,
   HomeOutlined,
   ThunderboltOutlined,
-  MobileOutlined
+  ExclamationCircleOutlined
 } from '@ant-design/icons'
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import MobileMenu from './MobileMenu'
@@ -15,7 +15,6 @@ import DashboardPage from '../pages/DashboardPage'
 import HealthRecordsPage from '../pages/HealthRecordsPage'
 import ProfilePage from '../pages/ProfilePage'
 import DeviceSyncPage from '../pages/DeviceSyncPage'
-import HealthAnalyticsPage from '../pages/HealthAnalyticsPage'
 import InterventionEnginePage from '../pages/InterventionEnginePage'
 import CollaborationPage from '../pages/CollaborationPage'
 import DigitalTwinPage from '../pages/DigitalTwinPage'
@@ -41,13 +40,9 @@ const MobileApp: React.FC = () => {
   // 注册Service Worker
   useEffect(() => {
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js')
-        .then((registration) => {
-          console.log('SW registered: ', registration)
-        })
-        .catch((registrationError) => {
-          console.log('SW registration failed: ', registrationError)
-        })
+      navigator.serviceWorker.register('/sw.js').catch(() => {
+        // Service Worker registration failed, silently fail
+      })
     }
   }, [])
 
@@ -77,19 +72,7 @@ const MobileApp: React.FC = () => {
     }
   }, [isAuthenticated, location.pathname, navigate])
 
-  // 移动端组件不需要重复检查认证状态，因为App.tsx已经处理了
-  // if (!isAuthenticated) {
-  //   return <LoginPage />
-  // }
-
   const isEmergencyPage = location.pathname === '/collaboration' && new URLSearchParams(location.search).get('tab') === 'emergency'
-
-  console.log('📱 MobileApp rendering:', {
-    isAuthenticated,
-    location: location.pathname,
-    isOnline,
-    isPWA
-  })
 
   return (
     <Layout className="mobile-app">
@@ -104,12 +87,12 @@ const MobileApp: React.FC = () => {
           />
           <h1 className="mobile-title">
             {location.pathname === '/dashboard' && t('sidebar.menu.dashboard')}
-            {location.pathname === '/chat' && t('sidebar.menu.aiChat')}
             {location.pathname === '/health-records' && t('sidebar.menu.healthRecords')}
-            {location.pathname === '/analytics' && t('sidebar.menu.healthAnalytics')}
-            {location.pathname === '/collaboration' && t('sidebar.menu.clinicalCollaboration')}
-            {location.pathname === '/devices' && t('sidebar.menu.deviceSync')}
+            {location.pathname === '/digital-twin' && t('sidebar.menu.digitalTwin')}
+            {location.pathname === '/devices' && t('sidebar.menu.riskMonitoring')}
             {location.pathname === '/intervention' && t('sidebar.menu.interventionEngine')}
+            {(location.pathname === '/rehabilitation' || location.pathname === '/chat') && t('sidebar.menu.rehabilitationAssistant')}
+            {location.pathname === '/collaboration' && t('sidebar.menu.clinicalCollaboration')}
             {location.pathname === '/profile' && t('sidebar.menu.profile')}
           </h1>
         </div>
@@ -130,7 +113,6 @@ const MobileApp: React.FC = () => {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/chat" element={<Navigate to="/rehabilitation" replace />} />
           <Route path="/health-records" element={<HealthRecordsPage />} />
-          <Route path="/analytics" element={<HealthAnalyticsPage />} />
           <Route path="/digital-twin" element={<DigitalTwinPage />} />
           <Route path="/collaboration" element={<CollaborationPage />} />
           <Route path="/appointments" element={<Navigate to="/collaboration?tab=appointments" replace />} />
@@ -140,7 +122,6 @@ const MobileApp: React.FC = () => {
           <Route path="/diet-analysis" element={<Navigate to="/intervention" replace />} />
           <Route path="/intervention" element={<InterventionEnginePage />} />
           <Route path="/rehabilitation" element={<RehabilitationAssistantPage />} />
-          <Route path="/chat" element={<RehabilitationAssistantPage />} />
           <Route path="/profile" element={<ProfilePage />} />
         </Routes>
       </Content>
@@ -158,10 +139,10 @@ const MobileApp: React.FC = () => {
         <Button
           type="text"
           icon={<MessageOutlined />}
-          className={`nav-button ${location.pathname === '/chat' ? 'active' : ''}`}
-          onClick={() => navigate('/chat')}
+          className={`nav-button ${(location.pathname === '/rehabilitation' || location.pathname === '/chat') ? 'active' : ''}`}
+          onClick={() => navigate('/rehabilitation')}
         >
-          {t('sidebar.menu.aiChat')}
+          {t('sidebar.menu.rehabilitationAssistant')}
         </Button>
         <Button
           type="text"
@@ -173,11 +154,11 @@ const MobileApp: React.FC = () => {
         </Button>
         <Button
           type="text"
-          icon={<MobileOutlined />}
+          icon={<ExclamationCircleOutlined />}
           className={`nav-button ${location.pathname === '/devices' ? 'active' : ''}`}
           onClick={() => navigate('/devices')}
         >
-          {t('sidebar.menu.deviceSync')}
+          {t('sidebar.menu.riskMonitoring')}
         </Button>
       </div>
 
@@ -196,8 +177,8 @@ const MobileApp: React.FC = () => {
         >
           <FloatButton
             icon={<MessageOutlined />}
-            tooltip={t('sidebar.menu.aiChat')}
-            onClick={() => navigate('/chat')}
+            tooltip={t('sidebar.menu.rehabilitationAssistant')}
+            onClick={() => navigate('/rehabilitation')}
           />
           <FloatButton
             icon={<PhoneOutlined />}
