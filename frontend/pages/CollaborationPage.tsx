@@ -118,8 +118,7 @@ const CollaborationPage: React.FC = () => {
   const { language } = useLanguageStore();
   const screens = useBreakpoint();
   const [searchParams, setSearchParams] = useSearchParams();
-  const tabFromUrl = searchParams.get('tab') || 'appointments';
-  const [activeTab, setActiveTab] = useState(tabFromUrl);
+  const [activeTab, setActiveTab] = useState(() => searchParams.get('tab') || 'appointments');
   const [form] = Form.useForm();
 
   // 当 URL 参数变化时更新 activeTab
@@ -148,7 +147,7 @@ const CollaborationPage: React.FC = () => {
 
   // 紧急求助状态
   const [contacts, setContacts] = useState<EmergencyContact[]>([]);
-  const [emergencyInfo, setEmergencyInfo] = useState<EmergencyInfo>({
+  const [emergencyInfo] = useState<EmergencyInfo>({
     bloodType: 'A+',
     allergies: [],
     medications: [],
@@ -777,9 +776,12 @@ const CollaborationPage: React.FC = () => {
   );
 
   // 临床报告标签页
-  const renderReportsTab = () => (
-    <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      <Row justify="space-between" align="middle">
+  const renderReportsTab = () => {
+    const isMobile = screens.xs || screens.sm;
+    
+    return (
+      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        <Row justify="space-between" align="middle">
         <Col>
           <Title level={4} style={{ margin: 0 }}>
             <FileTextOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
@@ -858,76 +860,133 @@ const CollaborationPage: React.FC = () => {
       </Row>
 
       <Card>
-        <Table
-          dataSource={reports}
-          loading={reportsLoading}
-          rowKey="reportId"
-          columns={[
-            {
-              title: language === 'zh' ? '报告标题' : 'Report Title',
-              dataIndex: 'title',
-              key: 'title',
-              render: (text: string) => (
-                <Space>
-                  <FileTextOutlined />
-                  <Text strong>{text}</Text>
-                </Space>
-              )
-            },
-            {
-              title: language === 'zh' ? '报告类型' : 'Report Type',
-              dataIndex: 'reportType',
-              key: 'reportType',
-              render: (type: string) => <Tag color="blue">{type}</Tag>
-            },
-            {
-              title: language === 'zh' ? '生成日期' : 'Generated Date',
-              dataIndex: 'generatedAt',
-              key: 'generatedAt',
-              render: (date: string) => new Date(date).toLocaleDateString()
-            },
-            {
-              title: language === 'zh' ? '状态' : 'Status',
-              dataIndex: 'status',
-              key: 'status',
-              render: (status: string) => {
-                const statusMap: Record<string, { color: string; text: string }> = {
-                  draft: { color: 'default', text: language === 'zh' ? '草稿' : 'Draft' },
-                  generating: { color: 'processing', text: language === 'zh' ? '生成中' : 'Generating' },
-                  completed: { color: 'success', text: language === 'zh' ? '已完成' : 'Completed' },
-                  archived: { color: 'default', text: language === 'zh' ? '已归档' : 'Archived' }
-                };
-                const statusInfo = statusMap[status] || { color: 'default', text: status };
-                return <Tag color={statusInfo.color}>{statusInfo.text}</Tag>;
-              }
-            },
-            {
-              title: language === 'zh' ? '操作' : 'Actions',
-              key: 'actions',
-              render: (_: any, record: ClinicalReport) => (
-                <Space>
-                  <Button 
-                    size="small" 
-                    icon={<EyeOutlined />}
-                    onClick={() => {
+        {isMobile ? (
+          // 移动端：使用列表显示
+          <List
+            dataSource={reports}
+            loading={reportsLoading}
+            itemLayout="vertical"
+            pagination={{ pageSize: 10, simple: true }}
+            renderItem={(record: ClinicalReport) => {
+              const statusMap: Record<string, { color: string; text: string }> = {
+                draft: { color: 'default', text: language === 'zh' ? '草稿' : 'Draft' },
+                generating: { color: 'processing', text: language === 'zh' ? '生成中' : 'Generating' },
+                completed: { color: 'success', text: language === 'zh' ? '已完成' : 'Completed' },
+                archived: { color: 'default', text: language === 'zh' ? '已归档' : 'Archived' }
+              };
+              const statusInfo = statusMap[record.status] || { color: 'default', text: record.status };
+              
+              return (
+                <List.Item
+                  key={record.reportId}
+                  actions={[
+                    <Button key="view" size="small" icon={<EyeOutlined />} type="link" onClick={() => {
                       setSelectedReport(record);
                       setPreviewVisible(true);
-                    }}
-                  >
-                    {language === 'zh' ? '预览' : 'Preview'}
-                  </Button>
-                  <Button size="small" icon={<DownloadOutlined />}>
-                    {language === 'zh' ? '下载' : 'Download'}
-                  </Button>
-                  <Button size="small" icon={<ShareAltOutlined />}>
-                    {language === 'zh' ? '分享' : 'Share'}
-                  </Button>
-                </Space>
-              )
-            }
-          ]}
-          pagination={{ pageSize: 10 }}
-        />
+                    }}>
+                      {language === 'zh' ? '预览' : 'View'}
+                    </Button>,
+                    <Button key="download" size="small" icon={<DownloadOutlined />} type="link">
+                      {language === 'zh' ? '下载' : 'Download'}
+                    </Button>
+                  ]}
+                >
+                  <List.Item.Meta
+                    avatar={<Avatar icon={<FileTextOutlined />} style={{ backgroundColor: '#1890ff' }} />}
+                    title={
+                      <Space>
+                        <Text strong>{record.title}</Text>
+                        <Tag color="blue">{record.reportType}</Tag>
+                        <Tag color={statusInfo.color}>{statusInfo.text}</Tag>
+                      </Space>
+                    }
+                    description={
+                      <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                        <Text>
+                          <CalendarOutlined style={{ marginRight: '4px' }} />
+                          {new Date(record.generatedAt).toLocaleDateString()}
+                        </Text>
+                      </Space>
+                    }
+                  />
+                </List.Item>
+              );
+            }}
+          />
+        ) : (
+          // 桌面端：使用表格显示
+          <Table
+            dataSource={reports}
+            loading={reportsLoading}
+            rowKey="reportId"
+            scroll={{ x: 'max-content' }}
+            columns={[
+              {
+                title: language === 'zh' ? '报告标题' : 'Report Title',
+                dataIndex: 'title',
+                key: 'title',
+                render: (text: string) => (
+                  <Space>
+                    <FileTextOutlined />
+                    <Text strong>{text}</Text>
+                  </Space>
+                )
+              },
+              {
+                title: language === 'zh' ? '报告类型' : 'Report Type',
+                dataIndex: 'reportType',
+                key: 'reportType',
+                render: (type: string) => <Tag color="blue">{type}</Tag>
+              },
+              {
+                title: language === 'zh' ? '生成日期' : 'Generated Date',
+                dataIndex: 'generatedAt',
+                key: 'generatedAt',
+                render: (date: string) => new Date(date).toLocaleDateString()
+              },
+              {
+                title: language === 'zh' ? '状态' : 'Status',
+                dataIndex: 'status',
+                key: 'status',
+                render: (status: string) => {
+                  const statusMap: Record<string, { color: string; text: string }> = {
+                    draft: { color: 'default', text: language === 'zh' ? '草稿' : 'Draft' },
+                    generating: { color: 'processing', text: language === 'zh' ? '生成中' : 'Generating' },
+                    completed: { color: 'success', text: language === 'zh' ? '已完成' : 'Completed' },
+                    archived: { color: 'default', text: language === 'zh' ? '已归档' : 'Archived' }
+                  };
+                  const statusInfo = statusMap[status] || { color: 'default', text: status };
+                  return <Tag color={statusInfo.color}>{statusInfo.text}</Tag>;
+                }
+              },
+              {
+                title: language === 'zh' ? '操作' : 'Actions',
+                key: 'actions',
+                render: (_: any, record: ClinicalReport) => (
+                  <Space>
+                    <Button 
+                      size="small" 
+                      icon={<EyeOutlined />}
+                      onClick={() => {
+                        setSelectedReport(record);
+                        setPreviewVisible(true);
+                      }}
+                    >
+                      {language === 'zh' ? '预览' : 'Preview'}
+                    </Button>
+                    <Button size="small" icon={<DownloadOutlined />}>
+                      {language === 'zh' ? '下载' : 'Download'}
+                    </Button>
+                    <Button size="small" icon={<ShareAltOutlined />}>
+                      {language === 'zh' ? '分享' : 'Share'}
+                    </Button>
+                  </Space>
+                )
+              }
+            ]}
+            pagination={{ pageSize: 10 }}
+          />
+        )}
       </Card>
 
       {/* 报告预览模态框 */}
@@ -1084,7 +1143,8 @@ const CollaborationPage: React.FC = () => {
         )}
       </Modal>
     </Space>
-  );
+    );
+  };
 
   return (
     <div style={{ padding: '24px', background: '#f0f2f5', minHeight: '100vh' }}>
