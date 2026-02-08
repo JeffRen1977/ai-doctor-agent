@@ -25,6 +25,8 @@ import {
   message,
   Grid
 } from 'antd';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { 
   CalendarOutlined, 
   PlusOutlined,
@@ -901,12 +903,117 @@ const CollaborationPage: React.FC = () => {
               </Descriptions.Item>
             </Descriptions>
             {selectedReport.sections && (
-              <>
-                <Divider>{language === 'zh' ? '报告内容' : 'Report Content'}</Divider>
-                <Paragraph>
-                  {JSON.stringify(selectedReport.sections, null, 2)}
-                </Paragraph>
-              </>
+              <div style={{ maxHeight: '600px', overflowY: 'auto' }}>
+                {/* 执行摘要 */}
+                {selectedReport.sections.executiveSummary && (
+                  <>
+                    <Divider orientation="left">
+                      <Text strong>{language === 'zh' ? '执行摘要' : 'Executive Summary'}</Text>
+                    </Divider>
+                    <div style={{ 
+                      padding: '16px', 
+                      background: '#fafafa', 
+                      borderRadius: '4px',
+                      marginBottom: '16px'
+                    }}>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {selectedReport.sections.executiveSummary}
+                      </ReactMarkdown>
+                    </div>
+                  </>
+                )}
+
+                {/* 健康指标 */}
+                {selectedReport.sections.healthMetrics && (
+                  <>
+                    <Divider orientation="left">
+                      <Text strong>{language === 'zh' ? '健康指标' : 'Health Metrics'}</Text>
+                    </Divider>
+                    <Descriptions bordered column={2} size="small" style={{ marginBottom: '16px' }}>
+                      {selectedReport.sections.healthMetrics.basicInfo && (
+                        <>
+                          {selectedReport.sections.healthMetrics.basicInfo.name && (
+                            <Descriptions.Item label={language === 'zh' ? '姓名' : 'Name'}>
+                              {selectedReport.sections.healthMetrics.basicInfo.name}
+                            </Descriptions.Item>
+                          )}
+                          {selectedReport.sections.healthMetrics.basicInfo.gender && (
+                            <Descriptions.Item label={language === 'zh' ? '性别' : 'Gender'}>
+                              {selectedReport.sections.healthMetrics.basicInfo.gender}
+                            </Descriptions.Item>
+                          )}
+                          {selectedReport.sections.healthMetrics.basicInfo.birthDate && (
+                            <Descriptions.Item label={language === 'zh' ? '出生日期' : 'Birth Date'}>
+                              {selectedReport.sections.healthMetrics.basicInfo.birthDate}
+                            </Descriptions.Item>
+                          )}
+                          {selectedReport.sections.healthMetrics.basicInfo.bloodType && (
+                            <Descriptions.Item label={language === 'zh' ? '血型' : 'Blood Type'}>
+                              {selectedReport.sections.healthMetrics.basicInfo.bloodType}
+                            </Descriptions.Item>
+                          )}
+                        </>
+                      )}
+                    </Descriptions>
+                  </>
+                )}
+
+                {/* 风险评估 */}
+                {selectedReport.sections.riskAssessment && selectedReport.sections.riskAssessment.length > 0 && (
+                  <>
+                    <Divider orientation="left">
+                      <Text strong>{language === 'zh' ? '风险评估' : 'Risk Assessment'}</Text>
+                    </Divider>
+                    <ul style={{ marginBottom: '16px' }}>
+                      {selectedReport.sections.riskAssessment.map((risk: any, index: number) => (
+                        <li key={index}>{typeof risk === 'string' ? risk : JSON.stringify(risk)}</li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+
+                {/* 建议 */}
+                {selectedReport.sections.recommendations && selectedReport.sections.recommendations.length > 0 && (
+                  <>
+                    <Divider orientation="left">
+                      <Text strong>{language === 'zh' ? '健康建议' : 'Recommendations'}</Text>
+                    </Divider>
+                    <div style={{ 
+                      padding: '16px', 
+                      background: '#f0f7ff', 
+                      borderRadius: '4px',
+                      marginBottom: '16px'
+                    }}>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {Array.isArray(selectedReport.sections.recommendations)
+                          ? selectedReport.sections.recommendations.join('\n')
+                          : selectedReport.sections.recommendations}
+                      </ReactMarkdown>
+                    </div>
+                  </>
+                )}
+
+                {/* 行动计划 */}
+                {selectedReport.sections.actionItems && selectedReport.sections.actionItems.length > 0 && (
+                  <>
+                    <Divider orientation="left">
+                      <Text strong>{language === 'zh' ? '行动计划' : 'Action Items'}</Text>
+                    </Divider>
+                    <ul style={{ marginBottom: '16px' }}>
+                      {selectedReport.sections.actionItems.map((item: any, index: number) => (
+                        <li key={index}>
+                          <Text>{typeof item === 'string' ? item : (item.description || JSON.stringify(item))}</Text>
+                          {item.priority && (
+                            <Tag color={item.priority === 'high' ? 'red' : item.priority === 'medium' ? 'orange' : 'blue'} style={{ marginLeft: '8px' }}>
+                              {item.priority}
+                            </Tag>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </div>
             )}
           </Space>
         )}

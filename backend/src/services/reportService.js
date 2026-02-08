@@ -379,10 +379,10 @@ ${JSON.stringify(healthRecord.interventionHistory || [], null, 2)}
    * 解析报告内容
    */
   parseReportContent(aiAnalysis, healthRecord) {
-    // 这里可以解析AI返回的结构化内容
-    // 目前先返回基本结构
+    // 保存完整的AI分析内容作为执行摘要
+    // AI返回的内容已经是格式化的Markdown文本
     return {
-      executiveSummary: aiAnalysis.substring(0, 500),
+      executiveSummary: aiAnalysis || '', // 保存完整的AI分析内容
       healthMetrics: this.extractHealthMetrics(healthRecord),
       riskAssessment: this.extractRiskAssessment(healthRecord),
       recommendations: this.extractRecommendations(aiAnalysis),
