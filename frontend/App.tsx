@@ -21,7 +21,7 @@ const { Content } = Layout
 
 function App() {
   const { isAuthenticated, initAuth } = useAuthStore()
-  const { initLanguage, refreshLanguage, language } = useLanguageStore()
+  const { initLanguage, refreshLanguage } = useLanguageStore()
   const [isMobile, setIsMobile] = useState(false)
 
   // 检测设备类型

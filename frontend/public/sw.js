@@ -67,11 +67,14 @@ self.addEventListener('fetch', (event) => {
 
   // Handle API requests with network-first strategy
   if (url.pathname.startsWith('/api/')) {
+    // Only cache GET requests (Cache API doesn't support POST/PUT/DELETE)
+    const isGetRequest = request.method === 'GET';
+    
     event.respondWith(
       fetch(request)
         .then((response) => {
-          // Only cache successful responses
-          if (response.ok && response.status === 200) {
+          // Only cache successful GET responses
+          if (isGetRequest && response.ok && response.status === 200) {
             const responseClone = response.clone();
             caches.open(DYNAMIC_CACHE).then((cache) => {
               cache.put(request, responseClone).catch(err => {
@@ -82,21 +85,34 @@ self.addEventListener('fetch', (event) => {
           return response;
         })
         .catch((error) => {
-          console.warn('API request failed, trying cache:', error);
-          return caches.match(request).then(cachedResponse => {
-            if (cachedResponse) {
-              return cachedResponse;
-            }
-            // Return a proper error response if no cache
+          // Only try cache for GET requests
+          if (isGetRequest) {
+            console.warn('API request failed, trying cache:', error);
+            return caches.match(request).then(cachedResponse => {
+              if (cachedResponse) {
+                return cachedResponse;
+              }
+              // Return a proper error response if no cache
+              return new Response(
+                JSON.stringify({ error: 'Network error and no cached response' }),
+                {
+                  status: 503,
+                  statusText: 'Service Unavailable',
+                  headers: { 'Content-Type': 'application/json' }
+                }
+              );
+            });
+          } else {
+            // For non-GET requests, just return error
             return new Response(
-              JSON.stringify({ error: 'Network error and no cached response' }),
+              JSON.stringify({ error: 'Network error' }),
               {
                 status: 503,
                 statusText: 'Service Unavailable',
                 headers: { 'Content-Type': 'application/json' }
               }
             );
-          });
+          }
         })
     );
     return;
@@ -128,6 +144,13 @@ self.addEventListener('fetch', (event) => {
   }
   
   // In production, use cache-first strategy for static assets
+  // Only cache GET requests
+  if (request.method !== 'GET') {
+    // For non-GET requests, just fetch without caching
+    event.respondWith(fetch(request));
+    return;
+  }
+  
   event.respondWith(
     caches.match(request)
       .then((response) => {
@@ -139,7 +162,9 @@ self.addEventListener('fetch', (event) => {
           if (response.ok) {
             const responseClone = response.clone();
             caches.open(DYNAMIC_CACHE).then((cache) => {
-              cache.put(request, responseClone);
+              cache.put(request, responseClone).catch(err => {
+                console.warn('Failed to cache response:', err);
+              });
             });
           }
           return response;

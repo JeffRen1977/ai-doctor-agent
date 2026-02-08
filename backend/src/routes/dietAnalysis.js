@@ -140,9 +140,23 @@ async function analyzeFoodImageWithAI(imagePath, userId, userEmail) {
     const userAISettings = await userSettingsService.getUserAISettings(userId);
     const userProvider = userAISettings.success ? userAISettings.aiProvider : 'gemini';
     const userModel = userAISettings.success ? userAISettings.aiModel : '';
-    const userLanguage = userAISettings.success ? userAISettings.language : 'zh';
+    // 确保语言设置存在，如果不存在或为空，默认使用中文
+    let userLanguage = userAISettings.success && userAISettings.language ? userAISettings.language : 'zh';
+    
+    // 如果语言设置不是 'zh' 或 'en'，强制使用中文
+    if (userLanguage !== 'zh' && userLanguage !== 'en') {
+      console.warn(`⚠️ 无效的语言设置 "${userLanguage}"，强制使用中文`);
+      userLanguage = 'zh';
+    }
     
     console.log(`🎯 使用AI提供商: ${userProvider}, 模型: ${userModel}, 语言: ${userLanguage} (用户设置: ${userAISettings.success ? '已配置' : '默认'})`);
+    console.log(`📋 用户AI设置详情:`, {
+      success: userAISettings.success,
+      aiProvider: userAISettings.aiProvider,
+      aiModel: userAISettings.aiModel,
+      language: userAISettings.language,
+      finalLanguage: userLanguage
+    });
     
     // 读取图片文件并转换为base64
     const imageBuffer = fs.readFileSync(imagePath);
@@ -152,74 +166,118 @@ async function analyzeFoodImageWithAI(imagePath, userId, userEmail) {
     let prompt;
     if (userLanguage === 'en') {
       prompt = `
-        You are a professional nutritionist and AI medical assistant. Please analyze this food image and provide detailed nutritional analysis.
+        You are a professional nutritionist and AI medical assistant. Please analyze this food image and provide detailed nutritional analysis in the following structured format:
 
-        Please identify the food in the image and provide the following information:
+        ## Food Image Nutritional Analysis
 
-        1. Food Identification:
-           - Main food names (in English)
-           - Possible ingredients and components
-           - Cooking method (fried, stir-fried, steamed, boiled, etc.)
+        **1. Food Identification:**
+        * **Main food names (in English):** [List all identified foods]
+        * **Possible ingredients and components:** [List ingredients for each food]
+        * **Cooking method:** [Describe cooking methods]
 
-        2. Nutritional Analysis:
-           - Estimated calorie content
-           - Protein content (grams)
-           - Carbohydrate content (grams)
-           - Fat content (grams)
-           - Fiber content (grams)
-           - Glycemic Index (GI value)
+        **2. Nutritional Analysis:**
+        (The following values are rough estimates, actual values depend on specific ingredient quantities and cooking methods)
+        Since the image cannot precisely quantify food portions, the following data is estimated based on approximately 150g per serving, for reference only.
 
-        3. Health Assessment:
-           - Blood sugar impact for diabetes patients
-           - Nutritional value assessment
-           - Potential health risks
-           - Recommended serving size
+        Create a table with the following format:
+        | Food | Calories (kcal) | Protein (g) | Carbohydrates (g) | Fat (g) | Fiber (g) | Glycemic Index (GI) |
+        |------|-----------------|-------------|-------------------|---------|-----------|---------------------|
+        | [Food Name] (150g) | [value] | [value] | [value] | [value] | [value] | [value] |
 
-        4. Improvement Suggestions:
-           - How to make this meal healthier
-           - Recommended alternative ingredients
-           - Pairing suggestions
+        **3. Health Assessment:**
+        * **Blood sugar impact for diabetes patients:** [Detailed analysis]
+        * **Nutritional value assessment:** [Assessment]
+        * **Potential health risks:** [List risks]
+        * **Recommended serving size:** [Recommendations]
 
-        Please respond in English, keeping it professional, detailed, and practical. Format should be clear and readable.
+        **4. Improvement Suggestions:**
+        * **How to make this meal healthier:** [Suggestions]
+        * **Recommended alternative ingredients:** [Alternatives]
+        * **Pairing suggestions:** [Pairing advice]
+
+        ## Disease Impact Analysis
+
+        **1. Impact on Diabetes:**
+        * **Blood sugar impact:** [Detailed analysis of how this meal affects blood sugar]
+        * **Risk level:** [Low/Medium/High]
+        * **Recommendations for diabetes patients:** [Specific recommendations]
+
+        **2. Impact on Cardiovascular Disease:**
+        * **Cardiovascular impact:** [Detailed analysis of how this meal affects cardiovascular health]
+        * **Risk factors:** [List risk factors such as saturated fat, cholesterol, sodium]
+        * **Recommendations for cardiovascular patients:** [Specific recommendations]
+
+        **Disclaimer:**
+        The above analysis is for reference only and is not professional medical advice. Please consult a professional doctor or registered nutritionist for personalized dietary and health advice.
+        The food information provided by the image is limited, and there may be some errors in the analysis results.
+
+        Please respond in English, keeping it professional, detailed, and practical. Format should be clear and readable with proper markdown formatting.
         `;
     } else {
       prompt = `
-        你是一个专业的营养师和AI医生助理。请分析这张食物图片并提供详细的营养分析。
+        你是一个专业的营养师和AI医生助理。请分析这张食物图片并提供详细的营养分析，按照以下结构化格式输出：
 
-        请识别图片中的食物，并提供以下信息：
+        ## 食物图片营养分析
 
-        1. 食物识别：
-           - 主要食物名称（中文）
-           - 可能的配料和成分
-           - 烹饪方式（如煎、炒、蒸、煮等）
+        **1. 食物识别：**
+        * **主要食物名称（中文）：** [列出所有识别的食物]
+        * **可能的配料和成分：** [列出每种食物的配料]
+        * **烹饪方式：** [描述烹饪方法]
 
-        2. 营养分析：
-           - 估计的卡路里含量
-           - 蛋白质含量（克）
-           - 碳水化合物含量（克）
-           - 脂肪含量（克）
-           - 纤维含量（克）
-           - 血糖指数（GI值）
+        **2. 营养分析：**
+        （以下数值为粗略估计，实际数值取决于具体食材用量和烹饪方法）
+        由于图片无法精确量化食物分量，以下数据基于每份约150克的估计，仅供参考。
 
-        3. 健康评估：
-           - 对糖尿病患者的血糖影响
-           - 营养价值评估
-           - 潜在的健康风险
-           - 适合的食用量建议
+        请创建一个表格，格式如下：
+        | 食物 | 卡路里 (kcal) | 蛋白质 (g) | 碳水化合物 (g) | 脂肪 (g) | 纤维 (g) | 血糖指数 (GI) |
+        |------|---------------|------------|----------------|----------|----------|----------------|
+        | [食物名称] (150g) | [数值] | [数值] | [数值] | [数值] | [数值] | [数值] |
 
-        4. 改进建议：
-           - 如何让这餐更健康
-           - 推荐的替代食材
-           - 搭配建议
+        **3. 健康评估：**
+        * **对糖尿病患者的血糖影响：** [详细分析]
+        * **营养价值评估：** [评估]
+        * **潜在的健康风险：** [列出风险]
+        * **合适的食用量建议：** [建议]
 
-        请用中文回答，保持专业、详细和实用。格式要清晰易读。
+        **4. 改进建议：**
+        * **如何让这餐更健康：** [建议]
+        * **推荐的替代食材：** [替代品]
+        * **搭配建议：** [搭配建议]
+
+        ## 疾病影响分析
+
+        **1. 对糖尿病的影响：**
+        * **血糖影响：** [详细分析这餐对血糖的影响]
+        * **风险等级：** [低/中/高]
+        * **对糖尿病患者的建议：** [具体建议]
+
+        **2. 对心血管病的影响：**
+        * **心血管影响：** [详细分析这餐对心血管健康的影响]
+        * **风险因素：** [列出风险因素，如饱和脂肪、胆固醇、钠等]
+        * **对心血管病患者的建议：** [具体建议]
+
+        **免责声明：**
+        以上分析仅供参考，并非专业医学建议。建议您咨询专业医生或注册营养师，获得个性化的饮食和健康建议。
+        图片提供的食物信息有限，分析结果存在一定误差。
+
+        请用中文回答，保持专业、详细和实用。格式要清晰易读，使用正确的markdown格式。
         `;
     }
 
+    // 对于食物图片分析，强制使用 Gemini 的图像识别模型（图像识别能力更强）
+    // Gemini 的 gemini-1.5-pro 模型在图像理解方面表现优异
+    const finalProvider = 'gemini'; // 强制使用 Gemini 进行图像分析
+    const finalModel = 'gemini-1.5-pro'; // 使用 Pro 模型进行图像分析（更好的图像理解能力）
+    
+    console.log(`🍎 食物图片分析强制使用 Gemini 图像识别模型: ${finalModel}`);
+    if (userProvider !== 'gemini') {
+      console.log(`ℹ️  用户设置的 AI 提供商是 ${userProvider}，但食物图片分析使用 Gemini（图像识别能力更强）`);
+    }
+    
     // 使用AI服务工厂进行分析
     const aiResult = await aiServiceFactory.analyzeImageWithAI(base64Image, prompt, {
-      provider: userProvider,
-      model: userModel,
+      provider: finalProvider,
+      model: finalModel,
       language: userLanguage
     });
     
