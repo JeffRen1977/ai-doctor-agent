@@ -329,5 +329,30 @@ export const rehabilitationAssistantAPI = {
   answerHealthQuestion: async (question: string) => {
     const response = await api.post('/rehabilitation/answer', { question });
     return response.data;
+  },
+
+  // Get rehabilitation records
+  getRecords: async (options?: { type?: string; subtype?: string; limit?: number }) => {
+    const params = new URLSearchParams();
+    if (options?.type) params.append('type', options.type);
+    if (options?.subtype) params.append('subtype', options.subtype);
+    if (options?.limit) params.append('limit', options.limit.toString());
+    const response = await api.get(`/rehabilitation/records?${params.toString()}`);
+    return response.data;
+  },
+
+  // Get user context
+  getContext: async () => {
+    const response = await api.get('/rehabilitation/context');
+    return response.data;
+  },
+
+  // Submit feedback
+  submitFeedback: async (recordId: string, feedback: { effectiveness: number; helpful?: boolean; comments?: string }) => {
+    const response = await api.post('/rehabilitation/feedback', {
+      recordId,
+      ...feedback
+    });
+    return response.data;
   }
 };

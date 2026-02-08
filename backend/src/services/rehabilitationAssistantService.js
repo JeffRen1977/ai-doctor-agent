@@ -708,14 +708,15 @@ ${userContext.conversationContext?.recentMessages ? JSON.stringify(userContext.c
    * @returns {Promise<Object>} 记录列表
    */
   async getRehabilitationRecords(userEmail, options = {}) {
-    try {
-      const {
-        type = null,
-        subtype = null,
-        limitCount = 20,
-        startAfter = null
-      } = options;
+    // 提取选项参数（在try-catch外部，确保fallback可以访问）
+    const {
+      type = null,
+      subtype = null,
+      limitCount = 20,
+      startAfter = null
+    } = options;
 
+    try {
       const recordsRef = collection(db, 'rehabilitationRecords');
       let q = query(
         recordsRef,
@@ -753,6 +754,7 @@ ${userContext.conversationContext?.recentMessages ? JSON.stringify(userContext.c
       };
     } catch (error) {
       console.error('❌ Error getting rehabilitation records:', error);
+      console.warn('⚠️ Firestore index not found, using fallback query method');
       
       // Fallback: 如果索引不存在，使用内存排序
       try {
