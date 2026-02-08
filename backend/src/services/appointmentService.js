@@ -128,56 +128,102 @@ class AppointmentService {
   async getUserAppointments(userEmail, filters = {}) {
     try {
       const appointmentsRef = collection(db, 'appointments');
-      let q = query(
-        appointmentsRef,
-        where('userEmail', '==', userEmail)
-      );
-
-      // 按状态过滤
-      if (filters.status) {
-        q = query(q, where('status', '==', filters.status));
-      }
-
-      // 按日期范围过滤
-      if (filters.startDate || filters.endDate) {
-        if (filters.startDate) {
-          q = query(q, where('scheduledDateTime', '>=', filters.startDate));
-        }
-        if (filters.endDate) {
-          q = query(q, where('scheduledDateTime', '<=', filters.endDate));
-        }
-      }
-
-      // 排序
+      
+      // 先尝试使用索引查询（如果索引存在）
       try {
+        let q = query(
+          appointmentsRef,
+          where('userEmail', '==', userEmail)
+        );
+
+        // 按状态过滤
+        if (filters.status) {
+          q = query(q, where('status', '==', filters.status));
+        }
+
+        // 按日期范围过滤
+        if (filters.startDate || filters.endDate) {
+          if (filters.startDate) {
+            q = query(q, where('scheduledDateTime', '>=', filters.startDate));
+          }
+          if (filters.endDate) {
+            q = query(q, where('scheduledDateTime', '<=', filters.endDate));
+          }
+        }
+
+        // 排序
         q = query(q, orderBy('scheduledDateTime', 'asc'));
-      } catch (error) {
-        // 如果索引不存在，跳过排序
-        console.warn('⚠️ Index not found, skipping orderBy');
+
+        // 限制数量
+        if (filters.limit) {
+          q = query(q, limit(filters.limit));
+        }
+
+        const querySnapshot = await getDocs(q);
+        let appointments = querySnapshot.docs.map(doc => ({
+          appointmentId: doc.id,
+          ...doc.data()
+        }));
+
+        return {
+          success: true,
+          appointments: appointments
+        };
+      } catch (indexError) {
+        // 如果索引不存在，使用备用方案：先获取所有该用户的预约，然后在内存中过滤和排序
+        if (indexError.code === 'failed-precondition') {
+          console.warn('⚠️ Firestore index not found, using fallback query method');
+          
+          // 只使用 where 查询（不需要索引）
+          const fallbackQuery = query(
+            appointmentsRef,
+            where('userEmail', '==', userEmail)
+          );
+          
+          const querySnapshot = await getDocs(fallbackQuery);
+          let appointments = querySnapshot.docs.map(doc => ({
+            appointmentId: doc.id,
+            ...doc.data()
+          }));
+
+          // 在内存中按状态过滤
+          if (filters.status) {
+            appointments = appointments.filter(apt => apt.status === filters.status);
+          }
+
+          // 在内存中按日期范围过滤
+          if (filters.startDate || filters.endDate) {
+            appointments = appointments.filter(apt => {
+              const aptDate = new Date(apt.scheduledDateTime);
+              if (filters.startDate && aptDate < new Date(filters.startDate)) {
+                return false;
+              }
+              if (filters.endDate && aptDate > new Date(filters.endDate)) {
+                return false;
+              }
+              return true;
+            });
+          }
+
+          // 在内存中按时间排序
+          appointments.sort((a, b) => {
+            return new Date(a.scheduledDateTime) - new Date(b.scheduledDateTime);
+          });
+
+          // 限制数量
+          if (filters.limit) {
+            appointments = appointments.slice(0, filters.limit);
+          }
+
+          return {
+            success: true,
+            appointments: appointments
+          };
+        } else {
+          // 其他错误，重新抛出
+          throw indexError;
+        }
       }
-
-      // 限制数量
-      if (filters.limit) {
-        q = query(q, limit(filters.limit));
-      }
-
-      const querySnapshot = await getDocs(q);
-      let appointments = querySnapshot.docs.map(doc => ({
-        appointmentId: doc.id,
-        ...doc.data()
-      }));
-
-      // 如果无法使用orderBy，在内存中排序
-      if (!filters.limit || appointments.length < filters.limit) {
-        appointments.sort((a, b) => {
-          return new Date(a.scheduledDateTime) - new Date(b.scheduledDateTime);
-        });
-      }
-
-      return {
-        success: true,
-        appointments: appointments
-      };
     } catch (error) {
       console.error('❌ Error getting user appointments:', error);
       return {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import dayjs from 'dayjs';
 import { 
   Card, 
   Row, 
@@ -201,16 +202,39 @@ const CollaborationPage: React.FC = () => {
 
   const handleCreateAppointment = async (values: any) => {
     try {
-      const response = await collaborationAPI.createAppointment(values);
+      // 转换 DatePicker 的日期格式为 ISO 字符串
+      let scheduledDateTime: string;
+      if (values.scheduledDateTime) {
+        if (dayjs.isDayjs(values.scheduledDateTime)) {
+          scheduledDateTime = values.scheduledDateTime.toISOString();
+        } else if (values.scheduledDateTime instanceof Date) {
+          scheduledDateTime = values.scheduledDateTime.toISOString();
+        } else {
+          scheduledDateTime = new Date(values.scheduledDateTime).toISOString();
+        }
+      } else {
+        scheduledDateTime = new Date().toISOString();
+      }
+      
+      const appointmentData = {
+        ...values,
+        scheduledDateTime,
+        status: 'scheduled', // 默认状态
+        duration: 30 // 默认30分钟
+      };
+      
+      const response = await collaborationAPI.createAppointment(appointmentData);
       if (response.success) {
         message.success(language === 'zh' ? '预约创建成功' : 'Appointment created successfully');
         setAppointmentModalVisible(false);
         form.resetFields();
         loadAppointments();
+      } else {
+        message.error(response.error || (language === 'zh' ? '创建预约失败' : 'Failed to create appointment'));
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to create appointment:', error);
-      message.error(language === 'zh' ? '创建预约失败' : 'Failed to create appointment');
+      message.error(error.response?.data?.error || error.message || (language === 'zh' ? '创建预约失败' : 'Failed to create appointment'));
     }
   };
 
