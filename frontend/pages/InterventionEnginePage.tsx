@@ -38,9 +38,7 @@ import {
   FileTextOutlined,
   CalendarOutlined,
   BellOutlined,
-  BarChartOutlined,
   HeartOutlined,
-  FlagOutlined,
   PlusOutlined,
   ReloadOutlined,
   ExperimentOutlined,
@@ -284,13 +282,6 @@ const InterventionEnginePage: React.FC = () => {
     }
   };
 
-  // Calculate statistics
-  const stats = {
-    activePlans: exercisePlan ? 1 : 0,
-    avgAdherence: medicationData?.adherence?.overall || 0,
-    todayAdvice: nutritionResult ? 1 : 0,
-    completionRate: 75 // TODO: Calculate from actual data
-  };
 
   const medicationColumns = [
     {
@@ -377,52 +368,6 @@ const InterventionEnginePage: React.FC = () => {
           ? 'AI驱动的个性化健康管理引擎，根据实时数据动态调整用药、营养和运动建议，实现精准干预。'
           : 'AI-driven personalized health management engine that dynamically adjusts medication, nutrition, and exercise recommendations based on real-time data for precision intervention.'}
       </Paragraph>
-
-      {/* Statistics Cards */}
-      <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
-        <Col xs={24} sm={12} md={6}>
-          <Card>
-            <Statistic
-              title={language === 'zh' ? '活跃计划' : 'Active Plans'}
-              value={stats.activePlans}
-              prefix={<FlagOutlined />}
-              valueStyle={{ color: '#1890ff' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} md={6}>
-          <Card>
-            <Statistic
-              title={language === 'zh' ? '平均依从性' : 'Avg Adherence'}
-              value={stats.avgAdherence}
-              suffix="%"
-              prefix={<CheckCircleOutlined />}
-              valueStyle={{ color: '#52c41a' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} md={6}>
-          <Card>
-            <Statistic
-              title={language === 'zh' ? '今日建议' : 'Today\'s Advice'}
-              value={stats.todayAdvice}
-              prefix={<BellOutlined />}
-              valueStyle={{ color: '#faad14' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} md={6}>
-          <Card>
-            <Statistic
-              title={language === 'zh' ? '完成率' : 'Completion Rate'}
-              value={stats.completionRate}
-              suffix="%"
-              prefix={<BarChartOutlined />}
-              valueStyle={{ color: '#722ed1' }}
-            />
-          </Card>
-        </Col>
-      </Row>
 
       <Card>
         <Tabs activeKey={activeTab} onChange={setActiveTab}>

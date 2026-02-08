@@ -11,6 +11,7 @@ import {
   Tabs,
   Tag,
   Table,
+  List,
   Alert,
   Statistic,
   Divider,
@@ -324,157 +325,223 @@ const CollaborationPage: React.FC = () => {
   };
 
   // 预约管理标签页
-  const renderAppointmentsTab = () => (
-    <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      <Row justify="space-between" align="middle">
-        <Col>
-          <Title level={4} style={{ margin: 0 }}>
-            <CalendarOutlined style={{ marginRight: '8px' }} />
-            {language === 'zh' ? '预约管理' : 'Appointment Management'}
-          </Title>
-        </Col>
-        <Col>
-          <Button 
-            type="primary" 
-            icon={<PlusOutlined />} 
-            onClick={() => setAppointmentModalVisible(true)}
-          >
-            {language === 'zh' ? '新建预约' : 'New Appointment'}
-          </Button>
-        </Col>
-      </Row>
+  const renderAppointmentsTab = () => {
+    const statusMap: Record<string, { color: string; text: string }> = {
+      scheduled: { color: 'blue', text: language === 'zh' ? '已预约' : 'Scheduled' },
+      confirmed: { color: 'green', text: language === 'zh' ? '已确认' : 'Confirmed' },
+      completed: { color: 'default', text: language === 'zh' ? '已完成' : 'Completed' },
+      cancelled: { color: 'red', text: language === 'zh' ? '已取消' : 'Cancelled' }
+    };
 
-      <Card>
-        <Table
-          dataSource={appointments}
-          loading={appointmentsLoading}
-          rowKey="appointmentId"
-          columns={[
-            {
-              title: language === 'zh' ? '预约类型' : 'Type',
-              dataIndex: 'type',
-              key: 'type',
-              render: (type: string) => (
-                <Tag color="blue">{type}</Tag>
-              )
-            },
-            {
-              title: language === 'zh' ? '预约时间' : 'Scheduled Time',
-              dataIndex: 'scheduledDateTime',
-              key: 'scheduledDateTime',
-              render: (date: string) => new Date(date).toLocaleString()
-            },
-            {
-              title: language === 'zh' ? '医生/机构' : 'Provider',
-              key: 'provider',
-              render: (_: any, record: Appointment) => (
-                <Space>
-                  <Text strong>{record.provider.name}</Text>
-                  {record.provider.specialty && (
-                    <Text type="secondary">({record.provider.specialty})</Text>
-                  )}
-                </Space>
-              )
-            },
-            {
-              title: language === 'zh' ? '地点' : 'Location',
-              dataIndex: ['location', 'name'],
-              key: 'location'
-            },
-            {
-              title: language === 'zh' ? '状态' : 'Status',
-              dataIndex: 'status',
-              key: 'status',
-              render: (status: string) => {
-                const statusMap: Record<string, { color: string; text: string }> = {
-                  scheduled: { color: 'blue', text: language === 'zh' ? '已预约' : 'Scheduled' },
-                  confirmed: { color: 'green', text: language === 'zh' ? '已确认' : 'Confirmed' },
-                  completed: { color: 'default', text: language === 'zh' ? '已完成' : 'Completed' },
-                  cancelled: { color: 'red', text: language === 'zh' ? '已取消' : 'Cancelled' }
-                };
-                const statusInfo = statusMap[status] || { color: 'default', text: status };
-                return <Tag color={statusInfo.color}>{statusInfo.text}</Tag>;
-              }
-            },
-            {
-              title: language === 'zh' ? '操作' : 'Actions',
-              key: 'actions',
-              render: (_: any, record: Appointment) => (
-                <Space>
-                  <Button size="small" icon={<EyeOutlined />}>
-                    {language === 'zh' ? '查看' : 'View'}
-                  </Button>
-                  <Button size="small" icon={<EditOutlined />}>
-                    {language === 'zh' ? '编辑' : 'Edit'}
-                  </Button>
-                </Space>
-              )
-            }
-          ]}
-          pagination={{ pageSize: 10 }}
-        />
-      </Card>
+    // 移动端使用列表，桌面端使用表格
+    const isMobile = screens.xs || screens.sm;
 
-      {/* 创建预约模态框 */}
-      <Modal
-        title={language === 'zh' ? '新建预约' : 'New Appointment'}
-        open={appointmentModalVisible}
-        onCancel={() => setAppointmentModalVisible(false)}
-        footer={null}
-        width={600}
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleCreateAppointment}
+    return (
+      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        <Row justify="space-between" align="middle">
+          <Col>
+            <Title level={4} style={{ margin: 0 }}>
+              <CalendarOutlined style={{ marginRight: '8px' }} />
+              {language === 'zh' ? '预约管理' : 'Appointment Management'}
+            </Title>
+          </Col>
+          <Col>
+            <Button 
+              type="primary" 
+              icon={<PlusOutlined />} 
+              onClick={() => setAppointmentModalVisible(true)}
+              size={isMobile ? 'small' : 'middle'}
+            >
+              {language === 'zh' ? '新建预约' : 'New Appointment'}
+            </Button>
+          </Col>
+        </Row>
+
+        <Card>
+          {isMobile ? (
+            // 移动端：使用列表显示
+            <List
+              dataSource={appointments}
+              loading={appointmentsLoading}
+              itemLayout="vertical"
+              pagination={{ pageSize: 10, simple: true }}
+              renderItem={(record: Appointment) => {
+                const statusInfo = statusMap[record.status] || { color: 'default', text: record.status };
+                return (
+                  <List.Item
+                    key={record.appointmentId}
+                    actions={[
+                      <Button key="view" size="small" icon={<EyeOutlined />} type="link">
+                        {language === 'zh' ? '查看' : 'View'}
+                      </Button>,
+                      <Button key="edit" size="small" icon={<EditOutlined />} type="link">
+                        {language === 'zh' ? '编辑' : 'Edit'}
+                      </Button>
+                    ]}
+                  >
+                    <List.Item.Meta
+                      avatar={<Avatar icon={<CalendarOutlined />} style={{ backgroundColor: '#1890ff' }} />}
+                      title={
+                        <Space>
+                          <Tag color="blue">{record.type}</Tag>
+                          <Tag color={statusInfo.color}>{statusInfo.text}</Tag>
+                        </Space>
+                      }
+                      description={
+                        <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                          <Text>
+                            <CalendarOutlined style={{ marginRight: '4px' }} />
+                            {new Date(record.scheduledDateTime).toLocaleString()}
+                          </Text>
+                          <Text>
+                            <UserOutlined style={{ marginRight: '4px' }} />
+                            <Text strong>{record.provider.name}</Text>
+                            {record.provider.specialty && (
+                              <Text type="secondary"> ({record.provider.specialty})</Text>
+                            )}
+                          </Text>
+                          {record.location?.name && (
+                            <Text>
+                              <EnvironmentOutlined style={{ marginRight: '4px' }} />
+                              {record.location.name}
+                            </Text>
+                          )}
+                        </Space>
+                      }
+                    />
+                  </List.Item>
+                );
+              }}
+            />
+          ) : (
+            // 桌面端：使用表格显示
+            <Table
+              dataSource={appointments}
+              loading={appointmentsLoading}
+              rowKey="appointmentId"
+              scroll={{ x: 'max-content' }}
+              columns={[
+                {
+                  title: language === 'zh' ? '预约类型' : 'Type',
+                  dataIndex: 'type',
+                  key: 'type',
+                  render: (type: string) => (
+                    <Tag color="blue">{type}</Tag>
+                  )
+                },
+                {
+                  title: language === 'zh' ? '预约时间' : 'Scheduled Time',
+                  dataIndex: 'scheduledDateTime',
+                  key: 'scheduledDateTime',
+                  render: (date: string) => new Date(date).toLocaleString()
+                },
+                {
+                  title: language === 'zh' ? '医生/机构' : 'Provider',
+                  key: 'provider',
+                  render: (_: any, record: Appointment) => (
+                    <Space>
+                      <Text strong>{record.provider.name}</Text>
+                      {record.provider.specialty && (
+                        <Text type="secondary">({record.provider.specialty})</Text>
+                      )}
+                    </Space>
+                  )
+                },
+                {
+                  title: language === 'zh' ? '地点' : 'Location',
+                  dataIndex: ['location', 'name'],
+                  key: 'location'
+                },
+                {
+                  title: language === 'zh' ? '状态' : 'Status',
+                  dataIndex: 'status',
+                  key: 'status',
+                  render: (status: string) => {
+                    const statusInfo = statusMap[status] || { color: 'default', text: status };
+                    return <Tag color={statusInfo.color}>{statusInfo.text}</Tag>;
+                  }
+                },
+                {
+                  title: language === 'zh' ? '操作' : 'Actions',
+                  key: 'actions',
+                  render: (_: any, record: Appointment) => (
+                    <Space>
+                      <Button size="small" icon={<EyeOutlined />}>
+                        {language === 'zh' ? '查看' : 'View'}
+                      </Button>
+                      <Button size="small" icon={<EditOutlined />}>
+                        {language === 'zh' ? '编辑' : 'Edit'}
+                      </Button>
+                    </Space>
+                  )
+                }
+              ]}
+              pagination={{ pageSize: 10 }}
+            />
+          )}
+        </Card>
+
+        {/* 创建预约模态框 */}
+        <Modal
+          title={language === 'zh' ? '新建预约' : 'New Appointment'}
+          open={appointmentModalVisible}
+          onCancel={() => setAppointmentModalVisible(false)}
+          footer={null}
+          width={600}
         >
-          <Form.Item
-            name="type"
-            label={language === 'zh' ? '预约类型' : 'Appointment Type'}
-            rules={[{ required: true }]}
+          <Form
+            form={form}
+            layout="vertical"
+            onFinish={handleCreateAppointment}
           >
-            <Select placeholder={language === 'zh' ? '请选择预约类型' : 'Select appointment type'}>
-              <Option value="consultation">{language === 'zh' ? '咨询' : 'Consultation'}</Option>
-              <Option value="follow-up">{language === 'zh' ? '随访' : 'Follow-up'}</Option>
-              <Option value="checkup">{language === 'zh' ? '体检' : 'Checkup'}</Option>
-              <Option value="examination">{language === 'zh' ? '检查' : 'Examination'}</Option>
-            </Select>
-          </Form.Item>
-          <Form.Item
-            name="scheduledDateTime"
-            label={language === 'zh' ? '预约时间' : 'Scheduled Time'}
-            rules={[{ required: true }]}
-          >
-            <DatePicker showTime style={{ width: '100%' }} />
-          </Form.Item>
-          <Form.Item
-            name={['provider', 'name']}
-            label={language === 'zh' ? '医生姓名' : 'Doctor Name'}
-            rules={[{ required: true }]}
-          >
-            <Input />
-          </Form.Item>
-          <Form.Item
-            name={['location', 'name']}
-            label={language === 'zh' ? '医疗机构' : 'Medical Facility'}
-            rules={[{ required: true }]}
-          >
-            <Input />
-          </Form.Item>
-          <Form.Item>
-            <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-              <Button onClick={() => setAppointmentModalVisible(false)}>
-                {language === 'zh' ? '取消' : 'Cancel'}
-              </Button>
-              <Button type="primary" htmlType="submit">
-                {language === 'zh' ? '创建' : 'Create'}
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Modal>
-    </Space>
-  );
+            <Form.Item
+              name="type"
+              label={language === 'zh' ? '预约类型' : 'Appointment Type'}
+              rules={[{ required: true }]}
+            >
+              <Select placeholder={language === 'zh' ? '请选择预约类型' : 'Select appointment type'}>
+                <Option value="consultation">{language === 'zh' ? '咨询' : 'Consultation'}</Option>
+                <Option value="follow-up">{language === 'zh' ? '随访' : 'Follow-up'}</Option>
+                <Option value="checkup">{language === 'zh' ? '体检' : 'Checkup'}</Option>
+                <Option value="examination">{language === 'zh' ? '检查' : 'Examination'}</Option>
+              </Select>
+            </Form.Item>
+            <Form.Item
+              name="scheduledDateTime"
+              label={language === 'zh' ? '预约时间' : 'Scheduled Time'}
+              rules={[{ required: true }]}
+            >
+              <DatePicker showTime style={{ width: '100%' }} />
+            </Form.Item>
+            <Form.Item
+              name={['provider', 'name']}
+              label={language === 'zh' ? '医生姓名' : 'Doctor Name'}
+              rules={[{ required: true }]}
+            >
+              <Input />
+            </Form.Item>
+            <Form.Item
+              name={['location', 'name']}
+              label={language === 'zh' ? '医疗机构' : 'Medical Facility'}
+              rules={[{ required: true }]}
+            >
+              <Input />
+            </Form.Item>
+            <Form.Item>
+              <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+                <Button onClick={() => setAppointmentModalVisible(false)}>
+                  {language === 'zh' ? '取消' : 'Cancel'}
+                </Button>
+                <Button type="primary" htmlType="submit">
+                  {language === 'zh' ? '创建' : 'Create'}
+                </Button>
+              </Space>
+            </Form.Item>
+          </Form>
+        </Modal>
+      </Space>
+    );
+  };
 
   // 紧急求助标签页
   const renderEmergencyTab = () => (
