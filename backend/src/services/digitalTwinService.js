@@ -1,7 +1,6 @@
 const { db } = require('../config/firebase');
 const { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, orderBy, limit } = require('firebase/firestore');
 const aiServiceFactory = require('./aiServiceFactory');
-const firebaseService = require('./firebaseService');
 const wearableService = require('./wearableService');
 const userSettingsService = require('./userSettingsService');
 const openaiService = require('./openaiService');

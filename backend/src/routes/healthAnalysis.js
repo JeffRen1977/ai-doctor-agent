@@ -1,7 +1,5 @@
 const express = require('express');
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs').promises;
 const { authenticateToken } = require('../middleware/auth');
 const { analyzeHealthDocuments } = require('../services/healthAnalysisService');
 const { getHealthAnalysisHistory, getHealthAnalysisById } = require('../services/healthAnalysisService');

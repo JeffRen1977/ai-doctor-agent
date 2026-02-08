@@ -1,4 +1,3 @@
-const geminiService = require('./geminiService');
 const aiServiceFactory = require('./aiServiceFactory');
 const userSettingsService = require('./userSettingsService');
 const { db, storage } = require('../config/firebase');

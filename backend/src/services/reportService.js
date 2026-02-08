@@ -3,11 +3,10 @@
  */
 
 const { db } = require('../config/firebase');
-const { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, orderBy, limit, getDocs } = require('firebase/firestore');
+const { doc, getDoc, setDoc, collection, query, where, orderBy, limit, getDocs } = require('firebase/firestore');
 const { createReport } = require('../models/reportModels');
 const aiServiceFactory = require('./aiServiceFactory');
 const userSettingsService = require('./userSettingsService');
-const firebaseService = require('./firebaseService');
 const openaiService = require('./openaiService');
 
 class ReportService {
