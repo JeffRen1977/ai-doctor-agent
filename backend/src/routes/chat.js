@@ -1,6 +1,5 @@
 const express = require('express');
 const Joi = require('joi');
-const geminiService = require('../services/geminiService');
 const aiServiceFactory = require('../services/aiServiceFactory');
 const userSettingsService = require('../services/userSettingsService');
 const { authenticateToken, optionalAuth } = require('../middleware/auth');

@@ -26,27 +26,32 @@ const emergencyRoutes = require('./routes/emergency');
 const app = express();
 const PORT = process.env.PORT || 8000;
 
-// Railway-specific configuration
-console.log("=== RAILWAY CONFIGURATION ===");
-console.log(`PORT from env: ${process.env.PORT}`);
-console.log(`NODE_ENV: ${process.env.NODE_ENV}`);
-console.log(`Final PORT: ${PORT}`);
-console.log(`Current working directory: ${process.cwd()}`);
-console.log(`__dirname: ${__dirname}`);
-console.log("================================");
+// Railway-specific configuration (only log in development)
+if (process.env.NODE_ENV !== 'production') {
+  console.log("=== RAILWAY CONFIGURATION ===");
+  console.log(`PORT from env: ${process.env.PORT}`);
+  console.log(`NODE_ENV: ${process.env.NODE_ENV}`);
+  console.log(`Final PORT: ${PORT}`);
+  console.log(`Current working directory: ${process.cwd()}`);
+  console.log(`__dirname: ${__dirname}`);
+  console.log("================================");
+}
 
-// Add request logging middleware at the very beginning
-app.use((req, res, next) => {
-  console.log(`🌐 ${req.method} ${req.path} - ${req.ip} - ${req.get('User-Agent')}`);
-  console.log(`🔍 Request headers:`, req.headers);
-  next();
-});
+// Add request logging middleware (only in development)
+if (process.env.NODE_ENV !== 'production') {
+  app.use((req, res, next) => {
+    console.log(`🌐 ${req.method} ${req.path} - ${req.ip}`);
+    next();
+  });
+}
 
-// --- Enhanced Logging ---
-console.log("--- Starting Server ---");
-console.log(`Node Environment: ${process.env.NODE_ENV || 'development'}`);
-console.log(`Port: ${PORT}`);
-console.log(`Current Directory: ${__dirname}`);
+// --- Enhanced Logging (only in development) ---
+if (process.env.NODE_ENV !== 'production') {
+  console.log("--- Starting Server ---");
+  console.log(`Node Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`Port: ${PORT}`);
+  console.log(`Current Directory: ${__dirname}`);
+}
 
 // --- Path Verification ---
 // Try multiple possible paths for frontend files
@@ -67,22 +72,26 @@ for (const testPath of possibleDistPaths) {
   if (require('fs').existsSync(testPath) && require('fs').existsSync(testIndexPath)) {
     distPath = testPath;
     indexPath = testIndexPath;
-    console.log(`✅ Found frontend files at: ${distPath}`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`✅ Found frontend files at: ${distPath}`);
+    }
     break;
   }
 }
 
 if (!distPath) {
   console.error("--- CRITICAL: Frontend build files not found! ---");
-  console.log("Searched paths:", possibleDistPaths);
-  // List available directories for debugging
-  try {
-    const rootContents = require('fs').readdirSync(path.join(__dirname, '../..'));
-    console.log("Root directory contents:", rootContents);
-  } catch (e) {
-    console.error("Could not read root directory:", e.message);
+  if (process.env.NODE_ENV !== 'production') {
+    console.log("Searched paths:", possibleDistPaths);
+    // List available directories for debugging
+    try {
+      const rootContents = require('fs').readdirSync(path.join(__dirname, '../..'));
+      console.log("Root directory contents:", rootContents);
+    } catch (e) {
+      console.error("Could not read root directory:", e.message);
+    }
   }
-} else {
+} else if (process.env.NODE_ENV !== 'production') {
   console.log(`Serving static files from: ${distPath}`);
   console.log(`Expecting index.html at: ${indexPath}`);
 }
