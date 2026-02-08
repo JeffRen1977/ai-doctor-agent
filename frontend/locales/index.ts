@@ -468,9 +468,9 @@ export const translations: Record<Language, Translations> = {
         subtitle: '您的健康管理专家'
       },
       menu: {
-        dashboard: '健康仪表板',
+        dashboard: '我的健康总览',
         aiChat: 'AI医生对话',
-        healthRecords: '健康档案',
+        healthRecords: '我的病历档案',
         healthAnalytics: '健康分析',
         healthAnalysis: '健康档案分析',
         dietAnalysis: '饮食分析',
@@ -480,26 +480,27 @@ export const translations: Record<Language, Translations> = {
         profile: '个人资料',
         settings: '设置',
         logout: '退出登录',
-        digitalTwin: '智能数字孪生',
-        riskMonitoring: '实时风险监测',
-        interventionEngine: '精准干预引擎',
+        digitalTwin: '健康预测分析',
+        riskMonitoring: '异常预警',
+        interventionEngine: '用药与饮食管理',
         clinicalReports: '临床报告',
-        rehabilitationAssistant: '生成式AI康复助理',
-        clinicalCollaboration: '医患协作'
+        rehabilitationAssistant: 'AI健康助手',
+        clinicalCollaboration: '预约与报告'
       },
       user: {
         role: '健康管理师'
       }
     },
     dashboard: {
-      title: '健康仪表板',
+      title: '我的健康总览',
       welcome: '欢迎回来',
       quickActions: {
         title: '快速操作',
-        chat: '开始对话',
-        records: '查看档案',
-        analysis: '健康分析',
-        appointment: '预约医生'
+        chat: '咨询AI医生',
+        records: '记录用药',
+        analysis: '记录测量',
+        appointment: '上传食物',
+        viewReports: '查看报告'
       },
       healthSummary: {
         title: '健康概览',
@@ -511,6 +512,41 @@ export const translations: Record<Language, Translations> = {
       recentActivity: {
         title: '最近活动',
         noActivity: '暂无活动记录'
+      },
+      keyMetrics: {
+        title: '关键指标',
+        medicationAdherence: '用药依从性',
+        healthScore: '健康评分',
+        riskLevel: '风险等级',
+        today: '今日',
+        thisWeek: '本周',
+        thisMonth: '本月'
+      },
+      todayFocus: {
+        title: '今日重点关注',
+        medicationReminders: '用药提醒',
+        measurementTasks: '测量任务',
+        dietAdvice: '饮食建议',
+        exerciseAdvice: '运动建议'
+      },
+      healthTrends: {
+        title: '健康趋势',
+        last7Days: '最近7天',
+        last30Days: '最近30天',
+        medicationAdherence: '用药依从性',
+        keyMetrics: '关键指标'
+      },
+      smartAlerts: {
+        title: '智能提醒与建议',
+        riskAlerts: '风险预警',
+        aiSuggestions: 'AI建议',
+        interventionFeedback: '干预效果'
+      },
+      upcomingEvents: {
+        title: '下次重要事项',
+        nextAppointment: '下次复诊',
+        nextCheckup: '下次检查',
+        medicationAdjustment: '用药调整提醒'
       }
     },
     chat: {
@@ -884,9 +920,9 @@ export const translations: Record<Language, Translations> = {
         subtitle: 'Your Health Management Expert'
       },
       menu: {
-        dashboard: 'Health Dashboard',
+        dashboard: 'My Health Overview',
         aiChat: 'AI Doctor Chat',
-        healthRecords: 'Health Records',
+        healthRecords: 'My Medical Records',
         healthAnalytics: 'Health Analytics',
         healthAnalysis: 'Health Document Analysis',
         dietAnalysis: 'Diet Analysis',
@@ -896,26 +932,27 @@ export const translations: Record<Language, Translations> = {
         profile: 'Profile',
         settings: 'Settings',
         logout: 'Logout',
-        digitalTwin: 'Digital Twin',
-        riskMonitoring: 'Risk Monitoring',
-        interventionEngine: 'Intervention Engine',
+        digitalTwin: 'Health Risk Assessment',
+        riskMonitoring: 'Health Alerts',
+        interventionEngine: 'Medication & Diet Management',
         clinicalReports: 'Clinical Reports',
-        rehabilitationAssistant: 'Rehabilitation Assistant',
-        clinicalCollaboration: 'Clinical Collaboration'
+        rehabilitationAssistant: 'AI Health Assistant',
+        clinicalCollaboration: 'Appointments & Reports'
       },
       user: {
         role: 'Health Manager'
       }
     },
     dashboard: {
-      title: 'Health Dashboard',
+      title: 'My Health Overview',
       welcome: 'Welcome back',
       quickActions: {
         title: 'Quick Actions',
-        chat: 'Start Chat',
-        records: 'View Records',
-        analysis: 'Health Analysis',
-        appointment: 'Book Appointment'
+        chat: 'Consult AI Doctor',
+        records: 'Record Medication',
+        analysis: 'Record Measurement',
+        appointment: 'Upload Food Photo',
+        viewReports: 'View Reports'
       },
       healthSummary: {
         title: 'Health Summary',
@@ -927,6 +964,41 @@ export const translations: Record<Language, Translations> = {
       recentActivity: {
         title: 'Recent Activity',
         noActivity: 'No recent activity'
+      },
+      keyMetrics: {
+        title: 'Key Metrics',
+        medicationAdherence: 'Medication Adherence',
+        healthScore: 'Health Score',
+        riskLevel: 'Risk Level',
+        today: 'Today',
+        thisWeek: 'This Week',
+        thisMonth: 'This Month'
+      },
+      todayFocus: {
+        title: 'Today\'s Focus',
+        medicationReminders: 'Medication Reminders',
+        measurementTasks: 'Measurement Tasks',
+        dietAdvice: 'Diet Advice',
+        exerciseAdvice: 'Exercise Advice'
+      },
+      healthTrends: {
+        title: 'Health Trends',
+        last7Days: 'Last 7 Days',
+        last30Days: 'Last 30 Days',
+        medicationAdherence: 'Medication Adherence',
+        keyMetrics: 'Key Metrics'
+      },
+      smartAlerts: {
+        title: 'Smart Alerts & Suggestions',
+        riskAlerts: 'Risk Alerts',
+        aiSuggestions: 'AI Suggestions',
+        interventionFeedback: 'Intervention Feedback'
+      },
+      upcomingEvents: {
+        title: 'Upcoming Events',
+        nextAppointment: 'Next Appointment',
+        nextCheckup: 'Next Checkup',
+        medicationAdjustment: 'Medication Adjustment Reminder'
       }
     },
     chat: {
