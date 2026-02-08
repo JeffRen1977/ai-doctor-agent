@@ -386,18 +386,28 @@ class RiskMonitoringService {
       // 获取最近的预警
       const recentAlerts = await this.getRecentAlerts(userEmail, 10);
       
+      // 提取最新数据点（完整对象，包含所有指标）
+      const latestDataPoint = recentData.length > 0 ? recentData[recentData.length - 1] : null;
+      const lastDataPoint = latestDataPoint ? {
+        ...latestDataPoint.data,  // 包含所有健康指标数据
+        timestamp: latestDataPoint.timestamp
+      } : null;
+      
       // 分析当前状态
       const status = {
         isMonitoring: recentData.length > 0,
-        lastDataPoint: recentData.length > 0 ? recentData[recentData.length - 1]?.timestamp : null,
+        lastDataPoint: lastDataPoint,  // 返回完整数据对象，而不仅仅是时间戳
+        lastDataPointTimestamp: latestDataPoint?.timestamp || null,  // 保留时间戳字段以保持向后兼容
         activeAlerts: recentAlerts.filter(a => !a.acknowledged && a.severity !== 'low'),
         riskLevel: this.calculateOverallRiskLevel(recentAlerts),
-        metrics: this.extractCurrentMetrics(recentData)
+        metrics: this.extractCurrentMetrics(recentData)  // 保留 metrics 字段以保持向后兼容
       };
       
       return {
         success: true,
-        status: status
+        status: status,
+        // 为了前端兼容性，也在顶层返回 lastDataPoint
+        lastDataPoint: lastDataPoint
       };
     } catch (error) {
       console.error('❌ Error getting monitoring status:', error);
@@ -963,6 +973,7 @@ ${JSON.stringify(heartRateData, null, 2)}
     const latest = dataPoints[dataPoints.length - 1];
     return {
       heartRate: latest.data?.heartRate || null,
+      bloodPressure: latest.data?.bloodPressure || null,  // 添加血压字段
       glucose: latest.data?.glucose || null,
       hrv: latest.data?.hrv || null,
       steps: latest.data?.steps || null,
