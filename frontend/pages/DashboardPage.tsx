@@ -12,8 +12,6 @@ import {
   Alert,
   Typography,
   Space,
-  Divider,
-  Badge,
   Grid,
   Timeline,
   Empty,
@@ -24,7 +22,6 @@ import {
   HeartOutlined, 
   MedicineBoxOutlined, 
   CalendarOutlined, 
-  BellOutlined,
   PlusOutlined,
   MessageOutlined,
   FileTextOutlined,
@@ -46,7 +43,7 @@ import { useNavigate } from 'react-router-dom';
 import { interventionEngineAPI, collaborationAPI, riskMonitoringAPI } from '@/services/api';
 import dayjs from 'dayjs';
 
-const { Title, Text, Paragraph } = Typography;
+const { Title, Text } = Typography;
 const { useBreakpoint } = Grid;
 
 interface HealthMetric {
@@ -117,9 +114,9 @@ const DashboardPage: React.FC = () => {
       }
 
       // 加载健康指标（从风险监测获取）
+      let metrics: HealthMetric[] = [];
       const statusResponse = await riskMonitoringAPI.getStatus();
       if (statusResponse.success && statusResponse.lastDataPoint) {
-        const metrics: HealthMetric[] = [];
         const data = statusResponse.lastDataPoint;
         
         if (data.heartRate) {
@@ -134,7 +131,7 @@ const DashboardPage: React.FC = () => {
         }
         if (data.bloodPressure) {
           const bp = data.bloodPressure;
-          const systolic = typeof bp === 'object' ? bp.systolic : bp.split('/')[0];
+          const systolic = typeof bp === 'object' ? bp.systolic : parseInt(bp.split('/')[0]);
           metrics.push({
             name: language === 'zh' ? '血压' : 'Blood Pressure',
             value: typeof bp === 'object' ? `${bp.systolic}/${bp.diastolic}` : bp,
@@ -174,18 +171,20 @@ const DashboardPage: React.FC = () => {
 
       // 加载即将到来的预约
       const appointmentsResponse = await collaborationAPI.getUpcomingAppointments(7);
+      let appointments: any[] = [];
       if (appointmentsResponse.success) {
-        setUpcomingAppointments(appointmentsResponse.appointments || []);
+        appointments = appointmentsResponse.appointments || [];
+        setUpcomingAppointments(appointments);
       }
 
-      // 生成最近活动（模拟数据，实际应从API获取）
-      generateRecentActivities(medResponse);
+      // 生成最近活动（需要预约数据，所以在这里调用）
+      generateRecentActivities(medResponse, appointments);
 
       // 计算健康评分（基于用药依从性和指标状态）
       if (medResponse.adherence) {
         const adherence = medResponse.adherence.overall || 0;
-        const metricsScore = healthMetrics.length > 0 
-          ? healthMetrics.filter(m => m.status === 'normal').length / healthMetrics.length * 100
+        const metricsScore = metrics.length > 0 
+          ? metrics.filter(m => m.status === 'normal').length / metrics.length * 100
           : 80;
         setHealthScore(Math.round((adherence * 0.6 + metricsScore * 0.4)));
       }
@@ -197,7 +196,7 @@ const DashboardPage: React.FC = () => {
     }
   };
 
-  const generateRecentActivities = (medData: any) => {
+  const generateRecentActivities = (medData: any, appointments: any[] = []) => {
     const activities: RecentActivity[] = [];
     
     // 从用药历史生成活动
@@ -218,7 +217,7 @@ const DashboardPage: React.FC = () => {
     }
 
     // 从预约生成活动
-    upcomingAppointments.slice(0, 3).forEach((apt: any) => {
+    appointments.slice(0, 3).forEach((apt: any) => {
       activities.push({
         id: `apt-${apt.appointmentId}`,
         type: 'appointment',
