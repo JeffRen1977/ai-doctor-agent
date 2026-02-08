@@ -7,15 +7,13 @@ import DashboardPage from './pages/DashboardPage'
 import HealthRecordsPage from './pages/HealthRecordsPage'
 import ProfilePage from './pages/ProfilePage'
 import LoginPage from './pages/LoginPage'
-import AppointmentPage from './pages/AppointmentPage'
 import DeviceSyncPage from './pages/DeviceSyncPage'
 import HealthAnalyticsPage from './pages/HealthAnalyticsPage'
-import EmergencyPage from './pages/EmergencyPage'
 import UserSettingsPage from './pages/UserSettingsPage'
 import InterventionEnginePage from './pages/InterventionEnginePage'
-import ClinicalReportsPage from './pages/ClinicalReportsPage'
 import DigitalTwinPage from './pages/DigitalTwinPage'
 import RehabilitationAssistantPage from './pages/RehabilitationAssistantPage'
+import CollaborationPage from './pages/CollaborationPage'
 import { useAuthStore } from './stores/authStore'
 import { useLanguageStore } from './stores/languageStore'
 import './App.css'
@@ -106,12 +104,13 @@ function App() {
             <Route path="/health-records" element={<HealthRecordsPage />} />
             <Route path="/analytics" element={<HealthAnalyticsPage />} />
             <Route path="/digital-twin" element={<DigitalTwinPage />} />
-            <Route path="/appointments" element={<AppointmentPage />} />
+            <Route path="/collaboration" element={<CollaborationPage />} />
+            <Route path="/appointments" element={<Navigate to="/collaboration?tab=appointments" replace />} />
+            <Route path="/emergency" element={<Navigate to="/collaboration?tab=emergency" replace />} />
+            <Route path="/clinical-reports" element={<Navigate to="/collaboration?tab=reports" replace />} />
             <Route path="/devices" element={<DeviceSyncPage />} />
-            <Route path="/emergency" element={<EmergencyPage />} />
             <Route path="/diet-analysis" element={<Navigate to="/intervention" replace />} />
             <Route path="/intervention" element={<InterventionEnginePage />} />
-            <Route path="/clinical-reports" element={<ClinicalReportsPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/settings" element={<UserSettingsPage />} />
           </Routes>

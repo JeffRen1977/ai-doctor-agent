@@ -17,6 +17,7 @@ import {
   ThunderboltOutlined,
   WarningOutlined,
   FileSearchOutlined,
+  TeamOutlined,
 } from '@ant-design/icons'
 import { useAuthStore } from '@/stores/authStore'
 import { useLanguageStore } from '@/stores/languageStore'
@@ -121,19 +122,9 @@ const Sidebar: React.FC = () => {
   // 5. 医患协作闭环 (Clinical Collaboration) - 整合预约、紧急求助、临床报告
   const clinicalCollaborationMenuItems = [
     {
-      key: '/appointments',
-      icon: <CalendarOutlined />,
-      label: t('sidebar.menu.appointments'),
-    },
-    {
-      key: '/emergency',
-      icon: <ExclamationCircleOutlined />,
-      label: t('sidebar.menu.emergency'),
-    },
-    {
-      key: '/clinical-reports',
-      icon: <FileSearchOutlined />,
-      label: t('sidebar.menu.clinicalReports'),
+      key: '/collaboration',
+      icon: <TeamOutlined />,
+      label: t('sidebar.menu.clinicalCollaboration'),
     },
   ]
 

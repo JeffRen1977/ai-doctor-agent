@@ -356,3 +356,88 @@ export const rehabilitationAssistantAPI = {
     return response.data;
   }
 };
+
+// Clinical Collaboration API (医患协作)
+export const collaborationAPI = {
+  // Appointments
+  getAppointments: async (filters?: { status?: string; type?: string; startDate?: string; endDate?: string }) => {
+    const params = new URLSearchParams();
+    if (filters?.status) params.append('status', filters.status);
+    if (filters?.type) params.append('type', filters.type);
+    if (filters?.startDate) params.append('startDate', filters.startDate);
+    if (filters?.endDate) params.append('endDate', filters.endDate);
+    const response = await api.get(`/appointments?${params.toString()}`);
+    return response.data;
+  },
+
+  getUpcomingAppointments: async (days: number = 7) => {
+    const response = await api.get(`/appointments/upcoming?days=${days}`);
+    return response.data;
+  },
+
+  getAppointment: async (appointmentId: string) => {
+    const response = await api.get(`/appointments/${appointmentId}`);
+    return response.data;
+  },
+
+  createAppointment: async (appointmentData: any) => {
+    const response = await api.post('/appointments', appointmentData);
+    return response.data;
+  },
+
+  updateAppointment: async (appointmentId: string, appointmentData: any) => {
+    const response = await api.put(`/appointments/${appointmentId}`, appointmentData);
+    return response.data;
+  },
+
+  deleteAppointment: async (appointmentId: string) => {
+    const response = await api.delete(`/appointments/${appointmentId}`);
+    return response.data;
+  },
+
+  // Clinical Reports
+  generateReport: async (options: { reportType: string; period?: string; title?: string }) => {
+    const endpoint = options.reportType === 'comprehensive' 
+      ? '/reports/comprehensive' 
+      : '/reports/health-assessment';
+    const response = await api.post(endpoint, {
+      title: options.title,
+      period: options.period
+    });
+    return response.data;
+  },
+
+  getReports: async (filters?: { reportType?: string; limit?: number }) => {
+    const params = new URLSearchParams();
+    if (filters?.reportType) params.append('reportType', filters.reportType);
+    if (filters?.limit) params.append('limit', filters.limit.toString());
+    const response = await api.get(`/reports?${params.toString()}`);
+    return response.data;
+  },
+
+  getReport: async (reportId: string) => {
+    const response = await api.get(`/reports/${reportId}`);
+    return response.data;
+  },
+
+  // Emergency
+  setupEmergencyContact: async (contactInfo: any) => {
+    const response = await api.post('/emergency/contacts', contactInfo);
+    return response.data;
+  },
+
+  getEmergencyContacts: async () => {
+    const response = await api.get('/emergency/contacts');
+    return response.data;
+  },
+
+  triggerEmergencyAlert: async (eventType: string, location?: any) => {
+    const response = await api.post('/emergency/alert', { eventType, location });
+    return response.data;
+  },
+
+  sendEmergencyMessage: async (messageData: any) => {
+    const response = await api.post('/emergency/message', messageData);
+    return response.data;
+  }
+};

@@ -14,12 +14,10 @@ import MobileInstallPrompt from './MobileInstallPrompt'
 import DashboardPage from '../pages/DashboardPage'
 import HealthRecordsPage from '../pages/HealthRecordsPage'
 import ProfilePage from '../pages/ProfilePage'
-import AppointmentPage from '../pages/AppointmentPage'
 import DeviceSyncPage from '../pages/DeviceSyncPage'
 import HealthAnalyticsPage from '../pages/HealthAnalyticsPage'
-import EmergencyPage from '../pages/EmergencyPage'
 import InterventionEnginePage from '../pages/InterventionEnginePage'
-import ClinicalReportsPage from '../pages/ClinicalReportsPage'
+import CollaborationPage from '../pages/CollaborationPage'
 import DigitalTwinPage from '../pages/DigitalTwinPage'
 import RehabilitationAssistantPage from '../pages/RehabilitationAssistantPage'
 import { useAuthStore } from '../stores/authStore'
@@ -84,7 +82,7 @@ const MobileApp: React.FC = () => {
   //   return <LoginPage />
   // }
 
-  const isEmergencyPage = location.pathname === '/emergency'
+  const isEmergencyPage = location.pathname === '/collaboration' && new URLSearchParams(location.search).get('tab') === 'emergency'
 
   console.log('📱 MobileApp rendering:', {
     isAuthenticated,
@@ -109,10 +107,9 @@ const MobileApp: React.FC = () => {
             {location.pathname === '/chat' && t('sidebar.menu.aiChat')}
             {location.pathname === '/health-records' && t('sidebar.menu.healthRecords')}
             {location.pathname === '/analytics' && t('sidebar.menu.healthAnalytics')}
-            {location.pathname === '/appointments' && t('sidebar.menu.appointments')}
+            {location.pathname === '/collaboration' && t('sidebar.menu.clinicalCollaboration')}
             {location.pathname === '/devices' && t('sidebar.menu.deviceSync')}
             {location.pathname === '/intervention' && t('sidebar.menu.interventionEngine')}
-            {location.pathname === '/emergency' && t('sidebar.menu.emergency')}
             {location.pathname === '/profile' && t('sidebar.menu.profile')}
           </h1>
         </div>
@@ -135,12 +132,13 @@ const MobileApp: React.FC = () => {
           <Route path="/health-records" element={<HealthRecordsPage />} />
           <Route path="/analytics" element={<HealthAnalyticsPage />} />
           <Route path="/digital-twin" element={<DigitalTwinPage />} />
-          <Route path="/appointments" element={<AppointmentPage />} />
+          <Route path="/collaboration" element={<CollaborationPage />} />
+          <Route path="/appointments" element={<Navigate to="/collaboration?tab=appointments" replace />} />
+          <Route path="/emergency" element={<Navigate to="/collaboration?tab=emergency" replace />} />
+          <Route path="/clinical-reports" element={<Navigate to="/collaboration?tab=reports" replace />} />
           <Route path="/devices" element={<DeviceSyncPage />} />
-          <Route path="/emergency" element={<EmergencyPage />} />
           <Route path="/diet-analysis" element={<Navigate to="/intervention" replace />} />
           <Route path="/intervention" element={<InterventionEnginePage />} />
-          <Route path="/clinical-reports" element={<ClinicalReportsPage />} />
           <Route path="/rehabilitation" element={<RehabilitationAssistantPage />} />
           <Route path="/chat" element={<RehabilitationAssistantPage />} />
           <Route path="/profile" element={<ProfilePage />} />
@@ -204,7 +202,7 @@ const MobileApp: React.FC = () => {
           <FloatButton
             icon={<PhoneOutlined />}
             tooltip={t('sidebar.menu.emergency')}
-            onClick={() => navigate('/emergency')}
+            onClick={() => navigate('/collaboration?tab=emergency')}
             type="primary"
             style={{ backgroundColor: '#ff4d4f' }}
           />

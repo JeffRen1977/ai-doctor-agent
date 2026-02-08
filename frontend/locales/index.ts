@@ -484,7 +484,8 @@ export const translations: Record<Language, Translations> = {
         riskMonitoring: '实时风险监测',
         interventionEngine: '精准干预引擎',
         clinicalReports: '临床报告',
-        rehabilitationAssistant: '生成式AI康复助理'
+        rehabilitationAssistant: '生成式AI康复助理',
+        clinicalCollaboration: '医患协作'
       },
       user: {
         role: '健康管理师'
@@ -899,7 +900,8 @@ export const translations: Record<Language, Translations> = {
         riskMonitoring: 'Risk Monitoring',
         interventionEngine: 'Intervention Engine',
         clinicalReports: 'Clinical Reports',
-        rehabilitationAssistant: 'Rehabilitation Assistant'
+        rehabilitationAssistant: 'Rehabilitation Assistant',
+        clinicalCollaboration: 'Clinical Collaboration'
       },
       user: {
         role: 'Health Manager'
