@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Layout, Button, FloatButton } from 'antd'
+import { Layout, FloatButton } from 'antd'
 import { 
   MenuOutlined, 
   MessageOutlined, 
@@ -76,37 +76,7 @@ const MobileApp: React.FC = () => {
 
   return (
     <Layout className="mobile-app">
-      {/* 移动端顶部导航栏 */}
-      <div className="mobile-header">
-        <div className="mobile-header-left">
-          <Button
-            type="text"
-            icon={<MenuOutlined />}
-            onClick={() => setIsMenuOpen(true)}
-            className="mobile-menu-button"
-          />
-          <h1 className="mobile-title">
-            {location.pathname === '/dashboard' && t('sidebar.menu.dashboard')}
-            {location.pathname === '/health-records' && t('sidebar.menu.healthRecords')}
-            {location.pathname === '/digital-twin' && t('sidebar.menu.digitalTwin')}
-            {location.pathname === '/devices' && t('sidebar.menu.riskMonitoring')}
-            {location.pathname === '/intervention' && t('sidebar.menu.interventionEngine')}
-            {(location.pathname === '/rehabilitation' || location.pathname === '/chat') && t('sidebar.menu.rehabilitationAssistant')}
-            {location.pathname === '/collaboration' && t('sidebar.menu.clinicalCollaboration')}
-            {location.pathname === '/profile' && t('sidebar.menu.profile')}
-          </h1>
-        </div>
-        
-        <div className="mobile-header-right">
-          {!isOnline && (
-            <div className="offline-indicator">
-              <span>●</span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* 主要内容区域 */}
+      {/* 主要内容区域 - 全屏显示，无固定头部和底部栏 */}
       <Content className="mobile-content">
         <Routes>
           <Route path="/" element={<DashboardPage />} />
@@ -126,59 +96,53 @@ const MobileApp: React.FC = () => {
         </Routes>
       </Content>
 
-      {/* 移动端底部导航栏 */}
-      <div className="mobile-bottom-nav">
-        <Button
-          type="text"
-          icon={<HomeOutlined />}
-          className={`nav-button ${location.pathname === '/dashboard' ? 'active' : ''}`}
-          onClick={() => navigate('/dashboard')}
-        >
-          {t('sidebar.menu.dashboard')}
-        </Button>
-        <Button
-          type="text"
-          icon={<MessageOutlined />}
-          className={`nav-button ${(location.pathname === '/rehabilitation' || location.pathname === '/chat') ? 'active' : ''}`}
-          onClick={() => navigate('/rehabilitation')}
-        >
-          {t('sidebar.menu.rehabilitationAssistant')}
-        </Button>
-        <Button
-          type="text"
-          icon={<ThunderboltOutlined />}
-          className={`nav-button ${location.pathname === '/intervention' ? 'active' : ''}`}
-          onClick={() => navigate('/intervention')}
-        >
-          {t('sidebar.menu.interventionEngine')}
-        </Button>
-        <Button
-          type="text"
-          icon={<ExclamationCircleOutlined />}
-          className={`nav-button ${location.pathname === '/devices' ? 'active' : ''}`}
-          onClick={() => navigate('/devices')}
-        >
-          {t('sidebar.menu.riskMonitoring')}
-        </Button>
-      </div>
-
       {/* 移动端菜单抽屉 */}
       <MobileMenu 
         isOpen={isMenuOpen} 
         onClose={() => setIsMenuOpen(false)} 
       />
 
-      {/* 浮动操作按钮 */}
+      {/* 浮动菜单按钮 - 固定在左上角 */}
+      <FloatButton
+        icon={<MenuOutlined />}
+        type="primary"
+        style={{ 
+          left: 16, 
+          top: 16,
+          width: 48,
+          height: 48
+        }}
+        onClick={() => setIsMenuOpen(true)}
+        tooltip={language === 'zh' ? '菜单' : 'Menu'}
+      />
+
+      {/* 浮动操作按钮组 - 固定在右下角 */}
       {!isEmergencyPage && (
         <FloatButton.Group
           shape="circle"
-          style={{ right: 24, bottom: 100 }}
+          style={{ right: 16, bottom: 16 }}
           icon={<MessageOutlined />}
+          trigger="hover"
         >
+          <FloatButton
+            icon={<HomeOutlined />}
+            tooltip={t('sidebar.menu.dashboard')}
+            onClick={() => navigate('/dashboard')}
+          />
           <FloatButton
             icon={<MessageOutlined />}
             tooltip={t('sidebar.menu.rehabilitationAssistant')}
             onClick={() => navigate('/rehabilitation')}
+          />
+          <FloatButton
+            icon={<ThunderboltOutlined />}
+            tooltip={t('sidebar.menu.interventionEngine')}
+            onClick={() => navigate('/intervention')}
+          />
+          <FloatButton
+            icon={<ExclamationCircleOutlined />}
+            tooltip={t('sidebar.menu.riskMonitoring')}
+            onClick={() => navigate('/devices')}
           />
           <FloatButton
             icon={<PhoneOutlined />}
@@ -190,7 +154,7 @@ const MobileApp: React.FC = () => {
         </FloatButton.Group>
       )}
 
-      {/* 离线提示 */}
+      {/* 离线提示 - 浮动显示 */}
       {!isOnline && (
         <div className="offline-banner">
           <span>📡 {t('common.offline')}</span>
