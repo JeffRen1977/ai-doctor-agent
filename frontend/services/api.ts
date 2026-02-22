@@ -1,13 +1,7 @@
 import axios from 'axios'
 import { getApiBaseUrl } from '../utils/apiConfig'
 
-// API base URL configuration
 const API_BASE_URL = getApiBaseUrl()
-
-// Debug: Log API base URL in development
-if (import.meta.env.DEV) {
-  console.log('🔧 API Base URL:', API_BASE_URL)
-}
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -91,34 +85,6 @@ api.interceptors.response.use(
 )
 
 export default api
-
-// 饮食分析相关接口
-export const dietAnalysisAPI = {
-  // 上传图片并分析饮食
-  analyzeDiet: async (imageFile: File) => {
-    const formData = new FormData()
-    formData.append('image', imageFile)
-    
-    const response = await api.post('/diet-analysis/analyze', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    })
-    return response.data
-  },
-
-  // 获取食物数据库
-  getFoods: async () => {
-    const response = await api.get('/diet-analysis/foods')
-    return response.data
-  },
-
-  // 获取饮食建议
-  getRecommendations: async () => {
-    const response = await api.get('/diet-analysis/recommendations')
-    return response.data
-  },
-}
 
 // Health Records (FHIR)
 export const getFhirPatientRecords = async (patientId: string) => {
