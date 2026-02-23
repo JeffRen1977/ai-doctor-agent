@@ -252,6 +252,12 @@ export const interventionEngineAPI = {
     return response.data;
   },
 
+  // Get current exercise plan
+  getExercisePlan: async () => {
+    const response = await api.get('/intervention/exercise');
+    return response.data;
+  },
+
   // Adjust intervention
   adjustIntervention: async (feedback: any) => {
     const response = await api.post('/intervention/adjust', { feedback });

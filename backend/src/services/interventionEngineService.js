@@ -135,7 +135,11 @@ class InterventionEngineService {
         throw new Error(aiResult.error || 'AI analysis failed');
       }
       
-      const effectiveness = this.parseEffectivenessAnalysis(aiResult.response, medicationData, wearableData);
+      const effectiveness = this.parseEffectivenessAnalysis(
+        aiResult.response ?? aiResult.message ?? '',
+        medicationData,
+        wearableData
+      );
       
       return {
         success: true,
@@ -165,8 +169,11 @@ class InterventionEngineService {
       console.log(`🍎 Generating nutrition advice for user: ${userEmail}`);
       
       const userSettings = await userSettingsService.getUserAISettings(userEmail);
-      const { aiProvider, aiModel } = this.getAIServiceConfig(userSettings);
       const userLanguage = userSettings.success ? (userSettings.language || 'zh') : 'zh';
+      
+      // 营养分析优先使用 Gemini 图像模型（识别效果更好，与饮食分析接口一致）
+      const nutritionProvider = 'gemini';
+      const nutritionModel = 'gemini-2.5-flash';
       
       // 获取用户健康档案
       const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
@@ -182,7 +189,7 @@ class InterventionEngineService {
       const aiResult = await aiServiceFactory.analyzeImageWithAI(
         base64Image,
         prompt,
-        { provider: aiProvider, model: aiModel, language: userLanguage }
+        { provider: nutritionProvider, model: nutritionModel, language: userLanguage }
       );
       
       if (!aiResult.success) {
@@ -238,7 +245,8 @@ class InterventionEngineService {
         throw new Error(aiResult.error || 'AI analysis failed');
       }
       
-      const exercisePlan = this.parseExercisePlan(aiResult.response, healthState);
+      const rawText = aiResult.response ?? aiResult.message ?? '';
+      const exercisePlan = this.parseExercisePlan(rawText, healthState);
       await this.saveExercisePlan(userEmail, exercisePlan);
       
       return {
@@ -282,7 +290,30 @@ class InterventionEngineService {
       // 获取用户健康数据用于调整分析
       const healthData = await this.getUserHealthData(userEmail);
       
-      const prompt = this.buildAdjustmentPrompt(currentIntervention, feedback, healthData);
+      // 聚合当前实际用药与运动计划，供 AI 参考
+      let currentMedications = [];
+      let currentExercisePlan = null;
+      try {
+        const medicationRef = doc(db, 'medications', sanitizedEmail);
+        const medicationDoc = await getDoc(medicationRef);
+        if (medicationDoc.exists() && medicationDoc.data().medications) {
+          currentMedications = medicationDoc.data().medications;
+        }
+      } catch (e) {
+        console.warn('⚠️ Failed to load medications for adjustment:', e.message);
+      }
+      try {
+        const planRef = doc(db, 'exercisePlans', sanitizedEmail);
+        const planDoc = await getDoc(planRef);
+        if (planDoc.exists() && planDoc.data().plan) {
+          currentExercisePlan = planDoc.data().plan;
+        }
+      } catch (e) {
+        console.warn('⚠️ Failed to load exercise plan for adjustment:', e.message);
+      }
+      
+      const aggregatedContext = { currentMedications, currentExercisePlan };
+      const prompt = this.buildAdjustmentPrompt(currentIntervention, feedback, healthData, aggregatedContext);
       
       const aiResult = await aiServiceFactory.healthChat(
         prompt,
@@ -294,7 +325,11 @@ class InterventionEngineService {
         throw new Error(aiResult.error || 'AI analysis failed');
       }
       
-      const adjustments = this.parseAdjustments(aiResult.response, currentIntervention, feedback);
+      const adjustments = this.parseAdjustments(
+        aiResult.response ?? aiResult.message ?? '',
+        currentIntervention,
+        feedback
+      );
       
       const updatedIntervention = {
         ...currentIntervention,
@@ -534,6 +569,7 @@ ${JSON.stringify(healthRecord, null, 2)}
 
   /**
    * 构建营养分析提示
+   * 明确要求识别盘中食物、估算热量等，并仅返回 JSON，避免模型拒绝或输出“无法识别人物/细节”
    */
   buildNutritionAnalysisPrompt(currentMetrics, healthRecord, language = 'zh') {
     const healthInfo = healthRecord ? `
@@ -543,36 +579,43 @@ ${JSON.stringify(healthRecord, null, 2)}
 - 过敏史：${healthRecord.allergies || '无'}
 ` : '';
     
+    const jsonSchema = `
+Respond with ONLY a single JSON object (no markdown, no extra text before or after). Use this exact structure:
+{
+  "foodIdentification": [{"name": "食物名称", "quantity": "约多少克或份量描述"}],
+  "nutritionalContent": {"calories": number, "carbohydrates": number, "protein": number, "fat": number, "fiber": number, "sugars": number},
+  "bloodSugarImpact": {"impactLevel": "low|medium|high", "estimatedBloodSugarValue": number, "peakTime": "string"},
+  "immediateFeedback": {"advice": "string"},
+  "improvementSuggestions": {"advice": "string"}
+}`;
+    const jsonSchemaZh = `
+请只返回一个 JSON 对象（不要 markdown、不要前后多余文字），结构必须严格如下：
+{
+  "foodIdentification": [{"name": "食物名称", "quantity": "约多少克或份量"}],
+  "nutritionalContent": {"calories": 数字, "carbohydrates": 数字, "protein": 数字, "fat": 数字, "fiber": 数字, "sugars": 数字},
+  "bloodSugarImpact": {"impactLevel": "low|medium|high", "estimatedBloodSugarValue": 数字, "peakTime": "字符串"},
+  "immediateFeedback": {"advice": "建议文字"},
+  "improvementSuggestions": {"advice": "改进建议"}
+}`;
+
     if (language === 'en') {
-      return `You are a professional nutritionist and AI medical assistant. Please analyze this food image and provide detailed nutritional analysis.
+      return `You are a nutrition analysis assistant. The user has uploaded an image of their meal for dietary tracking.
 
-Current Health Metrics:
+Your task: Identify the dish(es) and ingredients visible in the image, then estimate nutritional content. You must analyze the food in the image. Do not refuse or say you cannot identify "details or people" — we only need food/dish identification. If you are not 100% certain, give your best estimate based on what the food appears to be and note it is an estimate.
+
+Current health metrics (for personalized advice):
 ${JSON.stringify(currentMetrics, null, 2)}
 ${healthInfo}
-
-Please provide:
-1. Food Identification: List all foods in the image with quantities
-2. Nutritional Content: Calculate total calories, carbohydrates, protein, fat, fiber, sugar
-3. Blood Sugar Impact: Assess the impact on blood sugar (level: low/medium/high, estimated glucose, time to peak)
-4. Instant Feedback: Provide instant recommendations based on current blood glucose/blood pressure status
-5. Improvement Suggestions: If needed, provide specific improvement suggestions
-
-Please respond in JSON format with structured data.`;
+${jsonSchema}`;
     } else {
-      return `作为专业的营养师和AI医生助理，请分析这张食物图片并提供详细的营养分析。
+      return `你是营养分析助手。用户上传了一张餐食图片用于饮食记录。
 
-当前健康指标：
+你的任务：根据图片识别盘中出现的菜品和食材，并估算营养数据。你必须对图片中的食物进行分析，不要拒绝或回答“无法识别具体细节或人物”——我们只需要识别食物。若无法完全确定，请根据视觉上最可能的菜品给出估计即可。
+
+当前健康指标（用于个性化建议）：
 ${JSON.stringify(currentMetrics, null, 2)}
 ${healthInfo}
-
-请提供：
-1. 识别食物：列出图片中的所有食物及数量
-2. 营养成分：计算总卡路里、碳水化合物、蛋白质、脂肪、纤维、糖分
-3. 血糖影响：评估对血糖的影响（等级：low/medium/high，预估血糖值，峰值时间）
-4. 即时反馈：结合当前血糖/血压状态给出即时建议
-5. 改进建议：如果需要，提供具体的改进建议
-
-请以JSON格式返回结构化的数据。`;
+${jsonSchemaZh}`;
     }
   }
 
@@ -611,23 +654,31 @@ ${JSON.stringify(healthData, null, 2)}
 
   /**
    * 构建调整提示
+   * @param {Object} aggregatedContext - 可选，{ currentMedications, currentExercisePlan } 来自 medications / exercisePlans 集合
    */
-  buildAdjustmentPrompt(currentIntervention, feedback, healthData) {
-    return `作为专业的医疗AI助手，请根据用户反馈调整干预方案：
+  buildAdjustmentPrompt(currentIntervention, feedback, healthData, aggregatedContext = {}) {
+    const { currentMedications = [], currentExercisePlan = null } = aggregatedContext;
+    return `作为专业的医疗AI助手，请根据用户反馈调整干预方案。
 
-当前干预方案：
+当前干预方案（历史调整记录）：
 ${JSON.stringify(currentIntervention, null, 2)}
+
+当前实际用药记录（来自用药管理，请优先参考）：
+${JSON.stringify(currentMedications, null, 2)}
+
+当前运动计划（来自运动计划，请优先参考）：
+${currentExercisePlan ? JSON.stringify(currentExercisePlan, null, 2) : '（暂无）'}
 
 用户反馈：
 ${JSON.stringify(feedback, null, 2)}
 
-用户健康数据：
+用户健康数据（可穿戴、档案等）：
 ${JSON.stringify(healthData, null, 2)}
 
 请分析：
 1. 效果评估：当前方案的效果如何
 2. 问题识别：用户反馈中反映的问题
-3. 调整建议：具体的调整建议（用药、营养、运动）
+3. 调整建议：具体的调整建议（用药、营养、运动），请结合上述实际用药与运动计划
 4. 优化方案：优化后的干预方案
 
 请以JSON格式返回调整建议，包括：
@@ -721,6 +772,26 @@ ${JSON.stringify(healthData, null, 2)}
       }, { merge: true });
     } catch (error) {
       console.error('❌ Error saving exercise plan:', error);
+    }
+  }
+
+  /**
+   * 获取当前用户的运动计划
+   * @param {string} userEmail 用户邮箱
+   * @returns {Promise<Object>} { success, plan | null }
+   */
+  async getExercisePlan(userEmail) {
+    try {
+      const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
+      const planRef = doc(db, 'exercisePlans', sanitizedEmail);
+      const planDoc = await getDoc(planRef);
+      if (planDoc.exists() && planDoc.data().plan) {
+        return { success: true, plan: planDoc.data().plan };
+      }
+      return { success: true, plan: null };
+    } catch (error) {
+      console.error('❌ Error getting exercise plan:', error);
+      return { success: false, plan: null, error: error.message };
     }
   }
 
@@ -821,21 +892,49 @@ ${JSON.stringify(healthData, null, 2)}
 
   /**
    * 解析营养分析结果
+   * 支持两种结构：foodIdentification+nutritionalContent 或 foods+total
    */
   parseNutritionAnalysis(aiResponse) {
+    const emptyTotal = { calories: 0, carbs: 0, protein: 0, fat: 0, fiber: 0, sugar: 0 };
+    const emptyBloodSugar = { level: 'medium', estimatedGlucose: 0, timeToPeak: '30-60分钟', recommendation: '' };
     try {
-      const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+      const text = (aiResponse && typeof aiResponse === 'string') ? aiResponse : String(aiResponse || '');
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
+        // 新结构：foodIdentification + nutritionalContent
+        if (parsed.foodIdentification && parsed.nutritionalContent) {
+          const nc = parsed.nutritionalContent;
+          return {
+            foods: parsed.foodIdentification.map(f => ({ name: f.name, quantity: f.quantity })),
+            total: {
+              calories: nc.calories ?? 0,
+              carbs: nc.carbohydrates ?? nc.carbs ?? 0,
+              protein: nc.protein ?? 0,
+              fat: nc.fat ?? 0,
+              fiber: nc.fiber ?? 0,
+              sugar: nc.sugars ?? nc.sugar ?? 0
+            },
+            bloodSugarImpact: {
+              level: parsed.bloodSugarImpact?.impactLevel ?? 'medium',
+              estimatedGlucose: parsed.bloodSugarImpact?.estimatedBloodSugarValue ?? 0,
+              timeToPeak: parsed.bloodSugarImpact?.peakTime ?? '30-60分钟',
+              recommendation: parsed.immediateFeedback?.advice ?? parsed.improvementSuggestions?.advice ?? ''
+            },
+            immediateFeedback: parsed.immediateFeedback,
+            improvementSuggestions: parsed.improvementSuggestions
+          };
+        }
+        // 旧结构：foods + total
         return {
           foods: parsed.foods || [],
           total: parsed.total || {
-            calories: parsed.totalCalories || 0,
-            carbs: parsed.totalCarbs || 0,
-            protein: parsed.totalProtein || 0,
-            fat: parsed.totalFat || 0,
-            fiber: parsed.totalFiber || 0,
-            sugar: parsed.totalSugar || 0
+            calories: parsed.totalCalories ?? 0,
+            carbs: parsed.totalCarbs ?? 0,
+            protein: parsed.totalProtein ?? 0,
+            fat: parsed.totalFat ?? 0,
+            fiber: parsed.totalFiber ?? 0,
+            sugar: parsed.totalSugar ?? 0
           },
           bloodSugarImpact: parsed.bloodSugarImpact || {
             level: 'medium',
@@ -845,19 +944,10 @@ ${JSON.stringify(healthData, null, 2)}
           }
         };
       }
-      
-      return {
-        foods: [],
-        total: { calories: 0, carbs: 0, protein: 0, fat: 0, fiber: 0, sugar: 0 },
-        bloodSugarImpact: { level: 'medium', estimatedGlucose: 0, timeToPeak: '30-60分钟', recommendation: '' }
-      };
+      return { foods: [], total: emptyTotal, bloodSugarImpact: emptyBloodSugar };
     } catch (error) {
       console.error('❌ Error parsing nutrition analysis:', error);
-      return {
-        foods: [],
-        total: { calories: 0, carbs: 0, protein: 0, fat: 0, fiber: 0, sugar: 0 },
-        bloodSugarImpact: { level: 'medium', estimatedGlucose: 0, timeToPeak: '30-60分钟', recommendation: '' }
-      };
+      return { foods: [], total: emptyTotal, bloodSugarImpact: emptyBloodSugar };
     }
   }
 
@@ -865,19 +955,34 @@ ${JSON.stringify(healthData, null, 2)}
    * 解析运动计划
    */
   parseExercisePlan(aiResponse, healthState) {
+    const normalizeExerciseType = (item) => {
+      if (item == null || typeof item !== 'object') return { type: String(item), description: '', benefits: [], targetGoals: [] };
+      const toStrArr = (v) => {
+        if (Array.isArray(v)) return v.map(x => (x != null && typeof x === 'string' ? x : String(x)));
+        return v != null ? [String(v)] : [];
+      };
+      return {
+        type: item.type || item.name || '',
+        description: item.description != null ? String(item.description) : '',
+        benefits: toStrArr(item.benefits),
+        targetGoals: toStrArr(item.targetGoals)
+      };
+    };
     try {
-      const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+      const text = (aiResponse && typeof aiResponse === 'string') ? aiResponse : '';
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
+        const rawTypes = parsed.exerciseTypes || [];
         return {
-          exerciseTypes: parsed.exerciseTypes || [],
+          exerciseTypes: rawTypes.map(normalizeExerciseType),
           weeklyPlan: parsed.weeklyPlan || [],
           intensity: parsed.intensity || 'medium',
           duration: parsed.duration || 30,
           frequency: parsed.frequency || 5,
           progression: parsed.progression || {},
-          precautions: parsed.precautions || [],
-          targetGoals: parsed.targetGoals || {}
+          precautions: Array.isArray(parsed.precautions) ? parsed.precautions : [],
+          targetGoals: parsed.targetGoals && typeof parsed.targetGoals === 'object' ? parsed.targetGoals : {}
         };
       }
       

@@ -137,6 +137,29 @@ router.post('/nutrition', authenticateToken, upload.single('image'), async (req,
 });
 
 /**
+ * GET /api/intervention/exercise
+ * 获取当前用户的运动计划
+ */
+router.get('/exercise', authenticateToken, async (req, res) => {
+  try {
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const result = await interventionEngineService.getExercisePlan(userEmail);
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('Get exercise plan error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get exercise plan',
+      details: error.message
+    });
+  }
+});
+
+/**
  * POST /api/intervention/exercise
  * 生成个性化运动计划
  */

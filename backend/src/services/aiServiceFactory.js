@@ -22,10 +22,10 @@ class AIServiceFactory {
     
     // Check Gemini service
     if (geminiService.isServiceAvailable && geminiService.isServiceAvailable()) {
-      const geminiModels = geminiService.getAvailableModels ? geminiService.getAvailableModels() : ['gemini-1.5-pro', 'gemini-1.5-flash'];
+      const geminiModels = geminiService.getAvailableModels ? geminiService.getAvailableModels() : ['gemini-2.5-flash', 'gemini-1.5-flash'];
       available.gemini = {
         name: 'Google Gemini',
-        models: Array.isArray(geminiModels) ? geminiModels : (geminiModels.all || geminiModels.text || ['gemini-1.5-pro', 'gemini-1.5-flash']),
+        models: Array.isArray(geminiModels) ? geminiModels : (geminiModels.all || geminiModels.text || ['gemini-2.5-flash', 'gemini-1.5-flash']),
         provider: 'gemini'
       };
     }

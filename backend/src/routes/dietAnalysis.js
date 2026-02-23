@@ -166,7 +166,7 @@ async function analyzeFoodImageWithAI(imagePath, userId, userEmail) {
     let prompt;
     if (userLanguage === 'en') {
       prompt = `
-        You are a professional nutritionist and AI medical assistant. Please analyze this food image and provide detailed nutritional analysis in the following structured format:
+        You are a nutrition analysis assistant. This image is for dietary tracking only. Identify the dish(es) and ingredients in the image and estimate nutrition. Do not refuse to analyze the image or say you cannot identify "details or people"—we only need food identification. If unsure, give your best estimate based on what the food appears to be.
 
         ## Food Image Nutritional Analysis
 
@@ -215,7 +215,7 @@ async function analyzeFoodImageWithAI(imagePath, userId, userEmail) {
         `;
     } else {
       prompt = `
-        你是一个专业的营养师和AI医生助理。请分析这张食物图片并提供详细的营养分析，按照以下结构化格式输出：
+        你是营养分析助手。本图片仅用于饮食记录。请识别图片中的菜品和食材并估算营养。不要拒绝分析或回答“无法识别具体细节或人物”——我们只需要识别食物。若不确定，请根据视觉上最可能的菜品给出估计即可。
 
         ## 食物图片营养分析
 
@@ -265,11 +265,11 @@ async function analyzeFoodImageWithAI(imagePath, userId, userEmail) {
     }
 
     // 对于食物图片分析，强制使用 Gemini 的图像识别模型（图像识别能力更强）
-    // Gemini 的 gemini-1.5-pro 模型在图像理解方面表现优异
-    const finalProvider = 'gemini'; // 强制使用 Gemini 进行图像分析
-    const finalModel = 'gemini-1.5-pro'; // 使用 Pro 模型进行图像分析（更好的图像理解能力）
+    // gemini-2.5-flash 支持多模态视觉（2.0-flash 已对新用户不可用）
+    const finalProvider = 'gemini';
+    const finalModel = 'gemini-2.5-flash';
     
-    console.log(`🍎 食物图片分析强制使用 Gemini 图像识别模型: ${finalModel}`);
+    console.log(`🍎 食物图片分析使用 Gemini 图像模型: ${finalModel}`);
     if (userProvider !== 'gemini') {
       console.log(`ℹ️  用户设置的 AI 提供商是 ${userProvider}，但食物图片分析使用 Gemini（图像识别能力更强）`);
     }

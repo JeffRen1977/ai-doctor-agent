@@ -13,20 +13,20 @@ import {
   Progress,
   Alert,
   Statistic,
-  Timeline,
   Divider,
   Input,
   Select,
-  DatePicker,
   Table,
-  Badge,
   Form,
   Radio,
   Checkbox,
   Spin,
   message,
   Empty,
-  Descriptions
+  Descriptions,
+  Modal,
+  DatePicker,
+  Collapse
 } from 'antd';
 import { 
   MedicineBoxOutlined, 
@@ -34,20 +34,18 @@ import {
   ThunderboltOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
-  WarningOutlined,
   FileTextOutlined,
-  CalendarOutlined,
   BellOutlined,
-  HeartOutlined,
-  PlusOutlined,
   ReloadOutlined,
   ExperimentOutlined,
   FireOutlined,
-  SettingOutlined
+  SettingOutlined,
+  PlusOutlined,
+  EditOutlined
 } from '@ant-design/icons';
 import { useLanguageStore } from '@/stores/languageStore';
 import { getTranslation } from '@/locales';
-import { interventionEngineAPI } from '../services/api';
+import { interventionEngineAPI, riskMonitoringAPI } from '../services/api';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import dayjs from 'dayjs';
@@ -67,6 +65,10 @@ const InterventionEnginePage: React.FC = () => {
   // Medication management state
   const [medicationData, setMedicationData] = useState<any>(null);
   const [medicationLoading, setMedicationLoading] = useState(false);
+  const [medicationModalVisible, setMedicationModalVisible] = useState(false);
+  const [editingMedication, setEditingMedication] = useState<any>(null);
+  const [medicationForm] = Form.useForm();
+  const [medicationSubmitLoading, setMedicationSubmitLoading] = useState(false);
   
   // Medication effectiveness state
   const [effectivenessForm] = Form.useForm();
@@ -96,8 +98,27 @@ const InterventionEnginePage: React.FC = () => {
   useEffect(() => {
     if (activeTab === 'medication') {
       loadMedicationData();
+    } else if (activeTab === 'exercise') {
+      loadExercisePlan();
     }
   }, [activeTab]);
+
+  const loadExercisePlan = async () => {
+    setExerciseLoading(true);
+    try {
+      const response = await interventionEngineAPI.getExercisePlan();
+      if (response?.success) {
+        setExercisePlan(response.plan ?? null);
+      } else {
+        setExercisePlan(null);
+      }
+    } catch (error: any) {
+      console.error('Load exercise plan error:', error);
+      setExercisePlan(null);
+    } finally {
+      setExerciseLoading(false);
+    }
+  };
 
   const loadMedicationData = async () => {
     setMedicationLoading(true);
@@ -140,6 +161,67 @@ const InterventionEnginePage: React.FC = () => {
     }
   };
 
+  const openAddMedicationModal = () => {
+    setEditingMedication(null);
+    medicationForm.resetFields();
+    medicationForm.setFieldsValue({ startDate: dayjs(), status: 'active' });
+    setMedicationModalVisible(true);
+  };
+
+  const openEditMedicationModal = (record: any) => {
+    setEditingMedication(record);
+    medicationForm.setFieldsValue({
+      name: record.name,
+      dosage: record.dosage,
+      frequency: record.frequency,
+      time: record.time && record.time.length ? record.time.join(', ') : '',
+      purpose: record.purpose || '',
+      prescribingDoctor: record.prescribingDoctor || '',
+    });
+    if (record.startDate) medicationForm.setFieldsValue({ startDate: dayjs(record.startDate) });
+    if (record.endDate) medicationForm.setFieldsValue({ endDate: dayjs(record.endDate) });
+    setMedicationModalVisible(true);
+  };
+
+  const handleMedicationModalCancel = () => {
+    setMedicationModalVisible(false);
+    setEditingMedication(null);
+    medicationForm.resetFields();
+  };
+
+  const handleMedicationModalSubmit = async (values: any) => {
+    const timeArray = values.time
+      ? (typeof values.time === 'string' ? values.time.split(',') : values.time).map((s: string) => s.trim()).filter(Boolean)
+      : [];
+    const medication: any = {
+      name: values.name.trim(),
+      dosage: values.dosage.trim(),
+      frequency: values.frequency,
+      time: timeArray.length ? timeArray : ['08:00', '20:00'],
+      startDate: values.startDate ? dayjs(values.startDate).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'),
+      status: 'active',
+      purpose: values.purpose?.trim() || undefined,
+      prescribingDoctor: values.prescribingDoctor?.trim() || undefined,
+    };
+    if (values.endDate) medication.endDate = dayjs(values.endDate).format('YYYY-MM-DD');
+    if (editingMedication?.id) medication.id = editingMedication.id;
+    setMedicationSubmitLoading(true);
+    try {
+      const response = await interventionEngineAPI.addOrUpdateMedication(medication);
+      if (response.success) {
+        message.success(language === 'zh' ? (editingMedication ? '已更新药品' : '已添加药品') : (editingMedication ? 'Medication updated' : 'Medication added'));
+        handleMedicationModalCancel();
+        loadMedicationData();
+      } else {
+        message.error(response.error || (language === 'zh' ? '保存失败' : 'Save failed'));
+      }
+    } catch (error: any) {
+      message.error(error.message || (language === 'zh' ? '保存出错' : 'Error saving'));
+    } finally {
+      setMedicationSubmitLoading(false);
+    }
+  };
+
   const handleAnalyzeEffectiveness = async (values: any) => {
     setEffectivenessLoading(true);
     setEffectivenessResult(null);
@@ -174,10 +256,27 @@ const InterventionEnginePage: React.FC = () => {
     setNutritionResult(null);
 
     try {
-      const currentMetrics = {
-        glucose: 120, // TODO: Get from actual data source
+      let currentMetrics: { glucose?: number; bloodPressure?: { systolic: number; diastolic: number } } = {
+        glucose: 120,
         bloodPressure: { systolic: 120, diastolic: 80 }
       };
+      try {
+        const statusRes = await riskMonitoringAPI.getStatus();
+        if (statusRes?.success && statusRes?.lastDataPoint) {
+          const dp = statusRes.lastDataPoint as any;
+          if (dp.glucose != null) currentMetrics.glucose = Number(dp.glucose);
+          if (dp.bloodPressure != null) {
+            if (typeof dp.bloodPressure === 'object' && dp.bloodPressure.systolic != null) {
+              currentMetrics.bloodPressure = { systolic: Number(dp.bloodPressure.systolic), diastolic: Number(dp.bloodPressure.diastolic ?? 80) };
+            } else if (typeof dp.bloodPressure === 'string') {
+              const [s, d] = dp.bloodPressure.split('/').map(Number);
+              if (!isNaN(s)) currentMetrics.bloodPressure = { systolic: s, diastolic: !isNaN(d) ? d : 80 };
+            }
+          }
+        }
+      } catch (_) {
+        // 使用默认值，不打断分析流程
+      }
 
       const response = await interventionEngineAPI.generateNutritionAdvice(
         selectedImage,
@@ -331,6 +430,13 @@ const InterventionEnginePage: React.FC = () => {
       key: 'action',
       render: (_: any, record: any) => (
         <Space>
+          <Button 
+            size="small" 
+            icon={<EditOutlined />}
+            onClick={() => openEditMedicationModal(record)}
+          >
+            {language === 'zh' ? '编辑' : 'Edit'}
+          </Button>
           {record.status === 'pending' && record.nextDose && (
             <Button 
               size="small" 
@@ -393,9 +499,14 @@ const InterventionEnginePage: React.FC = () => {
                   showIcon
                   style={{ marginBottom: '16px' }}
                   action={
-                    <Button size="small" icon={<ReloadOutlined />} onClick={loadMedicationData}>
-                      {language === 'zh' ? '刷新' : 'Refresh'}
-                    </Button>
+                    <Space>
+                      <Button size="small" type="primary" icon={<PlusOutlined />} onClick={openAddMedicationModal}>
+                        {language === 'zh' ? '添加药品' : 'Add Medication'}
+                      </Button>
+                      <Button size="small" icon={<ReloadOutlined />} onClick={loadMedicationData}>
+                        {language === 'zh' ? '刷新' : 'Refresh'}
+                      </Button>
+                    </Space>
                   }
                 />
                 
@@ -480,7 +591,14 @@ const InterventionEnginePage: React.FC = () => {
                   </>
                 ) : (
                   !medicationLoading && (
-                    <Empty description={language === 'zh' ? '暂无用药记录' : 'No medication records'} />
+                    <Empty 
+                      description={language === 'zh' ? '暂无用药记录' : 'No medication records'}
+                      image={Empty.PRESENTED_IMAGE_SIMPLE}
+                    >
+                      <Button type="primary" icon={<PlusOutlined />} onClick={openAddMedicationModal}>
+                        {language === 'zh' ? '添加第一项药品' : 'Add your first medication'}
+                      </Button>
+                    </Empty>
                   )
                 )}
               </Space>
@@ -859,35 +977,53 @@ const InterventionEnginePage: React.FC = () => {
                         {/* Total Nutrition */}
                         {nutritionResult.nutrition.total && (
                           <Card title={language === 'zh' ? '总营养成分' : 'Total Nutrition'}>
-                            <Row gutter={16}>
-                              <Col span={6}>
+                            <Row gutter={[16, 16]}>
+                              <Col xs={12} sm={8} md={6}>
                                 <Statistic
                                   title={language === 'zh' ? '卡路里' : 'Calories'}
-                                  value={nutritionResult.nutrition.total.calories || 0}
+                                  value={nutritionResult.nutrition.total.calories ?? 0}
                                   suffix="kcal"
                                 />
                               </Col>
-                              <Col span={6}>
+                              <Col xs={12} sm={8} md={6}>
                                 <Statistic
                                   title={language === 'zh' ? '碳水' : 'Carbs'}
-                                  value={nutritionResult.nutrition.total.carbs || 0}
+                                  value={nutritionResult.nutrition.total.carbs ?? 0}
                                   suffix="g"
                                 />
                               </Col>
-                              <Col span={6}>
+                              <Col xs={12} sm={8} md={6}>
                                 <Statistic
                                   title={language === 'zh' ? '蛋白质' : 'Protein'}
-                                  value={nutritionResult.nutrition.total.protein || 0}
+                                  value={nutritionResult.nutrition.total.protein ?? 0}
                                   suffix="g"
                                 />
                               </Col>
-                              <Col span={6}>
+                              <Col xs={12} sm={8} md={6}>
                                 <Statistic
                                   title={language === 'zh' ? '脂肪' : 'Fat'}
-                                  value={nutritionResult.nutrition.total.fat || 0}
+                                  value={nutritionResult.nutrition.total.fat ?? 0}
                                   suffix="g"
                                 />
                               </Col>
+                              {(typeof nutritionResult.nutrition.total.fiber === 'number' || typeof nutritionResult.nutrition.total.sugar === 'number') && (
+                                <>
+                                  <Col xs={12} sm={8} md={6}>
+                                    <Statistic
+                                      title={language === 'zh' ? '膳食纤维' : 'Fiber'}
+                                      value={nutritionResult.nutrition.total.fiber ?? 0}
+                                      suffix="g"
+                                    />
+                                  </Col>
+                                  <Col xs={12} sm={8} md={6}>
+                                    <Statistic
+                                      title={language === 'zh' ? '糖' : 'Sugars'}
+                                      value={nutritionResult.nutrition.total.sugar ?? 0}
+                                      suffix="g"
+                                    />
+                                  </Col>
+                                </>
+                              )}
                             </Row>
                           </Card>
                         )}
@@ -918,23 +1054,55 @@ const InterventionEnginePage: React.FC = () => {
                                 </Text>
                               )}
                               {nutritionResult.nutrition.bloodSugarImpact.recommendation && (
-                                <Text>
-                                  {nutritionResult.nutrition.bloodSugarImpact.recommendation}
-                                </Text>
+                                <div>
+                                  <Text type="secondary" style={{ display: 'block', marginBottom: 4 }}>
+                                    {language === 'zh' ? '建议' : 'Recommendation'}
+                                  </Text>
+                                  <Text>{nutritionResult.nutrition.bloodSugarImpact.recommendation}</Text>
+                                </div>
                               )}
                             </Space>
+                          </Card>
+                        )}
+
+                        {/* 即时反馈 - 与血糖建议不同时重复展示 */}
+                        {nutritionResult.nutrition.immediateFeedback?.advice &&
+                         nutritionResult.nutrition.immediateFeedback.advice !== nutritionResult.nutrition.bloodSugarImpact?.recommendation && (
+                          <Card title={language === 'zh' ? '即时反馈' : 'Immediate Feedback'}>
+                            <Typography.Paragraph style={{ marginBottom: 0 }}>
+                              {nutritionResult.nutrition.immediateFeedback.advice}
+                            </Typography.Paragraph>
+                          </Card>
+                        )}
+
+                        {/* 改进建议（若与血糖建议相同则不重复展示） */}
+                        {nutritionResult.nutrition.improvementSuggestions?.advice &&
+                         nutritionResult.nutrition.improvementSuggestions.advice !== nutritionResult.nutrition.bloodSugarImpact?.recommendation && (
+                          <Card title={language === 'zh' ? '饮食建议' : 'Improvement Suggestions'}>
+                            <Typography.Paragraph style={{ marginBottom: 0 }}>
+                              {nutritionResult.nutrition.improvementSuggestions.advice}
+                            </Typography.Paragraph>
                           </Card>
                         )}
                       </>
                     )}
 
-                    {/* AI Analysis */}
+                    {/* 原始 AI 分析（折叠，仅当有原始数据且用户可能需查看时展示） */}
                     {nutritionResult.aiAnalysis && (
-                      <Card title={language === 'zh' ? 'AI分析' : 'AI Analysis'}>
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {nutritionResult.aiAnalysis}
-                        </ReactMarkdown>
-                      </Card>
+                      <Collapse
+                        size="small"
+                        items={[{
+                          key: 'raw',
+                          label: language === 'zh' ? '查看原始分析数据' : 'View raw analysis data',
+                          children: (
+                            <pre style={{ margin: 0, fontSize: 12, overflow: 'auto', maxHeight: 320 }}>
+                              {typeof nutritionResult.aiAnalysis === 'string'
+                                ? nutritionResult.aiAnalysis
+                                : JSON.stringify(nutritionResult.aiAnalysis, null, 2)}
+                            </pre>
+                          )
+                        }]}
+                      />
                     )}
                   </Space>
                 </Card>
@@ -952,6 +1120,7 @@ const InterventionEnginePage: React.FC = () => {
             } 
             key="exercise"
           >
+            <Spin spinning={exerciseLoading}>
             <Space direction="vertical" size="large" style={{ width: '100%' }}>
               <Alert
                 message={language === 'zh' ? '运动计划说明' : 'Exercise Plan'}
@@ -1042,19 +1211,25 @@ const InterventionEnginePage: React.FC = () => {
                       <Card title={language === 'zh' ? '推荐的运动类型' : 'Recommended Exercise Types'} size="small">
                         <List
                           dataSource={exercisePlan.exerciseTypes}
-                          renderItem={(exercise: any) => (
+                          renderItem={(exercise: any) => {
+                            const item = typeof exercise === 'object' ? exercise : { type: String(exercise) };
+                            const benefits = Array.isArray(item.benefits) ? item.benefits : (item.benefits != null ? [String(item.benefits)] : []);
+                            const titleText = [item.type, item.name].find(Boolean) || (typeof exercise === 'string' ? exercise : '');
+                            return (
                             <List.Item>
                               <List.Item.Meta
                                 avatar={<Avatar icon={<FireOutlined />} style={{ backgroundColor: '#ff4d4f' }} />}
-                                title={<Text strong>{exercise.type || exercise}</Text>}
+                                title={<Text strong>{titleText}</Text>}
                                 description={
                                   <div>
-                                    {exercise.description && <Text>{exercise.description}</Text>}
-                                    {exercise.benefits && exercise.benefits.length > 0 && (
+                                    {(item.description != null && item.description !== '') && (
+                                      <Text>{typeof item.description === 'string' ? item.description : String(item.description)}</Text>
+                                    )}
+                                    {benefits.length > 0 && (
                                       <div style={{ marginTop: '8px' }}>
                                         <Text type="secondary">{language === 'zh' ? '益处：' : 'Benefits: '}</Text>
-                                        {exercise.benefits.map((benefit: string, idx: number) => (
-                                          <Tag key={idx} color="blue" style={{ marginTop: '4px' }}>{benefit}</Tag>
+                                        {benefits.map((benefit: any, idx: number) => (
+                                          <Tag key={idx} color="blue" style={{ marginTop: '4px' }}>{typeof benefit === 'string' ? benefit : String(benefit)}</Tag>
                                         ))}
                                       </div>
                                     )}
@@ -1062,7 +1237,8 @@ const InterventionEnginePage: React.FC = () => {
                                 }
                               />
                             </List.Item>
-                          )}
+                            );
+                          }}
                         />
                       </Card>
                     )}
@@ -1226,6 +1402,7 @@ const InterventionEnginePage: React.FC = () => {
                 </Card>
               )}
             </Space>
+            </Spin>
           </TabPane>
 
           {/* 动态调整干预方案 */}
@@ -1448,6 +1625,80 @@ const InterventionEnginePage: React.FC = () => {
           </TabPane>
         </Tabs>
       </Card>
+
+      {/* 添加/编辑药品 Modal */}
+      <Modal
+        title={editingMedication ? (language === 'zh' ? '编辑药品' : 'Edit Medication') : (language === 'zh' ? '添加药品' : 'Add Medication')}
+        open={medicationModalVisible}
+        onCancel={handleMedicationModalCancel}
+        footer={null}
+        destroyOnClose
+        width={520}
+      >
+        <Form
+          form={medicationForm}
+          layout="vertical"
+          onFinish={handleMedicationModalSubmit}
+          initialValues={{ frequency: '每日2次', time: '08:00, 20:00' }}
+        >
+          <Form.Item
+            name="name"
+            label={language === 'zh' ? '药物名称' : 'Medication Name'}
+            rules={[{ required: true, message: language === 'zh' ? '请输入药物名称' : 'Please enter medication name' }]}
+          >
+            <Input placeholder={language === 'zh' ? '如：阿司匹林' : 'e.g. Aspirin'} />
+          </Form.Item>
+          <Form.Item
+            name="dosage"
+            label={language === 'zh' ? '剂量' : 'Dosage'}
+            rules={[{ required: true, message: language === 'zh' ? '请输入剂量' : 'Please enter dosage' }]}
+          >
+            <Input placeholder={language === 'zh' ? '如：100mg' : 'e.g. 100mg'} />
+          </Form.Item>
+          <Form.Item
+            name="frequency"
+            label={language === 'zh' ? '频率' : 'Frequency'}
+            rules={[{ required: true }]}
+          >
+            <Select>
+              <Option value="每日1次">{language === 'zh' ? '每日1次' : 'Once daily'}</Option>
+              <Option value="每日2次">{language === 'zh' ? '每日2次' : 'Twice daily'}</Option>
+              <Option value="每日3次">{language === 'zh' ? '每日3次' : 'Three times daily'}</Option>
+              <Option value="每日4次">{language === 'zh' ? '每日4次' : 'Four times daily'}</Option>
+            </Select>
+          </Form.Item>
+          <Form.Item
+            name="time"
+            label={language === 'zh' ? '服药时间（多个用英文逗号分隔）' : 'Time (comma-separated, e.g. 08:00, 20:00)'}
+          >
+            <Input placeholder="08:00, 20:00" />
+          </Form.Item>
+          <Form.Item
+            name="startDate"
+            label={language === 'zh' ? '开始日期' : 'Start Date'}
+            rules={[{ required: !editingMedication, message: language === 'zh' ? '请选择开始日期' : 'Please select start date' }]}
+          >
+            <DatePicker style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item name="endDate" label={language === 'zh' ? '结束日期（可选）' : 'End Date (optional)'}>
+            <DatePicker style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item name="purpose" label={language === 'zh' ? '用途（可选）' : 'Purpose (optional)'}>
+            <Input placeholder={language === 'zh' ? '如：降压' : 'e.g. Blood pressure'} />
+          </Form.Item>
+          <Form.Item name="prescribingDoctor" label={language === 'zh' ? '开药医生（可选）' : 'Prescribing Doctor (optional)'}>
+            <Input />
+          </Form.Item>
+          <Form.Item>
+            <Space>
+              <Button type="primary" htmlType="submit" loading={medicationSubmitLoading}>
+                {language === 'zh' ? '保存' : 'Save'}
+              </Button>
+              <Button onClick={handleMedicationModalCancel}>{language === 'zh' ? '取消' : 'Cancel'}</Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 };

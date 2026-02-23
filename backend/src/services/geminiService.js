@@ -12,13 +12,13 @@ class GeminiService {
       // 文本任务使用flash模型（更快、更经济）
       this.textModel = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
       
-      // 图片任务使用pro模型（更好的图片理解能力）
-      this.imageModel = this.genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
+      // 图片任务使用 gemini-2.5-flash（支持视觉；2.0-flash 已对新用户不可用）
+      this.imageModel = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
       
       this.isInitialized = true;
       console.log('✅ Gemini AI 服务初始化成功');
       console.log('📝 文本模型: gemini-1.5-flash');
-      console.log('🖼️  图片模型: gemini-1.5-pro');
+      console.log('🖼️  图片模型: gemini-2.5-flash');
     } catch (error) {
       console.error('❌ Gemini AI 服务初始化失败:', error);
       this.isInitialized = false;
@@ -61,7 +61,7 @@ class GeminiService {
       return {
         success: true,
         text: extractedText,
-        model: 'gemini-1.5-pro'
+          model: 'gemini-2.5-flash'
       };
 
     } catch (error) {
@@ -147,7 +147,7 @@ class GeminiService {
           success: true,
           text: extractedText,
           pages: 1,
-          model: 'gemini-1.5-pro (image fallback)',
+          model: 'gemini-2.5-flash (image fallback)',
           warning: 'PDF was processed as image, some content may be lost'
         };
       }
@@ -266,13 +266,13 @@ class GeminiService {
         const result = await this.imageModel.generateContent([prompt, imageData]);
         const response = await result.response;
         
-        console.log('✅ Gemini AI Pro图片分析完成');
+        console.log('✅ Gemini AI 图片分析完成');
         
         return {
           success: true,
           analysis: response.text(),
           recognizedFoods: [], // 可以在这里解析识别出的食物
-          modelUsed: 'gemini-1.5-pro'
+          modelUsed: 'gemini-2.5-flash'
         };
       } catch (proError) {
         // 如果Pro模型失败（通常是配额限制），fallback到Flash模型
@@ -424,9 +424,9 @@ class GeminiService {
 
   getAvailableModels() {
     return {
-      text: ['gemini-1.5-flash', 'gemini-1.5-pro'],
-      vision: ['gemini-1.5-pro'],
-      all: ['gemini-1.5-flash', 'gemini-1.5-pro']
+      text: ['gemini-1.5-flash', 'gemini-2.5-flash'],
+      vision: ['gemini-2.5-flash'],
+      all: ['gemini-1.5-flash', 'gemini-2.5-flash']
     };
   }
 
