@@ -1,7 +1,7 @@
 const aiServiceFactory = require('./aiServiceFactory');
 const userSettingsService = require('./userSettingsService');
 const { db, storage } = require('../config/firebase');
-const { collection, addDoc, getDocs, query, where, orderBy, limit, startAfter, doc, getDoc, setDoc } = require('firebase/firestore');
+const { collection, addDoc, getDocs, query, where, orderBy, limit, doc, getDoc, setDoc } = require('firebase/firestore');
 const { ref, uploadBytes, getDownloadURL } = require('firebase/storage');
 const fs = require('fs').promises;
 const path = require('path');

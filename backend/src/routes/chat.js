@@ -3,7 +3,7 @@ const Joi = require('joi');
 const aiServiceFactory = require('../services/aiServiceFactory');
 const userSettingsService = require('../services/userSettingsService');
 const { authenticateToken, optionalAuth } = require('../middleware/auth');
-const { doc, setDoc, getDoc, updateDoc, arrayUnion, collection, query, where, orderBy, limit, getDocs } = require('firebase/firestore');
+const { doc, setDoc, getDoc, updateDoc, arrayUnion, collection, getDocs } = require('firebase/firestore');
 const { db } = require('../config/firebase');
 
 const router = express.Router();
@@ -129,10 +129,11 @@ router.post('/send', authenticateToken, async (req, res) => {
     }
 
     // 获取用户的AI设置
+    let userLanguage = 'zh';
     const userAISettings = await userSettingsService.getUserAISettings(userId);
     const userProvider = userAISettings.success ? userAISettings.aiProvider : 'gemini';
     const userModel = userAISettings.success ? userAISettings.aiModel : '';
-    const userLanguage = userAISettings.success ? userAISettings.language : 'zh';
+    userLanguage = userAISettings.success ? userAISettings.language : 'zh';
     
     console.log(`🤖 Using AI provider: ${userProvider}, model: ${userModel}, language: ${userLanguage} for chat`);
     

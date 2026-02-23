@@ -3,7 +3,7 @@ import { Form, Input, Button, Card, message, Row, Col, Typography, Space } from 
 import { UserOutlined, LockOutlined, GlobalOutlined, MessageOutlined, FileTextOutlined, CameraOutlined, BarChartOutlined, CalendarOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
 import { useAuthStore } from '@/stores/authStore'
 import { useLanguageStore } from '@/stores/languageStore'
-import { translations, getTranslation, Language } from '../locales'
+import { getTranslation } from '../locales'
 import { getApiBaseUrl } from '../utils/apiConfig'
 import './LoginPage.css'
 

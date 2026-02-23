@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Button, Space, Tag, Modal, Form, Input, DatePicker, Select, message, Tabs, Upload, Alert, Grid, List, Row, Col, Divider, Spin, Descriptions, Typography } from 'antd';
 import type { TabsProps } from 'antd';
-import { PlusOutlined, InboxOutlined, FileTextOutlined, UsergroupAddOutlined, MobileOutlined, DatabaseOutlined, LinkOutlined, SyncOutlined, MedicineBoxOutlined, HeartOutlined, MonitorOutlined, FileSearchOutlined, EditOutlined, ReloadOutlined } from '@ant-design/icons';
+import { PlusOutlined, InboxOutlined, FileTextOutlined, UsergroupAddOutlined, MobileOutlined, DatabaseOutlined, LinkOutlined, SyncOutlined, HeartOutlined, MonitorOutlined, FileSearchOutlined, EditOutlined, ReloadOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import './HealthRecordsPage.css';
 import { getFhirPatientRecords } from '../services/api';

@@ -1,6 +1,6 @@
 const express = require('express');
 const { db } = require('../config/firebase');
-const { doc, getDoc, updateDoc } = require('firebase/firestore');
+const { doc, getDoc } = require('firebase/firestore');
 const { authenticateToken } = require('../middleware/auth');
 const firebaseService = require('../services/firebaseService');
 const pdfCaseExtractionService = require('../services/pdfCaseExtractionService');

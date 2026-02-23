@@ -44,7 +44,6 @@ import {
   EditOutlined
 } from '@ant-design/icons';
 import { useLanguageStore } from '@/stores/languageStore';
-import { getTranslation } from '@/locales';
 import { interventionEngineAPI, riskMonitoringAPI } from '../services/api';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -57,10 +56,8 @@ const { Option } = Select;
 
 const InterventionEnginePage: React.FC = () => {
   const { language } = useLanguageStore();
-  const t = (key: string) => getTranslation(language, key);
   
   const [activeTab, setActiveTab] = useState('medication');
-  const [loading, setLoading] = useState(false);
   
   // Medication management state
   const [medicationData, setMedicationData] = useState<any>(null);

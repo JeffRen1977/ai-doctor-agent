@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('../middleware/auth');
 const riskMonitoringService = require('../services/riskMonitoringService');
+const { doc, updateDoc } = require('firebase/firestore');
+const { db } = require('../config/firebase');
 
 /**
  * POST /api/risk-monitoring/process-stream
@@ -190,9 +192,6 @@ router.post('/alerts/:alertId/acknowledge', authenticateToken, async (req, res) 
     }
 
     const { alertId } = req.params;
-    const { doc, updateDoc } = require('firebase/firestore');
-    const { db } = require('../config/firebase');
-    
     const alertRef = doc(db, 'riskAlerts', alertId);
     await updateDoc(alertRef, {
       acknowledged: true,
