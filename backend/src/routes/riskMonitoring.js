@@ -41,7 +41,7 @@ router.post('/process-stream', authenticateToken, async (req, res) => {
 
 /**
  * POST /api/risk-monitoring/detect-anomalies
- * 异常检测
+ * 异常检测。支持可选时间窗口与设备类型过滤。
  */
 router.post('/detect-anomalies', authenticateToken, async (req, res) => {
   try {
@@ -50,10 +50,13 @@ router.post('/detect-anomalies', authenticateToken, async (req, res) => {
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
-    const { dataStream } = req.body;
-    
-    const result = await riskMonitoringService.detectAnomalies(userEmail, dataStream || []);
-    
+    const { dataStream, timeRange, deviceType } = req.body || {};
+    const options = {};
+    if (timeRange && ['1h', '6h', '24h'].includes(timeRange)) options.timeRange = timeRange;
+    if (deviceType && typeof deviceType === 'string') options.deviceType = deviceType;
+
+    const result = await riskMonitoringService.detectAnomalies(userEmail, dataStream || [], options);
+
     res.status(200).json({
       success: true,
       ...result

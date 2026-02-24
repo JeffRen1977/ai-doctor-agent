@@ -1,8 +1,89 @@
 const { db } = require('../config/firebase');
-const { doc, getDoc, collection, query, where, orderBy, limit, addDoc, getDocs } = require('firebase/firestore');
+const { doc, getDoc, setDoc, collection, query, where, orderBy, limit, addDoc, getDocs } = require('firebase/firestore');
 const aiServiceFactory = require('./aiServiceFactory');
 const userSettingsService = require('./userSettingsService');
 const openaiService = require('./openaiService');
+
+/**
+ * 流数据推荐字段的合理范围（用于轻量校验与质量标记，不拒绝请求）
+ * 与 docs/implementation/ANOMALY_ALERT_IMPLEMENTATION.md 5.2 一致
+ */
+const STREAM_DATA_RANGES = {
+  heartRate: { min: 30, max: 250 },
+  glucose: { min: 20, max: 500 },
+  hrv: { min: 0, max: 500 },
+  steps: { min: 0, max: null },
+  sleepMinutes: { min: 0, max: 1440 },
+  bloodPressure: {
+    systolic: { min: 60, max: 250 },
+    diastolic: { min: 40, max: 150 }
+  }
+};
+
+/** 时间窗口字符串 → 毫秒，用于异常检测数据范围 */
+const TIME_RANGE_MS = { '1h': 60 * 60 * 1000, '6h': 6 * 60 * 60 * 1000, '24h': 24 * 60 * 60 * 1000 };
+const DEFAULT_FETCH_LIMIT_FOR_TIME_RANGE = 500;
+/** 送 LLM 的数据点上限，超出则等间隔采样，控制 token 与延迟 */
+const MAX_DATA_POINTS_FOR_PROMPT = 200;
+/** 自动异常检测节流间隔（毫秒） */
+const AUTO_DETECT_THROTTLE_MS = 5 * 60 * 1000;
+const RISK_MONITORING_STATE_COLLECTION = 'riskMonitoringState';
+/** getRecentDataPoints 单次查询条数上限，防止误传过大值 */
+const MAX_RECENT_DATA_POINTS_LIMIT = 500;
+
+/**
+ * 对单条流数据的 data 做轻量校验，返回质量标记；不抛错、不拒绝写入。
+ * @param {Object} data 请求体中的 data
+ * @returns {'ok'|'out_of_range'|'invalid'}
+ */
+function computeStreamDataQuality(data) {
+  if (!data || typeof data !== 'object') return 'ok';
+  try {
+    let hasOutOfRange = false;
+    if (typeof data.heartRate === 'number') {
+      const r = STREAM_DATA_RANGES.heartRate;
+      if (data.heartRate < r.min || data.heartRate > r.max) hasOutOfRange = true;
+    }
+    if (typeof data.glucose === 'number') {
+      const r = STREAM_DATA_RANGES.glucose;
+      if (data.glucose < r.min || data.glucose > r.max) hasOutOfRange = true;
+    }
+    if (typeof data.hrv === 'number') {
+      const r = STREAM_DATA_RANGES.hrv;
+      if (data.hrv < r.min || data.hrv > r.max) hasOutOfRange = true;
+    }
+    if (typeof data.steps === 'number' && data.steps < STREAM_DATA_RANGES.steps.min) hasOutOfRange = true;
+    if (typeof data.sleepMinutes === 'number') {
+      const r = STREAM_DATA_RANGES.sleepMinutes;
+      if (data.sleepMinutes < r.min || data.sleepMinutes > r.max) hasOutOfRange = true;
+    }
+    if (data.bloodPressure && typeof data.bloodPressure === 'object') {
+      const sp = data.bloodPressure.systolic, dp = data.bloodPressure.diastolic;
+      if (typeof sp === 'number' && (sp < STREAM_DATA_RANGES.bloodPressure.systolic.min || sp > STREAM_DATA_RANGES.bloodPressure.systolic.max)) hasOutOfRange = true;
+      if (typeof dp === 'number' && (dp < STREAM_DATA_RANGES.bloodPressure.diastolic.min || dp > STREAM_DATA_RANGES.bloodPressure.diastolic.max)) hasOutOfRange = true;
+    }
+    return hasOutOfRange ? 'out_of_range' : 'ok';
+  } catch (_) {
+    return 'invalid';
+  }
+}
+
+/**
+ * 等间隔采样，保留首尾，控制送 LLM 的数据量
+ * @param {Array} data 按时间正序的数据点
+ * @param {number} maxPoints 目标条数
+ * @returns {Array}
+ */
+function sampleDataPoints(data, maxPoints) {
+  if (!Array.isArray(data) || data.length <= maxPoints) return data;
+  const out = [];
+  const step = (data.length - 1) / (maxPoints - 1);
+  for (let i = 0; i < maxPoints; i++) {
+    const idx = i === maxPoints - 1 ? data.length - 1 : Math.round(i * step);
+    out.push(data[idx]);
+  }
+  return out;
+}
 
 /**
  * 实时风险监测服务
@@ -17,31 +98,34 @@ class RiskMonitoringService {
    * 处理实时流数据
    * @param {string} userEmail 用户邮箱
    * @param {string} deviceType 设备类型
-   * @param {Object} data 实时数据
+   * @param {Object} data 实时数据（推荐含 heartRate、bloodPressure、glucose、hrv、steps 等，见实现文档 5.2）
    * @returns {Promise<Object>} 处理结果
    */
   async processStreamData(userEmail, deviceType, data) {
     try {
       console.log(`📊 Processing stream data for user: ${userEmail}, device: ${deviceType}`);
-      
-      // 存储实时数据到 Firestore
+
+      const dataQuality = computeStreamDataQuality(data);
       const timestamp = new Date().toISOString();
       const dataPoint = {
         userEmail,
         deviceType,
         data,
         timestamp,
-        processed: false
+        processed: false,
+        ...(dataQuality !== 'ok' && { dataQuality })
       };
 
-      // 保存到实时数据流集合
       const streamRef = collection(db, 'wearableStreamData');
       await addDoc(streamRef, dataPoint);
 
-      // 不自动触发异常检测（改为手动触发）
+      this.maybeTriggerAutoDetect(userEmail).catch((err) => {
+        console.error('❌ Auto anomaly detect failed:', err.message);
+      });
+
       return {
         success: true,
-        dataPoint
+        dataPoint: { ...dataPoint, dataQuality: dataQuality }
       };
     } catch (error) {
       console.error('❌ Error processing stream data:', error);
@@ -53,28 +137,59 @@ class RiskMonitoringService {
   }
 
   /**
+   * 可选自动异常检测：距上次检测超过节流间隔时异步执行一次 detectAnomalies。
+   * 由 processStreamData 在写入成功后调用；通过环境变量 RISK_AUTO_DETECT_ENABLED=true 开启。
+   */
+  async maybeTriggerAutoDetect(userEmail) {
+    if (process.env.RISK_AUTO_DETECT_ENABLED !== 'true') return;
+    const stateRef = doc(db, RISK_MONITORING_STATE_COLLECTION, (userEmail || '').replace(/\./g, '_'));
+    const stateSnap = await getDoc(stateRef);
+    const now = Date.now();
+    const lastAt = stateSnap.exists() ? stateSnap.data().lastAutoDetectAt : null;
+    const lastMs = lastAt ? new Date(lastAt).getTime() : 0;
+    if (now - lastMs < AUTO_DETECT_THROTTLE_MS) return;
+    await setDoc(stateRef, { lastAutoDetectAt: new Date().toISOString(), userEmail }, { merge: true });
+    setImmediate(() => {
+      this.detectAnomalies(userEmail, [], {}).catch((err) => {
+        console.error('❌ Auto detectAnomalies error:', err.message);
+      });
+    });
+  }
+
+  /**
    * 异常检测
    * @param {string} userEmail 用户邮箱
-   * @param {Array} dataStream 数据流
-   * @returns {Promise<Object>} 检测结果
+   * @param {Array} dataStream 请求体中的可选数据流，与服务端数据合并
+   * @param {Object} options 可选。{ timeRange: '1h'|'6h'|'24h', deviceType: string }
+   * @returns {Promise<Object>} 检测结果（含 dataPointCount、timeRange、deviceType 供前端展示）
    */
-  async detectAnomalies(userEmail, dataStream) {
+  async detectAnomalies(userEmail, dataStream, options = {}) {
     try {
-      console.log(`🔍 Detecting anomalies for user: ${userEmail}`);
-      
-      // 获取最近的数据点用于趋势分析
-      const recentData = await this.getRecentDataPoints(userEmail, 100);
-      const allData = [...recentData, ...dataStream];
-      
+      const { timeRange, deviceType } = options;
+      console.log(`🔍 Detecting anomalies for user: ${userEmail}, timeRange: ${timeRange || 'default'}, deviceType: ${deviceType || 'all'}`);
+
+      const limitCount = 100;
+      const fetchOptions = {};
+      if (timeRange && TIME_RANGE_MS[timeRange]) fetchOptions.timeRange = timeRange;
+      if (deviceType && typeof deviceType === 'string') fetchOptions.deviceType = deviceType;
+
+      const recentData = await this.getRecentDataPoints(userEmail, limitCount, fetchOptions);
+      const allData = [...recentData, ...(Array.isArray(dataStream) ? dataStream : [])];
+
+      const dataForPrompt = allData.length > MAX_DATA_POINTS_FOR_PROMPT
+        ? sampleDataPoints(allData, MAX_DATA_POINTS_FOR_PROMPT)
+        : allData;
+      const sampledDown = dataForPrompt.length < allData.length;
+
       // 获取用户健康档案数据用于个性化分析
       const userHealthData = await this.getUserHealthDataForAnalysis(userEmail);
-      
+
       // 获取用户AI设置并优先使用OpenAI
       const userSettings = await userSettingsService.getUserAISettings(userEmail);
       const { aiProvider, aiModel } = this.getAIServiceConfig(userSettings);
-      
-      // 使用LLM分析数据趋势和异常
-      const prompt = this.buildAnomalyDetectionPrompt(allData, userHealthData);
+
+      // 使用LLM分析数据趋势和异常（送 prompt 的为采样后数据）
+      const prompt = this.buildAnomalyDetectionPrompt(dataForPrompt, userHealthData);
       
       const aiResult = await aiServiceFactory.analyzeHealthRecords(
         { documents: [{ text: prompt }] },
@@ -101,7 +216,11 @@ class RiskMonitoringService {
         hasAnomaly: anomalyAnalysis.hasAnomaly,
         anomalies: anomalyAnalysis.anomalies || [],
         alerts: alerts,
-        analysis: anomalyAnalysis
+        analysis: anomalyAnalysis,
+        dataPointCount: allData.length,
+        ...(sampledDown && { sampledDown: true, sampledTo: dataForPrompt.length }),
+        ...(timeRange && { timeRange }),
+        ...(deviceType && { deviceType })
       };
     } catch (error) {
       console.error('❌ Error detecting anomalies:', error);
@@ -419,66 +538,60 @@ class RiskMonitoringService {
   }
 
   /**
-   * 获取最近的数据点
+   * 获取最近的数据点（支持按时间窗口与设备类型过滤）
+   * @param {string} userEmail 用户邮箱
+   * @param {number} limitCount 最多返回条数
+   * @param {Object} options 可选。{ timeRange: '1h'|'6h'|'24h', deviceType: string }
+   * @returns {Promise<Array>} 按时间正序的数据点数组
    */
-  async getRecentDataPoints(userEmail, limitCount = 100) {
+  async getRecentDataPoints(userEmail, limitCount = 100, options = {}) {
     try {
+      const cappedLimit = Math.min(Math.max(1, Number(limitCount) || 100), MAX_RECENT_DATA_POINTS_LIMIT);
+      const { timeRange, deviceType } = options;
+      const fetchLimit = timeRange && TIME_RANGE_MS[timeRange] ? Math.max(cappedLimit, DEFAULT_FETCH_LIMIT_FOR_TIME_RANGE) : cappedLimit;
+
       const streamRef = collection(db, 'wearableStreamData');
-      
-      // 先尝试使用索引查询（如果索引存在）
+      let dataPoints = [];
+
       try {
         const q = query(
           streamRef,
           where('userEmail', '==', userEmail),
           orderBy('timestamp', 'desc'),
-          limit(limitCount)
+          limit(fetchLimit)
         );
-        
         const querySnapshot = await getDocs(q);
-        const dataPoints = [];
-        
         querySnapshot.forEach((doc) => {
-          dataPoints.push({
-            id: doc.id,
-            ...doc.data()
-          });
+          dataPoints.push({ id: doc.id, ...doc.data() });
         });
-        
-        return dataPoints.reverse(); // 按时间正序
+        dataPoints = dataPoints.reverse();
       } catch (indexError) {
-        // 如果索引不存在，使用备用方案：先获取所有该用户的数据点，然后在内存中排序
         if (indexError.code === 'failed-precondition') {
           console.warn('⚠️ Firestore index not found for wearableStreamData, using fallback query method');
-          
-          // 只使用 where 查询（不需要索引）
-          const fallbackQuery = query(
-            streamRef,
-            where('userEmail', '==', userEmail)
-          );
-          
+          const fallbackQuery = query(streamRef, where('userEmail', '==', userEmail));
           const querySnapshot = await getDocs(fallbackQuery);
-          const dataPoints = [];
-          
           querySnapshot.forEach((doc) => {
-            dataPoints.push({
-              id: doc.id,
-              ...doc.data()
-            });
+            dataPoints.push({ id: doc.id, ...doc.data() });
           });
-          
-          // 在内存中按时间戳排序并限制数量
           dataPoints.sort((a, b) => {
             const timeA = new Date(a.timestamp || 0).getTime();
             const timeB = new Date(b.timestamp || 0).getTime();
-            return timeB - timeA; // 降序
+            return timeA - timeB;
           });
-          
-          return dataPoints.slice(0, limitCount).reverse(); // 按时间正序
+          dataPoints = dataPoints.slice(-fetchLimit);
         } else {
-          // 其他错误，重新抛出
           throw indexError;
         }
       }
+
+      const since = timeRange && TIME_RANGE_MS[timeRange] ? Date.now() - TIME_RANGE_MS[timeRange] : null;
+      if (since != null) {
+        dataPoints = dataPoints.filter((p) => new Date(p.timestamp || 0).getTime() >= since);
+      }
+      if (deviceType && typeof deviceType === 'string') {
+        dataPoints = dataPoints.filter((p) => p.deviceType === deviceType);
+      }
+      return dataPoints.slice(-cappedLimit);
     } catch (error) {
       console.error('❌ Error getting recent data points:', error);
       return [];
