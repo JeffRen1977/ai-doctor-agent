@@ -30,6 +30,15 @@ const AUTO_DETECT_THROTTLE_MS = 5 * 60 * 1000;
 const RISK_MONITORING_STATE_COLLECTION = 'riskMonitoringState';
 /** getRecentDataPoints 单次查询条数上限，防止误传过大值 */
 const MAX_RECENT_DATA_POINTS_LIMIT = 500;
+/** 异常置信度低于此值不生成预警，仅保留在 analysis 中（待复核） */
+const ANOMALY_CONFIDENCE_THRESHOLD = 0.6;
+/** 规则引擎阈值：血糖(mg/dL)、收缩压(mmHg) */
+const RULE_GLUCOSE_HYPOGLYCEMIA = 70;
+const RULE_SYSTOLIC_HIGH = 180;
+const RULE_SYSTOLIC_MEDIUM = 160;
+/** LLM 调用超时(ms)、重试次数 */
+const LLM_TIMEOUT_MS = 60000;
+const LLM_RETRY_COUNT = 1;
 
 /**
  * 对单条流数据的 data 做轻量校验，返回质量标记；不抛错、不拒绝写入。
@@ -83,6 +92,47 @@ function sampleDataPoints(data, maxPoints) {
     out.push(data[idx]);
   }
   return out;
+}
+
+/**
+ * 从模型返回文本中提取第一个合法 JSON 对象（支持多段或前后有说明文字）
+ * @param {string} text 原始响应
+ * @param {string} logLabel 解析失败时日志前缀
+ * @returns {Object|null} 解析出的对象，失败返回 null 并打日志
+ */
+function extractFirstValidJson(text, logLabel = 'AI response') {
+  if (!text || typeof text !== 'string') return null;
+  const trimmed = text.trim();
+  const startIdx = trimmed.indexOf('{');
+  if (startIdx === -1) {
+    console.warn(`[${logLabel}] No JSON object found, preview: ${trimmed.slice(0, 200)}`);
+    return null;
+  }
+  let depth = 0;
+  let inDouble = false;
+  let escape = false;
+  let endIdx = -1;
+  for (let i = startIdx; i < trimmed.length; i++) {
+    const c = trimmed[i];
+    if (escape) { escape = false; continue; }
+    if (c === '\\' && inDouble) { escape = true; continue; }
+    if (c === '"') { inDouble = !inDouble; continue; }
+    if (!inDouble) {
+      if (c === '{') depth++;
+      else if (c === '}') { depth--; if (depth === 0) { endIdx = i; break; } }
+    }
+  }
+  if (endIdx === -1) {
+    console.warn(`[${logLabel}] Unbalanced braces, preview: ${trimmed.slice(startIdx, startIdx + 300)}`);
+    return null;
+  }
+  const jsonStr = trimmed.slice(startIdx, endIdx + 1);
+  try {
+    return JSON.parse(jsonStr);
+  } catch (e) {
+    console.warn(`[${logLabel}] JSON.parse failed: ${e.message}, preview: ${jsonStr.slice(0, 200)}`);
+    return null;
+  }
 }
 
 /**
@@ -181,42 +231,84 @@ class RiskMonitoringService {
         : allData;
       const sampledDown = dataForPrompt.length < allData.length;
 
+      // 规则引擎优先：明确阈值先走规则，命中类型与 LLM 合并去重
+      const { ruleHits } = this.runRuleBasedDetection(dataForPrompt);
+      const typesFromRules = new Set(ruleHits.map((h) => h.type));
+      const ruleAlerts = [];
+      for (const hit of ruleHits) {
+        const alert = await this.generateAlert(userEmail, hit.type, hit.severity, hit);
+        ruleAlerts.push(alert);
+      }
+
       // 获取用户健康档案数据用于个性化分析
       const userHealthData = await this.getUserHealthDataForAnalysis(userEmail);
 
       // 获取用户AI设置并优先使用OpenAI
       const userSettings = await userSettingsService.getUserAISettings(userEmail);
       const { aiProvider, aiModel } = this.getAIServiceConfig(userSettings);
+      const userLanguage = (userSettings.success && userSettings.language) ? userSettings.language : 'zh';
 
       // 使用LLM分析数据趋势和异常（送 prompt 的为采样后数据）
-      const prompt = this.buildAnomalyDetectionPrompt(dataForPrompt, userHealthData);
-      
-      const aiResult = await aiServiceFactory.analyzeHealthRecords(
-        { documents: [{ text: prompt }] },
-        { provider: aiProvider, model: aiModel }
-      );
-      
+      const prompt = this.buildAnomalyDetectionPrompt(dataForPrompt, userHealthData, userLanguage);
+
+      let aiResult;
+      try {
+        aiResult = await this.analyzeHealthRecordsWithRetry(
+          { documents: [{ text: prompt }] },
+          { provider: aiProvider, model: aiModel }
+        );
+      } catch (llmError) {
+        if (ruleAlerts.length > 0) {
+          return {
+            hasAnomaly: true,
+            anomalies: ruleHits.map((h) => ({ ...h, type: h.type, severity: h.severity })),
+            alerts: ruleAlerts,
+            analysis: { hasAnomaly: true, anomalies: ruleHits, trend: { direction: 'stable', rate: 0, significance: 'low' } },
+            dataPointCount: allData.length,
+            fallbackMessage: '当前仅规则检测可用，AI 分析暂时不可用',
+            ...(sampledDown && { sampledDown: true, sampledTo: dataForPrompt.length }),
+            ...(timeRange && { timeRange }),
+            ...(deviceType && { deviceType })
+          };
+        }
+        throw llmError;
+      }
+
       if (!aiResult.success) {
+        if (ruleAlerts.length > 0) {
+          return {
+            hasAnomaly: true,
+            anomalies: ruleHits.map((h) => ({ ...h, type: h.type, severity: h.severity })),
+            alerts: ruleAlerts,
+            analysis: { hasAnomaly: true, anomalies: ruleHits, trend: { direction: 'stable', rate: 0, significance: 'low' } },
+            dataPointCount: allData.length,
+            fallbackMessage: 'AI 分析失败，已根据规则生成上述预警',
+            ...(sampledDown && { sampledDown: true, sampledTo: dataForPrompt.length }),
+            ...(timeRange && { timeRange }),
+            ...(deviceType && { deviceType })
+          };
+        }
         throw new Error(aiResult.error || 'AI analysis failed');
       }
-      
-      // 解析AI返回的异常检测结果
+
       const anomalyAnalysis = this.parseAnomalyAnalysis(aiResult.analysis);
-      
-      // 如果有异常，生成预警
-      const alerts = [];
-      if (anomalyAnalysis.hasAnomaly) {
-        for (const anomaly of anomalyAnalysis.anomalies || []) {
-          const alert = await this.generateAlert(userEmail, anomaly.type, anomaly.severity, anomaly);
-          alerts.push(alert);
-        }
+
+      const llmAlerts = [];
+      for (const anomaly of anomalyAnalysis.anomalies || []) {
+        if (anomaly._skipAlert) continue;
+        if (typesFromRules.has(anomaly.type)) continue;
+        const alert = await this.generateAlert(userEmail, anomaly.type, anomaly.severity, anomaly);
+        llmAlerts.push(alert);
       }
-      
+
+      const allAnomalies = [...ruleHits.map((h) => ({ type: h.type, severity: h.severity, description: h.description, recommendation: h.recommendation, fromRule: true })), ...(anomalyAnalysis.anomalies || [])];
+      const hasAnyAnomaly = allAnomalies.length > 0;
+
       return {
-        hasAnomaly: anomalyAnalysis.hasAnomaly,
-        anomalies: anomalyAnalysis.anomalies || [],
-        alerts: alerts,
-        analysis: anomalyAnalysis,
+        hasAnomaly: hasAnyAnomaly,
+        anomalies: allAnomalies,
+        alerts: [...ruleAlerts, ...llmAlerts],
+        analysis: { ...anomalyAnalysis, hasAnomaly: hasAnyAnomaly, anomalies: allAnomalies },
         dataPointCount: allData.length,
         ...(sampledDown && { sampledDown: true, sampledTo: dataForPrompt.length }),
         ...(timeRange && { timeRange }),
@@ -249,16 +341,16 @@ class RiskMonitoringService {
       // 获取用户AI设置并优先使用OpenAI
       const userSettings = await userSettingsService.getUserAISettings(userEmail);
       const { aiProvider, aiModel } = this.getAIServiceConfig(userSettings);
-      
+      const userLanguage = (userSettings.success && userSettings.language) ? userSettings.language : 'zh';
+
       // 构建预测提示
-      const prompt = this.buildHypoglycemiaPredictionPrompt(glucoseData, userHealthData);
-      
-      // 使用LLM进行预测
-      const aiResult = await aiServiceFactory.analyzeHealthRecords(
+      const prompt = this.buildHypoglycemiaPredictionPrompt(glucoseData, userHealthData, userLanguage);
+
+      const aiResult = await this.analyzeHealthRecordsWithRetry(
         { documents: [{ text: prompt }] },
         { provider: aiProvider, model: aiModel }
       );
-      
+
       if (!aiResult.success) {
         throw new Error(aiResult.error || 'AI prediction failed');
       }
@@ -315,16 +407,16 @@ class RiskMonitoringService {
       // 获取用户AI设置并优先使用OpenAI
       const userSettings = await userSettingsService.getUserAISettings(userEmail);
       const { aiProvider, aiModel } = this.getAIServiceConfig(userSettings);
-      
+      const userLanguage = (userSettings.success && userSettings.language) ? userSettings.language : 'zh';
+
       // 构建HRV分析提示
-      const prompt = this.buildHRVAnalysisPrompt(allData, userHealthData);
-      
-      // 使用LLM分析HRV趋势
-      const aiResult = await aiServiceFactory.analyzeHealthRecords(
+      const prompt = this.buildHRVAnalysisPrompt(allData, userHealthData, userLanguage);
+
+      const aiResult = await this.analyzeHealthRecordsWithRetry(
         { documents: [{ text: prompt }] },
         { provider: aiProvider, model: aiModel }
       );
-      
+
       if (!aiResult.success) {
         throw new Error(aiResult.error || 'AI analysis failed');
       }
@@ -682,225 +774,222 @@ class RiskMonitoringService {
   }
 
   /**
-   * 构建异常检测提示
+   * 带超时与有限重试的 analyzeHealthRecords 封装（3.4 模型与降级）
+   * @param {Object} healthData 同 aiServiceFactory.analyzeHealthRecords
+   * @param {Object} options 同 aiServiceFactory.analyzeHealthRecords
+   * @returns {Promise<Object>}
    */
-  buildAnomalyDetectionPrompt(dataStream, userHealthData = null) {
-    const recentData = dataStream.slice(-20); // 最近20个数据点
-    
+  async analyzeHealthRecordsWithRetry(healthData, options) {
+    const timeoutPromise = () => new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('AI analysis timeout')), LLM_TIMEOUT_MS);
+    });
+    let lastError;
+    for (let attempt = 0; attempt <= LLM_RETRY_COUNT; attempt++) {
+      try {
+        const result = await Promise.race([
+          aiServiceFactory.analyzeHealthRecords(healthData, options),
+          timeoutPromise()
+        ]);
+        return result;
+      } catch (err) {
+        lastError = err;
+        if (attempt < LLM_RETRY_COUNT) {
+          console.warn(`[analyzeHealthRecordsWithRetry] Attempt ${attempt + 1} failed, retrying: ${err.message}`);
+        }
+      }
+    }
+    return { success: false, error: lastError?.message || 'AI analysis failed' };
+  }
+
+  /**
+   * 规则引擎：对明确阈值先做规则检测，命中则生成预警（与 LLM 结果合并去重）
+   * @param {Array} dataPoints 数据点，每项含 data、timestamp
+   * @returns {{ ruleHits: Array<{type, severity, description, recommendation, fromRule}> }}
+   */
+  runRuleBasedDetection(dataPoints) {
+    const ruleHits = [];
+    if (!Array.isArray(dataPoints)) return { ruleHits };
+    for (const point of dataPoints) {
+      const d = point.data || point;
+      const ts = point.timestamp || d.timestamp;
+      if (typeof d.glucose === 'number' && d.glucose < RULE_GLUCOSE_HYPOGLYCEMIA) {
+        ruleHits.push({
+          type: 'hypoglycemia',
+          severity: 'high',
+          description: `血糖 ${d.glucose} mg/dL 低于 ${RULE_GLUCOSE_HYPOGLYCEMIA}`,
+          recommendation: '建议立即补充含糖食物并监测血糖',
+          fromRule: true
+        });
+      }
+      const sys = d.bloodPressure && typeof d.bloodPressure.systolic === 'number' ? d.bloodPressure.systolic : null;
+      if (sys !== null) {
+        if (sys >= RULE_SYSTOLIC_HIGH) {
+          ruleHits.push({
+            type: 'hypertension',
+            severity: 'high',
+            description: `收缩压 ${sys} mmHg 达到高危`,
+            recommendation: '建议休息、复测，必要时就医',
+            fromRule: true
+          });
+        } else if (sys >= RULE_SYSTOLIC_MEDIUM) {
+          ruleHits.push({
+            type: 'hypertension',
+            severity: 'medium',
+            description: `收缩压 ${sys} mmHg 偏高`,
+            recommendation: '建议监测血压、低盐饮食',
+            fromRule: true
+          });
+        }
+      }
+    }
+    return { ruleHits };
+  }
+
+  /**
+   * 构建异常检测提示（含结构化要求、少样本、单位与语言）
+   * @param {Array} dataStream 数据点（已采样）
+   * @param {Object} userHealthData 用户健康档案
+   * @param {string} language 用户语言 'zh' | 'en'，用于描述与单位说明
+   */
+  buildAnomalyDetectionPrompt(dataStream, userHealthData = null, language = 'zh') {
+    const recentData = dataStream.slice(-20);
+    const langNote = language === 'en' ? 'Use English for all descriptions and recommendations.' : '请用中文书写所有描述与建议。';
+    const unitsNote = language === 'en'
+      ? 'Units: blood glucose mg/dL, blood pressure mmHg, heart rate bpm.'
+      : '数值单位：血糖 mg/dL，血压 mmHg，心率 次/分钟。';
+
     let userContext = '';
     if (userHealthData) {
-      userContext = `
-用户健康档案信息：
-- 既往病史：${userHealthData.medicalHistory || '无'}
-- 用药记录：${userHealthData.medications || '无'}
-- 过敏史：${userHealthData.allergies || '无'}
-- 家族史：${userHealthData.familyHistory || '无'}
-`;
+      userContext = language === 'en'
+        ? `User health context:\n- Medical history: ${userHealthData.medicalHistory || 'None'}\n- Medications: ${userHealthData.medications || 'None'}\n- Allergies: ${userHealthData.allergies || 'None'}\n- Family history: ${userHealthData.familyHistory || 'None'}\n`
+        : `用户健康档案信息：\n- 既往病史：${userHealthData.medicalHistory || '无'}\n- 用药记录：${userHealthData.medications || '无'}\n- 过敏史：${userHealthData.allergies || '无'}\n- 家族史：${userHealthData.familyHistory || '无'}\n`;
     }
-    
-    return `作为专业的医疗AI助手，请分析以下可穿戴设备的实时数据流，检测异常情况。
 
+    return `As a medical AI assistant, analyze the following wearable device data stream for anomalies.
 ${userContext}
-数据流（最近20个数据点）：
+Data stream (latest 20 points):
 ${JSON.stringify(recentData, null, 2)}
 
-请进行以下分析：
-1. **数据趋势分析**：
-   - 识别数据趋势（上升/下降/稳定）
-   - 计算变化速率
-   - 评估趋势的显著性
+${unitsNote}
+${langNote}
 
-2. **异常检测**：
-   - 识别异常值（超出正常范围的数据点）
-   - 识别异常模式（连续异常、周期性异常等）
-   - 识别时间序列异常（突然变化、趋势反转等）
+Important: Output only a single JSON object. Do not wrap in markdown code blocks or add any text outside the JSON.
 
-3. **风险评估**：
-   - 评估潜在的健康风险
-   - 考虑用户健康档案信息（如有）
-   - 评估风险的严重程度
+Required JSON schema (use exactly these field names and allowed values):
+- hasAnomaly: boolean
+- anomalies: array of { type, severity, description, recommendation } where
+  type is one of: hypoglycemia, cardiacFatigue, arrhythmia, hypertension, sleepDisorder, activityAnomaly
+  severity is one of: low, medium, high, critical
+- trend: { direction: "stable"|"rising"|"declining", rate: number, significance: "low"|"medium"|"high" }
 
-4. **预警建议**：
-   - 如果需要预警，提供具体的预警建议
-   - 建议应包括：预警类型、严重程度、描述、建议行动
+Examples:
+Example 1 (no anomaly): {"hasAnomaly":false,"anomalies":[],"trend":{"direction":"stable","rate":0,"significance":"low"}}
+Example 2 (with anomaly): {"hasAnomaly":true,"anomalies":[{"type":"hypoglycemia","severity":"high","description":"...","recommendation":"..."}],"trend":{"direction":"declining","rate":-2,"significance":"high"}}
 
-请以JSON格式返回，严格遵循以下结构：
-{
-  "hasAnomaly": boolean,
-  "anomalies": [
-    {
-      "type": "hypoglycemia" | "cardiacFatigue" | "arrhythmia" | "hypertension" | "sleepDisorder" | "activityAnomaly",
-      "severity": "low" | "medium" | "high" | "critical",
-      "description": "异常描述",
-      "recommendation": "建议行动"
-    }
-  ],
-  "trend": {
-    "direction": "stable" | "rising" | "declining",
-    "rate": number,
-    "significance": "low" | "medium" | "high"
-  }
-}`;
+Output your single JSON object now:`;
   }
 
   /**
-   * 构建低血糖预测提示
+   * 构建低血糖预测提示（仅输出 JSON、单位 mg/dL、语言一致）
    */
-  buildHypoglycemiaPredictionPrompt(glucoseData, userHealthData = null) {
+  buildHypoglycemiaPredictionPrompt(glucoseData, userHealthData = null, language = 'zh') {
     let userContext = '';
     if (userHealthData) {
-      userContext = `
-用户健康档案信息：
-- 既往病史：${userHealthData.medicalHistory || '无'}
-- 用药记录：${userHealthData.medications || '无'}（特别注意降糖药）
-- 过敏史：${userHealthData.allergies || '无'}
-`;
+      userContext = language === 'en'
+        ? `User context: medications (note hypoglycemic drugs): ${userHealthData.medications || 'None'}.\n`
+        : `用户用药（注意降糖药）：${userHealthData.medications || '无'}\n`;
     }
-    
-    return `作为专业的医疗AI助手，请基于以下血糖数据，预测未来15-30分钟内发生低血糖的风险。
-
+    const langNote = language === 'en' ? 'Use English for recommendation.' : '建议请用中文。';
+    return `Based on the following blood glucose time series (units: mg/dL), predict hypoglycemia risk in the next 15-30 minutes.
 ${userContext}
-血糖数据（时间序列）：
+Glucose data:
 ${JSON.stringify(glucoseData, null, 2)}
 
-请进行以下分析：
-1. **当前血糖趋势分析**：
-   - 分析血糖变化趋势（上升/下降/稳定）
-   - 计算血糖下降速率（mg/dL/分钟）
-   - 识别血糖变化模式
-
-2. **未来血糖预测**：
-   - 基于当前趋势预测未来15-30分钟的血糖值
-   - 考虑用户用药记录（如有降糖药）
-   - 评估预测的置信度
-
-3. **低血糖风险评估**：
-   - 评估低血糖风险等级（low/medium/high）
-   - 如果预测血糖值 < 70 mg/dL，风险等级应为 high
-   - 如果血糖下降速率过快，也应提高风险等级
-
-4. **预防建议**：
-   - 根据风险等级提供具体的预防建议
-   - 建议应包括：是否需要立即进食、建议的食物类型、监测频率等
-
-请以JSON格式返回，严格遵循以下结构：
-{
-  "predictedGlucose": number,  // 预测血糖值（mg/dL）
-  "riskLevel": "low" | "medium" | "high",
-  "timeWindow": "15-30分钟",
-  "confidence": number,  // 0-1之间的置信度
-  "recommendation": "预防建议"
-}`;
+Output only a single JSON object. No markdown, no extra text.
+Schema: predictedGlucose (number, mg/dL), riskLevel ("low"|"medium"|"high"), timeWindow (string, e.g. "15-30分钟"), confidence (number 0-1), recommendation (string).
+${langNote}
+Example: {"predictedGlucose":85,"riskLevel":"low","timeWindow":"15-30分钟","confidence":0.8,"recommendation":"..."}
+Output your JSON now:`;
   }
 
   /**
-   * 构建HRV分析提示
+   * 构建 HRV 分析提示（仅输出 JSON、语言一致）
    */
-  buildHRVAnalysisPrompt(heartRateData, userHealthData = null) {
+  buildHRVAnalysisPrompt(heartRateData, userHealthData = null, language = 'zh') {
     let userContext = '';
     if (userHealthData) {
-      userContext = `
-用户健康档案信息：
-- 既往病史：${userHealthData.medicalHistory || '无'}
-- 用药记录：${userHealthData.medications || '无'}
-- 家族史：${userHealthData.familyHistory || '无'}
-`;
+      userContext = `User health context: ${userHealthData.medicalHistory || '-'}, medications: ${userHealthData.medications || '-'}\n`;
     }
-    
-    return `作为专业的医疗AI助手，请分析以下心率变异性（HRV）数据，评估心脏疲劳和健康风险。
-
+    const langNote = language === 'en' ? 'Use English for recommendation and risk factors.' : '建议与风险因素请用中文。';
+    return `Analyze the following heart rate / HRV data for cardiac fatigue and trend.
 ${userContext}
-心率数据（最近30天）：
+Heart rate / HRV data:
 ${JSON.stringify(heartRateData, null, 2)}
 
-请进行以下分析：
-1. **HRV趋势分析**：
-   - 分析HRV趋势（stable/declining/improving）
-   - 如果HRV持续下降，计算下降速率
-   - 评估趋势的显著性
-
-2. **静息心率分析**：
-   - 分析静息心率是否上升
-   - 评估心率变化与HRV的关系
-
-3. **心脏疲劳风险评估**：
-   - 评估心脏疲劳风险等级（low/medium/high）
-   - 如果HRV持续下降且严重程度为high，应生成预警
-   - 考虑用户健康档案信息（如有心脏相关疾病史）
-
-4. **风险因素识别**：
-   - 识别可能导致HRV下降的风险因素
-   - 考虑活动量、睡眠质量、压力等因素
-
-5. **建议**：
-   - 提供休息和恢复建议
-   - 建议应包括：休息时间、活动调整、监测频率等
-
-请以JSON格式返回，严格遵循以下结构：
-{
-  "trend": "stable" | "declining" | "improving",
-  "declineRate": number,  // 下降速率（如为下降趋势）
-  "severity": "low" | "medium" | "high",
-  "riskFactors": ["风险因素1", "风险因素2"],
-  "recommendation": "建议内容"
-}`;
+Output only a single JSON object. No markdown, no extra text.
+Schema: trend ("stable"|"declining"|"improving"), declineRate (number), severity ("low"|"medium"|"high"), riskFactors (array of strings), recommendation (string).
+${langNote}
+Example: {"trend":"stable","declineRate":0,"severity":"low","riskFactors":[],"recommendation":"..."}
+Output your JSON now:`;
   }
 
   /**
-   * 解析异常检测结果
+   * 解析异常检测结果（多段 JSON 鲁棒提取、白名单与默认值、置信度过滤）
    */
   parseAnomalyAnalysis(aiAnalysis) {
     try {
-      // 尝试提取JSON对象
-      let jsonMatch = aiAnalysis.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        
-        // 验证和规范化异常类型
-        if (parsed.anomalies && Array.isArray(parsed.anomalies)) {
-          parsed.anomalies = parsed.anomalies.map(anomaly => {
-            // 确保异常类型是有效的
-            const validTypes = ['hypoglycemia', 'cardiacFatigue', 'arrhythmia', 'hypertension', 'sleepDisorder', 'activityAnomaly'];
-            if (!validTypes.includes(anomaly.type)) {
-              // 尝试映射到有效类型
-              const typeMapping = {
-                'low_glucose': 'hypoglycemia',
-                'heart_fatigue': 'cardiacFatigue',
-                'irregular_heartbeat': 'arrhythmia',
-                'high_blood_pressure': 'hypertension',
-                'sleep_abnormal': 'sleepDisorder',
-                'activity_abnormal': 'activityAnomaly'
-              };
-              anomaly.type = typeMapping[anomaly.type] || 'activityAnomaly';
-            }
-            
-            // 确保严重程度是有效的
-            const validSeverities = ['low', 'medium', 'high', 'critical'];
-            if (!validSeverities.includes(anomaly.severity)) {
-              anomaly.severity = 'low';
-            }
-            
-            return anomaly;
-          });
-        }
-        
-        // 确保hasAnomaly是布尔值
-        parsed.hasAnomaly = parsed.hasAnomaly === true || (parsed.anomalies && parsed.anomalies.length > 0);
-        
-        // 确保trend对象存在
-        if (!parsed.trend) {
-          parsed.trend = { direction: 'stable', rate: 0, significance: 'low' };
-        }
-        
-        return parsed;
+      const parsed = extractFirstValidJson(aiAnalysis, 'parseAnomalyAnalysis');
+      if (!parsed) {
+        return {
+          hasAnomaly: false,
+          anomalies: [],
+          trend: { direction: 'stable', rate: 0, significance: 'low' }
+        };
       }
-      
-      // 默认返回
-      return {
-        hasAnomaly: false,
-        anomalies: [],
-        trend: { direction: 'stable', rate: 0, significance: 'low' }
+
+      const validTypes = ['hypoglycemia', 'cardiacFatigue', 'arrhythmia', 'hypertension', 'sleepDisorder', 'activityAnomaly'];
+      const typeMapping = {
+        low_glucose: 'hypoglycemia',
+        heart_fatigue: 'cardiacFatigue',
+        irregular_heartbeat: 'arrhythmia',
+        high_blood_pressure: 'hypertension',
+        sleep_abnormal: 'sleepDisorder',
+        activity_abnormal: 'activityAnomaly'
       };
+      const validSeverities = ['low', 'medium', 'high', 'critical'];
+
+      if (parsed.anomalies && Array.isArray(parsed.anomalies)) {
+        parsed.anomalies = parsed.anomalies.map((anomaly) => {
+          const rawType = anomaly.type;
+          if (!validTypes.includes(anomaly.type)) {
+            anomaly.type = typeMapping[anomaly.type] || 'activityAnomaly';
+            if (anomaly.type === 'activityAnomaly' && rawType) {
+              console.warn(`[parseAnomalyAnalysis] Unknown anomaly type "${rawType}" mapped to activityAnomaly`);
+            }
+          }
+          if (!validSeverities.includes(anomaly.severity)) {
+            anomaly.severity = 'low';
+          }
+          anomaly.description = anomaly.description ?? '';
+          anomaly.recommendation = anomaly.recommendation ?? '';
+          const conf = anomaly.confidence != null ? Number(anomaly.confidence) : 1;
+          if (conf < ANOMALY_CONFIDENCE_THRESHOLD) {
+            anomaly._skipAlert = true;
+          }
+          return anomaly;
+        });
+      }
+
+      parsed.hasAnomaly = parsed.hasAnomaly === true || (parsed.anomalies && parsed.anomalies.length > 0);
+      parsed.trend = parsed.trend && typeof parsed.trend === 'object'
+        ? {
+            direction: ['stable', 'rising', 'declining'].includes(parsed.trend.direction) ? parsed.trend.direction : 'stable',
+            rate: Number(parsed.trend.rate) || 0,
+            significance: ['low', 'medium', 'high'].includes(parsed.trend.significance) ? parsed.trend.significance : 'low'
+          }
+        : { direction: 'stable', rate: 0, significance: 'low' };
+
+      return parsed;
     } catch (error) {
       console.error('❌ Error parsing anomaly analysis:', error);
       return {
@@ -912,21 +1001,26 @@ ${JSON.stringify(heartRateData, null, 2)}
   }
 
   /**
-   * 解析低血糖预测结果
+   * 解析低血糖预测结果（鲁棒提取 + 默认值）
    */
   parseHypoglycemiaPrediction(aiAnalysis) {
     try {
-      const jsonMatch = aiAnalysis.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
+      const parsed = extractFirstValidJson(aiAnalysis, 'parseHypoglycemiaPrediction');
+      if (!parsed) {
+        return {
+          predictedGlucose: 90,
+          riskLevel: 'low',
+          timeWindow: '15-30分钟',
+          confidence: 0.7,
+          recommendation: '继续监测血糖水平'
+        };
       }
-      
       return {
-        predictedGlucose: 90,
-        riskLevel: 'low',
-        timeWindow: '15-30分钟',
-        confidence: 0.7,
-        recommendation: '继续监测血糖水平'
+        predictedGlucose: Number(parsed.predictedGlucose) || 90,
+        riskLevel: ['low', 'medium', 'high'].includes(parsed.riskLevel) ? parsed.riskLevel : 'low',
+        timeWindow: parsed.timeWindow || '15-30分钟',
+        confidence: Number(parsed.confidence) >= 0 && Number(parsed.confidence) <= 1 ? Number(parsed.confidence) : 0.7,
+        recommendation: parsed.recommendation || '继续监测血糖水平'
       };
     } catch (error) {
       console.error('❌ Error parsing hypoglycemia prediction:', error);
@@ -941,21 +1035,26 @@ ${JSON.stringify(heartRateData, null, 2)}
   }
 
   /**
-   * 解析HRV分析结果
+   * 解析 HRV 分析结果（鲁棒提取 + 默认值）
    */
   parseHRVAnalysis(aiAnalysis) {
     try {
-      const jsonMatch = aiAnalysis.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
+      const parsed = extractFirstValidJson(aiAnalysis, 'parseHRVAnalysis');
+      if (!parsed) {
+        return {
+          trend: 'stable',
+          declineRate: 0,
+          severity: 'low',
+          riskFactors: [],
+          recommendation: '保持当前活动水平'
+        };
       }
-      
       return {
-        trend: 'stable',
-        declineRate: 0,
-        severity: 'low',
-        riskFactors: [],
-        recommendation: '保持当前活动水平'
+        trend: ['stable', 'declining', 'improving'].includes(parsed.trend) ? parsed.trend : 'stable',
+        declineRate: Number(parsed.declineRate) || 0,
+        severity: ['low', 'medium', 'high'].includes(parsed.severity) ? parsed.severity : 'low',
+        riskFactors: Array.isArray(parsed.riskFactors) ? parsed.riskFactors : [],
+        recommendation: parsed.recommendation || '保持当前活动水平'
       };
     } catch (error) {
       console.error('❌ Error parsing HRV analysis:', error);
