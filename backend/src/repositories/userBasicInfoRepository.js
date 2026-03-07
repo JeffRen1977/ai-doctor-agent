@@ -7,6 +7,7 @@
  * getBasicInfo(userId: string) => Promise<UserBasicInfo | null>
  * saveBasicInfo(userId: string, data: Partial<UserBasicInfo>) => Promise<void>
  * getBasicInfoForAgent(userId: string) => Promise<string>   // 固定格式摘要，供 System Prompt；不含 medications
+ * getFullHealthRecord(userId: string) => Promise<Object | null>  // 根文档全文 + medications 子集合（数组），供报表/数字孪生等
  */
 
 function notImplemented() {
@@ -16,5 +17,6 @@ function notImplemented() {
 module.exports = {
   getBasicInfo: () => notImplemented(),
   saveBasicInfo: () => notImplemented(),
-  getBasicInfoForAgent: () => notImplemented()
+  getBasicInfoForAgent: () => notImplemented(),
+  getFullHealthRecord: () => notImplemented()
 };

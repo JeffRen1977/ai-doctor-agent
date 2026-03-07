@@ -4,6 +4,7 @@ const aiServiceFactory = require('./aiServiceFactory');
 const wearableService = require('./wearableService');
 const userSettingsService = require('./userSettingsService');
 const openaiService = require('./openaiService');
+const { userBasicInfoRepo } = require('../repositories');
 
 /**
  * 数字孪生服务
@@ -54,14 +55,11 @@ class DigitalTwinService {
 
       const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
 
-      // ========== 1. 获取个人健康档案 ==========
+      // ========== 1. 通过 Repository 获取个人健康档案（便于今后换国内数据库） ==========
       try {
-        const personalHealthRef = doc(db, 'personalHealthRecords', sanitizedEmail);
-        const personalHealthDoc = await getDoc(personalHealthRef);
+        const personalData = await userBasicInfoRepo.getFullHealthRecord(sanitizedEmail);
         
-        if (personalHealthDoc.exists()) {
-          const personalData = personalHealthDoc.data();
-          
+        if (personalData) {
           // 1.1 基本信息
           aggregatedData.profile.demographics = personalData.basicInfo || {};
           
@@ -70,16 +68,17 @@ class DigitalTwinService {
           
           // 1.3 生活方式信息
           aggregatedData.profile.lifestyle = {
-            medications: personalData.medications || '',
+            medications: Array.isArray(personalData.medications)
+              ? personalData.medications.map((m) => (typeof m === 'string' ? m : m.name)).join(', ')
+              : '',
             allergies: personalData.allergies || '',
             familyHistory: personalData.familyHistory || ''
           };
           
-          // 1.4 用药记录（当前状态）
-          aggregatedData.currentState.medications = personalData.medications ? 
-            (typeof personalData.medications === 'string' ? 
-              personalData.medications.split(',').map(m => m.trim()) : 
-              Array.isArray(personalData.medications) ? personalData.medications : []) : [];
+          // 1.4 用药记录（当前状态，来自子集合）
+          aggregatedData.currentState.medications = Array.isArray(personalData.medications)
+            ? personalData.medications
+            : [];
           
           // 1.5 遗传信息提取（从家族史中提取）
           if (personalData.familyHistory) {

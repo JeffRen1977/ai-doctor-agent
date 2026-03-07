@@ -4,10 +4,11 @@
 
 const userBasicInfoAdapter = require('./userBasicInfoAdapter');
 const medicationAdapter = require('./medicationAdapter');
+const vitalsDailyAdapter = require('./vitalsDailyAdapter');
 
 module.exports = {
   userBasicInfoRepo: userBasicInfoAdapter,
   medicationRepo: medicationAdapter,
-  vitalsDailyRepo: null,
+  vitalsDailyRepo: vitalsDailyAdapter,
   chatSessionRepo: null
 };

@@ -7,6 +7,7 @@
 const { doc, getDoc, setDoc } = require('firebase/firestore');
 const { db } = require('../../config/firebase');
 const { validateUserBasicInfo } = require('../../models/userBasicInfo');
+const medicationAdapter = require('./medicationAdapter');
 
 const COLLECTION = 'personalHealthRecords';
 
@@ -98,9 +99,25 @@ async function saveBasicInfo(userId, data) {
   await setDoc(ref, updates, { merge: true });
 }
 
+/**
+ * 返回根文档全文 + medications 子集合（数组），供报表、数字孪生等需要完整档案的场景。
+ * 业务层仅依赖 Repository，换库时只需改 Adapter。
+ * @param {string} userId
+ * @returns {Promise<Object | null>} 根文档 data() 且 medications 为 listActive 结果
+ */
+async function getFullHealthRecord(userId) {
+  const ref = doc(db, COLLECTION, userId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return null;
+  const data = snap.data();
+  const medications = await medicationAdapter.listActive(userId);
+  return { ...data, medications };
+}
+
 module.exports = {
   getBasicInfo,
   getBasicInfoForAgent,
   saveBasicInfo,
+  getFullHealthRecord,
   fromFirestoreDoc
 };

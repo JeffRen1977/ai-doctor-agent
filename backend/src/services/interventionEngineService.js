@@ -5,7 +5,7 @@ const aiServiceFactory = require('./aiServiceFactory');
 const userSettingsService = require('./userSettingsService');
 const wearableService = require('./wearableService');
 const openaiService = require('./openaiService');
-const { medicationRepo } = require('../repositories');
+const { userBasicInfoRepo, medicationRepo } = require('../repositories');
 const {
   createInterventionCollection,
   validateInterventionCollection
@@ -100,10 +100,9 @@ class InterventionEngineService {
       
       const wearableData = await wearableService.getUserWearableData(userEmail, 'fitbit');
       
-      // 获取用户健康档案用于个性化分析
-      const healthRecordRef = doc(db, 'personalHealthRecords', sanitizedEmail);
-      const healthRecordDoc = await getDoc(healthRecordRef);
-      const healthRecord = healthRecordDoc.exists() ? healthRecordDoc.data() : null;
+      // 通过 Repository 获取健康档案（便于今后换国内数据库）
+      const basicInfo = await userBasicInfoRepo.getBasicInfo(sanitizedEmail);
+      const healthRecord = basicInfo ? { ...basicInfo, medications: medicationsList } : null;
       
       const prompt = this.buildMedicationEffectivenessPrompt(
         medication, 
@@ -163,11 +162,11 @@ class InterventionEngineService {
       const nutritionProvider = 'gemini';
       const nutritionModel = 'gemini-2.5-flash';
       
-      // 获取用户健康档案
+      // 通过 Repository 获取用户健康档案（便于今后换国内数据库）
       const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
-      const healthRecordRef = doc(db, 'personalHealthRecords', sanitizedEmail);
-      const healthRecordDoc = await getDoc(healthRecordRef);
-      const healthRecord = healthRecordDoc.exists() ? healthRecordDoc.data() : null;
+      const basicInfo = await userBasicInfoRepo.getBasicInfo(sanitizedEmail);
+      const medicationsList = await medicationRepo.listActive(sanitizedEmail);
+      const healthRecord = basicInfo ? { ...basicInfo, medications: medicationsList } : null;
       
       const imageBuffer = fs.readFileSync(mealImagePath);
       const base64Image = imageBuffer.toString('base64');
@@ -797,11 +796,7 @@ ${JSON.stringify(healthData, null, 2)}
       }
       
       try {
-        const healthRecordsRef = doc(db, 'personalHealthRecords', sanitizedEmail);
-        const healthRecordsDoc = await getDoc(healthRecordsRef);
-        if (healthRecordsDoc.exists()) {
-          healthData.healthRecords = healthRecordsDoc.data();
-        }
+        healthData.healthRecords = await userBasicInfoRepo.getFullHealthRecord(sanitizedEmail);
       } catch (error) {
         console.error('Error fetching health records:', error);
       }

@@ -11,12 +11,16 @@ jest.mock('firebase/firestore', () => ({
   getDoc: (...args) => mockGetDoc(...args),
   setDoc: (...args) => mockSetDoc(...args)
 }));
+const mockListActive = jest.fn().mockResolvedValue([]);
+jest.mock('./medicationAdapter', () => ({ listActive: (...args) => mockListActive(...args) }));
 
-const { getBasicInfo, getBasicInfoForAgent, saveBasicInfo, fromFirestoreDoc } = require('./userBasicInfoAdapter');
+const { getBasicInfo, getBasicInfoForAgent, saveBasicInfo, getFullHealthRecord, fromFirestoreDoc } = require('./userBasicInfoAdapter');
 
 beforeEach(() => {
   mockGetDoc.mockReset();
   mockSetDoc.mockReset();
+  mockListActive.mockClear();
+  mockListActive.mockResolvedValue([]);
 });
 
 describe('getBasicInfoForAgent', () => {
@@ -100,6 +104,27 @@ describe('saveBasicInfo', () => {
     expect(updates.medicalHistory).toBe('更新病史');
     expect(updates.updatedAt).toBeDefined();
     expect(updates.medications).toBeUndefined();
+  });
+});
+
+describe('getFullHealthRecord', () => {
+  test('根文档存在时返回 data + medications 数组', async () => {
+    mockGetDoc.mockResolvedValue({
+      exists: () => true,
+      data: () => ({ basicInfo: { name: 'Test' }, medicalHistory: '无' })
+    });
+    mockListActive.mockResolvedValue([{ id: 'm1', name: 'Aspirin' }]);
+    const result = await getFullHealthRecord('user_1');
+    expect(result).not.toBeNull();
+    expect(result.medicalHistory).toBe('无');
+    expect(result.medications).toEqual([{ id: 'm1', name: 'Aspirin' }]);
+    expect(mockListActive).toHaveBeenCalledWith('user_1');
+  });
+  test('根文档不存在时返回 null', async () => {
+    mockGetDoc.mockResolvedValue({ exists: () => false });
+    const result = await getFullHealthRecord('user_1');
+    expect(result).toBeNull();
+    expect(mockListActive).not.toHaveBeenCalled();
   });
 });
 

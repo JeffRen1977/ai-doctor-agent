@@ -7,6 +7,7 @@ const { db } = require('../config/firebase');
 const { doc, getDoc, collection, query, where, orderBy, limit, getDocs } = require('firebase/firestore');
 const userSettingsService = require('./userSettingsService');
 const wearableService = require('./wearableService');
+const { userBasicInfoRepo } = require('../repositories');
 
 class UserContextService {
   constructor() {
@@ -62,29 +63,15 @@ class UserContextService {
         recentAlerts: []
       };
 
-      // 1. 获取个人健康档案
+      // 1. 通过 Repository 获取个人健康档案（便于今后换国内数据库）
       const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
-      const healthRecordRef = doc(db, 'personalHealthRecords', sanitizedEmail);
-      const healthRecordDoc = await getDoc(healthRecordRef);
+      const fullRecord = await userBasicInfoRepo.getFullHealthRecord(sanitizedEmail);
 
-      if (healthRecordDoc.exists()) {
-        const healthData = healthRecordDoc.data();
-        
-        // 提取用药记录
-        if (healthData.medications) {
-          snapshot.medications = Array.isArray(healthData.medications) 
-            ? healthData.medications 
-            : [];
-        }
-
-        // 提取既往病史
-        if (healthData.medicalHistory) {
-          snapshot.medicalHistory = healthData.medicalHistory;
-        }
-
-        // 提取当前指标（从timeSeriesData获取最新值）
-        if (healthData.timeSeriesData) {
-          snapshot.currentMetrics = this.extractLatestMetrics(healthData.timeSeriesData);
+      if (fullRecord) {
+        snapshot.medications = Array.isArray(fullRecord.medications) ? fullRecord.medications : [];
+        if (fullRecord.medicalHistory) snapshot.medicalHistory = fullRecord.medicalHistory;
+        if (fullRecord.timeSeriesData) {
+          snapshot.currentMetrics = this.extractLatestMetrics(fullRecord.timeSeriesData);
         }
       }
 

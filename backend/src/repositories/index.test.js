@@ -7,7 +7,8 @@ jest.mock('../adapters', () => ({
   userBasicInfoRepo: {
     getBasicInfo: jest.fn(),
     getBasicInfoForAgent: jest.fn(),
-    saveBasicInfo: jest.fn()
+    saveBasicInfo: jest.fn(),
+    getFullHealthRecord: jest.fn()
   },
   medicationRepo: null,
   vitalsDailyRepo: null,
@@ -21,11 +22,12 @@ describe('repositories/index.js facade', () => {
     expect(repos.userBasicInfoRepo).toBeDefined();
   });
 
-  test('userBasicInfoRepo 有 getBasicInfo、getBasicInfoForAgent、saveBasicInfo 方法', () => {
+  test('userBasicInfoRepo 有 getBasicInfo、getBasicInfoForAgent、saveBasicInfo、getFullHealthRecord 方法', () => {
     const repos = require('./index');
     expect(typeof repos.userBasicInfoRepo.getBasicInfo).toBe('function');
     expect(typeof repos.userBasicInfoRepo.getBasicInfoForAgent).toBe('function');
     expect(typeof repos.userBasicInfoRepo.saveBasicInfo).toBe('function');
+    expect(typeof repos.userBasicInfoRepo.getFullHealthRecord).toBe('function');
   });
 
   test('导出 medicationRepo、vitalsDailyRepo、chatSessionRepo（可为 null）', () => {

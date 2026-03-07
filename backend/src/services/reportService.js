@@ -8,6 +8,7 @@ const { createReport } = require('../models/reportModels');
 const aiServiceFactory = require('./aiServiceFactory');
 const userSettingsService = require('./userSettingsService');
 const openaiService = require('./openaiService');
+const { userBasicInfoRepo } = require('../repositories');
 
 class ReportService {
   constructor() {
@@ -304,19 +305,13 @@ class ReportService {
   // ========== Helper Methods ==========
 
   /**
-   * 获取用户健康数据
+   * 获取用户健康数据（通过 Repository，便于今后换国内数据库）
    */
   async getUserHealthData(userEmail) {
     try {
       const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
-      const recordDocRef = doc(db, 'personalHealthRecords', sanitizedEmail);
-      const recordDoc = await getDoc(recordDocRef);
-
-      if (!recordDoc.exists()) {
-        return {};
-      }
-
-      return recordDoc.data();
+      const record = await userBasicInfoRepo.getFullHealthRecord(sanitizedEmail);
+      return record || {};
     } catch (error) {
       console.error('❌ Error getting user health data:', error);
       return {};

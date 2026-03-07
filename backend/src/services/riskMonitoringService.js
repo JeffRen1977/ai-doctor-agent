@@ -3,6 +3,7 @@ const { doc, getDoc, setDoc, collection, query, where, orderBy, limit, addDoc, g
 const aiServiceFactory = require('./aiServiceFactory');
 const userSettingsService = require('./userSettingsService');
 const openaiService = require('./openaiService');
+const { userBasicInfoRepo, medicationRepo } = require('../repositories');
 
 /**
  * 流数据推荐字段的合理范围（用于轻量校验与质量标记，不拒绝请求）
@@ -748,25 +749,24 @@ class RiskMonitoringService {
   }
 
   /**
-   * 获取用户健康数据用于分析
+   * 获取用户健康数据用于分析（通过 Repository，便于今后换国内数据库）
    */
   async getUserHealthDataForAnalysis(userEmail) {
     try {
       const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
-      const personalHealthRef = doc(db, 'personalHealthRecords', sanitizedEmail);
-      const personalHealthDoc = await getDoc(personalHealthRef);
-      
-      if (personalHealthDoc.exists()) {
-        const data = personalHealthDoc.data();
-        return {
-          medicalHistory: data.medicalHistory || '',
-          medications: data.medications || '',
-          allergies: data.allergies || '',
-          familyHistory: data.familyHistory || '',
-          basicInfo: data.basicInfo || {}
-        };
-      }
-      return null;
+      const basicInfo = await userBasicInfoRepo.getBasicInfo(sanitizedEmail);
+      const medications = await medicationRepo.listActive(sanitizedEmail);
+      if (!basicInfo) return null;
+      const medicationsText = medications.length
+        ? medications.map((m) => `${m.name}${m.dosage ? ' ' + m.dosage : ''}`).join('；')
+        : '';
+      return {
+        medicalHistory: basicInfo.medicalHistory || '',
+        medications: medicationsText,
+        allergies: basicInfo.allergies || '',
+        familyHistory: basicInfo.familyHistory || '',
+        basicInfo: basicInfo.basicInfo || {}
+      };
     } catch (error) {
       console.error('❌ Error getting user health data:', error);
       return null;
