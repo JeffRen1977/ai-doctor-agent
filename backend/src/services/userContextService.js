@@ -7,7 +7,7 @@ const { db } = require('../config/firebase');
 const { doc, getDoc, collection, query, where, orderBy, limit, getDocs } = require('firebase/firestore');
 const userSettingsService = require('./userSettingsService');
 const wearableService = require('./wearableService');
-const { userBasicInfoRepo } = require('../repositories');
+const { userBasicInfoRepo, chatSessionRepo } = require('../repositories');
 
 class UserContextService {
   constructor() {
@@ -151,22 +151,17 @@ class UserContextService {
         activeConversations: []
       };
 
-      // 1. 获取最近的聊天消息
+      // 1. 获取最近的聊天消息（通过 Repository，chat_sessions 子集合）
       try {
-        const chatHistoryRef = doc(db, 'chatHistory', userEmail);
-        const chatHistoryDoc = await getDoc(chatHistoryRef);
-
-        if (chatHistoryDoc.exists()) {
-          const chatData = chatHistoryDoc.data();
-          const messages = chatData.messages || [];
-          
-          // 获取最近5条消息
-          context.recentMessages = messages
+        const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
+        const latest = await chatSessionRepo.getLatestSession(sanitizedEmail);
+        if (latest && latest.session.messages && latest.session.messages.length) {
+          context.recentMessages = latest.session.messages
             .slice(-5)
-            .map(msg => ({
+            .map((msg) => ({
               id: msg.id,
               content: msg.content,
-              sender: msg.sender,
+              sender: msg.role === 'assistant' ? 'assistant' : 'user',
               timestamp: msg.timestamp
             }));
         }

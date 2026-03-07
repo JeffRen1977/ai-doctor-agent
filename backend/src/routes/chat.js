@@ -3,104 +3,60 @@ const Joi = require('joi');
 const aiServiceFactory = require('../services/aiServiceFactory');
 const userSettingsService = require('../services/userSettingsService');
 const { authenticateToken, optionalAuth } = require('../middleware/auth');
-const { doc, setDoc, getDoc, updateDoc, arrayUnion, collection, getDocs } = require('firebase/firestore');
+const { doc, setDoc, getDoc, collection, getDocs } = require('firebase/firestore');
 const { db } = require('../config/firebase');
+const { chatSessionRepo } = require('../repositories');
 
 const router = express.Router();
+
+function sanitizeUserId(userEmail) {
+  return (userEmail || '').replace(/[^a-zA-Z0-9@._-]/g, '_');
+}
 
 // 聊天消息验证schema
 const messageSchema = Joi.object({
   message: Joi.string().min(1).max(1000).required()
 });
 
-// 保存聊天消息到Firebase - 使用chatHistory集合，文档ID为用户邮箱
+// 保存聊天消息到 chat_sessions 子集合（通过 Repository，便于今后换国内数据库）
 async function saveChatMessage(userEmail, message, sender) {
   try {
-    console.log('💾 保存聊天消息到chatHistory集合:', { userEmail, sender, messageLength: message.length });
-    
-    // 使用chatHistory集合，文档ID为用户邮箱
-    const chatHistoryDocRef = doc(db, 'chatHistory', userEmail);
-    const chatHistoryDoc = await getDoc(chatHistoryDocRef);
-    
-    const chatMessage = {
-      id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      content: message,
-      sender,
-      timestamp: new Date(),
-      createdAt: new Date()
-    };
-    
-    if (!chatHistoryDoc.exists()) {
-      // 如果用户聊天历史文档不存在，创建一个新的
-      await setDoc(chatHistoryDocRef, {
-        userEmail,
-        messages: [chatMessage],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        totalMessages: 1
-      });
-      console.log('✅ 创建新用户聊天历史文档:', userEmail);
-    } else {
-      // 如果用户聊天历史文档存在，添加新消息到messages数组
-      const currentData = chatHistoryDoc.data();
-      const currentMessages = currentData.messages || [];
-      
-      await updateDoc(chatHistoryDocRef, {
-        messages: arrayUnion(chatMessage),
-        updatedAt: new Date(),
-        totalMessages: currentMessages.length + 1
-      });
-      console.log('✅ 更新用户聊天历史文档:', userEmail);
-    }
-    
-    return chatMessage.id;
+    const userId = sanitizeUserId(userEmail);
+    console.log('💾 保存聊天消息到 chat_sessions:', { userEmail, sender, messageLength: message.length });
+    const { sessionId } = await chatSessionRepo.getOrCreateSession(userId);
+    await chatSessionRepo.appendMessage(userId, sessionId, sender, message);
+    console.log('✅ 聊天消息已保存');
+    return sessionId;
   } catch (error) {
     console.error('❌ 保存聊天消息错误:', error);
     throw error;
   }
 }
 
-// 获取用户聊天历史 - 从chatHistory集合获取
+// 获取用户聊天历史 - 从 chat_sessions 子集合（通过 Repository）
 async function getChatHistory(userEmail, limitCount = 50) {
   try {
-    console.log('🔍 从chatHistory集合查询用户聊天历史:', userEmail);
-    
-    // 从chatHistory集合获取用户的聊天历史文档
-    const chatHistoryDocRef = doc(db, 'chatHistory', userEmail);
-    const chatHistoryDoc = await getDoc(chatHistoryDocRef);
-    
-    if (!chatHistoryDoc.exists()) {
-      console.log('📊 用户聊天历史文档不存在，返回空历史');
+    const userId = sanitizeUserId(userEmail);
+    console.log('🔍 从 chat_sessions 查询用户聊天历史:', userEmail);
+    const latest = await chatSessionRepo.getLatestSession(userId);
+    if (!latest || !latest.session.messages) {
+      console.log('📊 无会话或空消息，返回空历史');
       return [];
     }
-    
-    const chatHistoryData = chatHistoryDoc.data();
-    const messages = chatHistoryData.messages || [];
-    
-    // 按时间排序并限制数量
-    const sortedMessages = messages
-      .sort((a, b) => {
-        const timeA = a.timestamp ? (a.timestamp.toDate ? a.timestamp.toDate() : new Date(a.timestamp)) : new Date();
-        const timeB = b.timestamp ? (b.timestamp.toDate ? b.timestamp.toDate() : new Date(b.timestamp)) : new Date();
-        return timeA - timeB;
-      })
-      .slice(-limitCount);
-    
-    console.log('📊 找到聊天记录数量:', sortedMessages.length);
-    return sortedMessages;
+    const messages = latest.session.messages.slice(-limitCount);
+    console.log('📊 找到聊天记录数量:', messages.length);
+    return messages.map((m) => ({
+      id: m.id,
+      content: m.content,
+      sender: m.role === 'assistant' ? 'assistant' : 'user',
+      timestamp: m.timestamp
+    }));
   } catch (error) {
     console.error('❌ 获取聊天历史错误:', error);
-    console.error('错误代码:', error.code);
-    console.error('错误消息:', error.message);
-    
-    // 如果是Firestore权限错误，返回空数组
     if (error.code === 'permission-denied') {
       console.warn('⚠️  Firestore权限被拒绝，返回空历史');
       return [];
     }
-    
-    // 如果是其他错误，也返回空数组而不是抛出错误
-    console.warn('⚠️  返回空历史记录');
     return [];
   }
 }
@@ -211,22 +167,13 @@ router.get('/history', authenticateToken, async (req, res) => {
   }
 });
 
-// 清除聊天历史
+// 清除聊天历史（清空当前会话 messages，走 Repository）
 router.delete('/history', authenticateToken, async (req, res) => {
   try {
     const userEmail = req.user.email;
+    const userId = sanitizeUserId(userEmail);
     console.log('🗑️  清除聊天历史，用户邮箱:', userEmail);
-    
-    // 清除用户的聊天历史文档（重置为空数组）
-    const chatHistoryDocRef = doc(db, 'chatHistory', userEmail);
-    await setDoc(chatHistoryDocRef, {
-      userEmail,
-      messages: [],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      totalMessages: 0
-    });
-    
+    await chatSessionRepo.clearLatestSession(userId);
     res.json({ message: '聊天历史已清除' });
   } catch (error) {
     console.error('❌ 清除聊天历史错误:', error);
@@ -284,17 +231,14 @@ router.get('/suggestions', optionalAuth, (req, res) => {
   res.json(suggestions);
 });
 
-// 获取用户聊天统计信息
+// 获取用户聊天统计信息（从 chat_sessions 最新会话）
 router.get('/stats', authenticateToken, async (req, res) => {
   try {
     const userEmail = req.user.email;
+    const userId = sanitizeUserId(userEmail);
     console.log('📊 获取用户聊天统计信息:', userEmail);
-    
-    // 从chatHistory集合获取用户统计信息
-    const chatHistoryDocRef = doc(db, 'chatHistory', userEmail);
-    const chatHistoryDoc = await getDoc(chatHistoryDocRef);
-    
-    if (!chatHistoryDoc.exists()) {
+    const latest = await chatSessionRepo.getLatestSession(userId);
+    if (!latest || !latest.session.messages.length) {
       return res.json({
         totalMessages: 0,
         userMessages: 0,
@@ -302,19 +246,17 @@ router.get('/stats', authenticateToken, async (req, res) => {
         lastActivity: null
       });
     }
-    
-    const chatHistoryData = chatHistoryDoc.data();
-    const messages = chatHistoryData.messages || [];
-    const userMessages = messages.filter(msg => msg.sender === 'user').length;
-    const aiMessages = messages.filter(msg => msg.sender === 'assistant').length;
-    
+    const messages = latest.session.messages;
+    const userMessages = messages.filter((m) => m.role === 'user').length;
+    const aiMessages = messages.filter((m) => m.role === 'assistant').length;
+    const lastMsg = messages[messages.length - 1];
     res.json({
       totalMessages: messages.length,
       userMessages,
       aiMessages,
-      lastActivity: messages.length > 0 ? messages[messages.length - 1].timestamp : null,
-      createdAt: chatHistoryData.createdAt,
-      updatedAt: chatHistoryData.updatedAt
+      lastActivity: lastMsg.timestamp || null,
+      createdAt: latest.session.startedAt,
+      updatedAt: latest.session.updatedAt
     });
   } catch (error) {
     console.error('❌ 获取聊天统计信息错误:', error);
