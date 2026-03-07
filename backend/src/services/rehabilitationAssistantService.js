@@ -3,6 +3,7 @@ const { doc, getDoc, updateDoc, collection, query, where, orderBy, limit, addDoc
 const aiServiceFactory = require('./aiServiceFactory');
 const userSettingsService = require('./userSettingsService');
 const userContextService = require('./userContextService');
+const contextBuilderService = require('./contextBuilderService');
 const openaiService = require('./openaiService');
 const { createRehabilitationRecord, validateRehabilitationRecord } = require('../models/rehabilitationModels');
 
@@ -280,21 +281,30 @@ class RehabilitationAssistantService {
       const { aiProvider, aiModel } = this.getAIServiceConfig(userSettings);
       const userLanguage = userSettings.success ? (userSettings.language || 'zh') : 'zh';
       
-      // 获取用户完整上下文
+      // 通过 Context Builder 获取健康档案 + 最近对话（与文档 Step 6 一致）
+      const userId = (userEmail || '').replace(/[^a-zA-Z0-9@._-]/g, '_');
+      let contextText = '';
+      try {
+        const payload = await contextBuilderService.buildAIContext(userId, {
+          medications: true,
+          chatRecent: true,
+          language: userLanguage
+        });
+        contextText = contextBuilderService.formatContextForSystemPrompt(payload);
+      } catch (e) {
+        console.warn('⚠️ buildAIContext for rehab health QA failed:', e.message);
+      }
+      
+      // 获取用户上下文（用于记录与 fallback）
       const userContext = await userContextService.getUserContext(userEmail);
       
-      // 构建问答提示（有温度、专业、个性化）
-      const prompt = this.buildHealthQuestionPrompt(question, userContext, userLanguage);
+      // 构建问答提示（有温度、专业、个性化）；优先使用 contextText
+      const prompt = this.buildHealthQuestionPrompt(question, userContext, userLanguage, contextText);
       
-      // 准备对话上下文（用于AI服务）
-      const conversationContext = userContext.conversationContext?.recentMessages 
-        ? JSON.stringify(userContext.conversationContext.recentMessages) 
-        : '';
-      
-      // 使用LLM回答问题
+      // 使用LLM回答问题（上下文来自 buildAIContext）
       const aiResult = await aiServiceFactory.healthChat(
         prompt,
-        conversationContext,
+        contextText,
         { provider: aiProvider, model: aiModel, language: userLanguage }
       );
       
@@ -511,9 +521,10 @@ Please respond in a professional, supportive, and empowering tone.`;
 
   /**
    * 构建健康问答提示
+   * @param {string} [contextText] - 来自 buildAIContext + formatContextForSystemPrompt 的上下文；若有则替代下方健康快照/最近对话
    */
-  buildHealthQuestionPrompt(question, userContext, language = 'zh') {
-    // 构建上下文摘要
+  buildHealthQuestionPrompt(question, userContext, language = 'zh', contextText = '') {
+    const useContextBuilder = contextText && contextText.trim().length > 0;
     const contextSummary = {
       health: userContext.healthSnapshot ? {
         currentMetrics: userContext.healthSnapshot.currentMetrics,
@@ -523,6 +534,11 @@ Please respond in a professional, supportive, and empowering tone.`;
       } : null,
       conversations: userContext.conversationContext?.recentMessages?.length || 0
     };
+    const healthAndChatBlock = useContextBuilder
+      ? contextText
+      : (language === 'en'
+          ? `Health Snapshot:\n${userContext.healthSnapshot ? JSON.stringify(userContext.healthSnapshot, null, 2) : 'No health data available'}\n\nRecent Conversations:\n${userContext.conversationContext?.recentMessages ? JSON.stringify(userContext.conversationContext.recentMessages.slice(-3), null, 2) : 'No recent conversations'}`
+          : `健康快照：\n${userContext.healthSnapshot ? JSON.stringify(userContext.healthSnapshot, null, 2) : '无健康数据'}\n\n最近对话：\n${userContext.conversationContext?.recentMessages ? JSON.stringify(userContext.conversationContext.recentMessages.slice(-3), null, 2) : '无最近对话'}`);
 
     if (language === 'en') {
       return `You are a professional, warm, and empathetic AI medical assistant. A user asks:
@@ -532,11 +548,7 @@ Question: ${question}
 User Context:
 ${JSON.stringify(contextSummary, null, 2)}
 
-Health Snapshot:
-${userContext.healthSnapshot ? JSON.stringify(userContext.healthSnapshot, null, 2) : 'No health data available'}
-
-Recent Conversations:
-${userContext.conversationContext?.recentMessages ? JSON.stringify(userContext.conversationContext.recentMessages.slice(-3), null, 2) : 'No recent conversations'}
+${healthAndChatBlock}
 
 Please provide:
 1. Professional and accurate health information
@@ -554,11 +566,7 @@ Please respond in a warm, professional, and easy-to-understand manner.`;
 用户上下文：
 ${JSON.stringify(contextSummary, null, 2)}
 
-健康快照：
-${userContext.healthSnapshot ? JSON.stringify(userContext.healthSnapshot, null, 2) : '无健康数据'}
-
-最近对话：
-${userContext.conversationContext?.recentMessages ? JSON.stringify(userContext.conversationContext.recentMessages.slice(-3), null, 2) : '无最近对话'}
+${healthAndChatBlock}
 
 请提供：
 1. 专业准确的健康信息

@@ -6,6 +6,7 @@ const userSettingsService = require('./userSettingsService');
 const wearableService = require('./wearableService');
 const openaiService = require('./openaiService');
 const { userBasicInfoRepo, medicationRepo } = require('../repositories');
+const contextBuilderService = require('./contextBuilderService');
 const {
   createInterventionCollection,
   validateInterventionCollection
@@ -100,9 +101,20 @@ class InterventionEngineService {
       
       const wearableData = await wearableService.getUserWearableData(userEmail, 'fitbit');
       
-      // 通过 Repository 获取健康档案（便于今后换国内数据库）
-      const basicInfo = await userBasicInfoRepo.getBasicInfo(sanitizedEmail);
-      const healthRecord = basicInfo ? { ...basicInfo, medications: medicationsList } : null;
+      // 通过 Context Builder 获取档案+用药（统一 prompt 来源）
+      let healthRecord = null;
+      try {
+        const payload = await contextBuilderService.buildAIContext(sanitizedEmail, { medications: true });
+        healthRecord = {
+          basicInfo: payload.basicInfo,
+          medicalHistory: payload.basicInfo,
+          medications: payload.medications ?? '',
+          allergies: '',
+          familyHistory: ''
+        };
+      } catch (e) {
+        console.warn('⚠️ buildAIContext failed for medication effectiveness:', e.message);
+      }
       
       const prompt = this.buildMedicationEffectivenessPrompt(
         medication, 
@@ -162,11 +174,21 @@ class InterventionEngineService {
       const nutritionProvider = 'gemini';
       const nutritionModel = 'gemini-2.5-flash';
       
-      // 通过 Repository 获取用户健康档案（便于今后换国内数据库）
       const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
-      const basicInfo = await userBasicInfoRepo.getBasicInfo(sanitizedEmail);
-      const medicationsList = await medicationRepo.listActive(sanitizedEmail);
-      const healthRecord = basicInfo ? { ...basicInfo, medications: medicationsList } : null;
+      // 通过 Context Builder 获取档案+用药（统一 prompt 来源）
+      let healthRecord = null;
+      try {
+        const payload = await contextBuilderService.buildAIContext(sanitizedEmail, { medications: true, language: userLanguage });
+        healthRecord = {
+          basicInfo: payload.basicInfo,
+          medicalHistory: payload.basicInfo,
+          medications: payload.medications ?? '',
+          allergies: '',
+          familyHistory: ''
+        };
+      } catch (e) {
+        console.warn('⚠️ buildAIContext failed for nutrition:', e.message);
+      }
       
       const imageBuffer = fs.readFileSync(mealImagePath);
       const base64Image = imageBuffer.toString('base64');

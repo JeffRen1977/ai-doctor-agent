@@ -4,6 +4,7 @@ const aiServiceFactory = require('./aiServiceFactory');
 const userSettingsService = require('./userSettingsService');
 const openaiService = require('./openaiService');
 const { userBasicInfoRepo, medicationRepo } = require('../repositories');
+const contextBuilderService = require('./contextBuilderService');
 
 /**
  * 流数据推荐字段的合理范围（用于轻量校验与质量标记，不拒绝请求）
@@ -241,16 +242,23 @@ class RiskMonitoringService {
         ruleAlerts.push(alert);
       }
 
-      // 获取用户健康档案数据用于个性化分析
-      const userHealthData = await this.getUserHealthDataForAnalysis(userEmail);
-
       // 获取用户AI设置并优先使用OpenAI
       const userSettings = await userSettingsService.getUserAISettings(userEmail);
       const { aiProvider, aiModel } = this.getAIServiceConfig(userSettings);
       const userLanguage = (userSettings.success && userSettings.language) ? userSettings.language : 'zh';
 
+      // 通过 Context Builder 获取档案+用药（便于换库、统一 prompt 来源）
+      const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
+      let userContextText = '';
+      try {
+        const payload = await contextBuilderService.buildAIContext(sanitizedEmail, { medications: true, language: userLanguage });
+        userContextText = contextBuilderService.formatContextForSystemPrompt(payload);
+      } catch (e) {
+        console.warn('⚠️ buildAIContext failed, using empty context:', e.message);
+      }
+
       // 使用LLM分析数据趋势和异常（送 prompt 的为采样后数据）
-      const prompt = this.buildAnomalyDetectionPrompt(dataForPrompt, userHealthData, userLanguage);
+      const prompt = this.buildAnomalyDetectionPrompt(dataForPrompt, userContextText, userLanguage);
 
       let aiResult;
       try {
@@ -336,16 +344,21 @@ class RiskMonitoringService {
     try {
       console.log(`🍬 Predicting hypoglycemia for user: ${userEmail}`);
       
-      // 获取用户健康档案数据用于个性化预测
-      const userHealthData = await this.getUserHealthDataForAnalysis(userEmail);
-      
       // 获取用户AI设置并优先使用OpenAI
       const userSettings = await userSettingsService.getUserAISettings(userEmail);
-      const { aiProvider, aiModel } = this.getAIServiceConfig(userSettings);
       const userLanguage = (userSettings.success && userSettings.language) ? userSettings.language : 'zh';
+      const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
+      let userContextText = '';
+      try {
+        const payload = await contextBuilderService.buildAIContext(sanitizedEmail, { medications: true, language: userLanguage });
+        userContextText = contextBuilderService.formatContextForSystemPrompt(payload);
+      } catch (e) {
+        console.warn('⚠️ buildAIContext failed, using empty context:', e.message);
+      }
 
+      const { aiProvider, aiModel } = this.getAIServiceConfig(userSettings);
       // 构建预测提示
-      const prompt = this.buildHypoglycemiaPredictionPrompt(glucoseData, userHealthData, userLanguage);
+      const prompt = this.buildHypoglycemiaPredictionPrompt(glucoseData, userContextText, userLanguage);
 
       const aiResult = await this.analyzeHealthRecordsWithRetry(
         { documents: [{ text: prompt }] },
@@ -402,16 +415,21 @@ class RiskMonitoringService {
       const historicalData = await this.getRecentHeartRateData(userEmail, 30); // 最近30天
       const allData = [...historicalData, ...heartRateData];
       
-      // 获取用户健康档案数据用于个性化分析
-      const userHealthData = await this.getUserHealthDataForAnalysis(userEmail);
-      
-      // 获取用户AI设置并优先使用OpenAI
+      // 通过 Context Builder 获取档案+用药
       const userSettings = await userSettingsService.getUserAISettings(userEmail);
-      const { aiProvider, aiModel } = this.getAIServiceConfig(userSettings);
       const userLanguage = (userSettings.success && userSettings.language) ? userSettings.language : 'zh';
+      const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
+      let userContextText = '';
+      try {
+        const payload = await contextBuilderService.buildAIContext(sanitizedEmail, { medications: true, language: userLanguage });
+        userContextText = contextBuilderService.formatContextForSystemPrompt(payload);
+      } catch (e) {
+        console.warn('⚠️ buildAIContext failed, using empty context:', e.message);
+      }
 
+      const { aiProvider, aiModel } = this.getAIServiceConfig(userSettings);
       // 构建HRV分析提示
-      const prompt = this.buildHRVAnalysisPrompt(allData, userHealthData, userLanguage);
+      const prompt = this.buildHRVAnalysisPrompt(allData, userContextText, userLanguage);
 
       const aiResult = await this.analyzeHealthRecordsWithRetry(
         { documents: [{ text: prompt }] },
@@ -848,22 +866,19 @@ class RiskMonitoringService {
   /**
    * 构建异常检测提示（含结构化要求、少样本、单位与语言）
    * @param {Array} dataStream 数据点（已采样）
-   * @param {Object} userHealthData 用户健康档案
-   * @param {string} language 用户语言 'zh' | 'en'，用于描述与单位说明
+   * @param {string} [userContextText] 来自 formatContextForSystemPrompt 的用户上下文文本
+   * @param {string} language 用户语言 'zh' | 'en'
    */
-  buildAnomalyDetectionPrompt(dataStream, userHealthData = null, language = 'zh') {
+  buildAnomalyDetectionPrompt(dataStream, userContextText = '', language = 'zh') {
     const recentData = dataStream.slice(-20);
     const langNote = language === 'en' ? 'Use English for all descriptions and recommendations.' : '请用中文书写所有描述与建议。';
     const unitsNote = language === 'en'
       ? 'Units: blood glucose mg/dL, blood pressure mmHg, heart rate bpm.'
       : '数值单位：血糖 mg/dL，血压 mmHg，心率 次/分钟。';
 
-    let userContext = '';
-    if (userHealthData) {
-      userContext = language === 'en'
-        ? `User health context:\n- Medical history: ${userHealthData.medicalHistory || 'None'}\n- Medications: ${userHealthData.medications || 'None'}\n- Allergies: ${userHealthData.allergies || 'None'}\n- Family history: ${userHealthData.familyHistory || 'None'}\n`
-        : `用户健康档案信息：\n- 既往病史：${userHealthData.medicalHistory || '无'}\n- 用药记录：${userHealthData.medications || '无'}\n- 过敏史：${userHealthData.allergies || '无'}\n- 家族史：${userHealthData.familyHistory || '无'}\n`;
-    }
+    const userContext = userContextText
+      ? (language === 'en' ? 'User health context:\n' : '用户健康档案：\n') + userContextText + '\n'
+      : '';
 
     return `As a medical AI assistant, analyze the following wearable device data stream for anomalies.
 ${userContext}
@@ -891,14 +906,13 @@ Output your single JSON object now:`;
 
   /**
    * 构建低血糖预测提示（仅输出 JSON、单位 mg/dL、语言一致）
+   * @param {Array} glucoseData 血糖数据
+   * @param {string} [userContextText] 来自 formatContextForSystemPrompt 的用户上下文
    */
-  buildHypoglycemiaPredictionPrompt(glucoseData, userHealthData = null, language = 'zh') {
-    let userContext = '';
-    if (userHealthData) {
-      userContext = language === 'en'
-        ? `User context: medications (note hypoglycemic drugs): ${userHealthData.medications || 'None'}.\n`
-        : `用户用药（注意降糖药）：${userHealthData.medications || '无'}\n`;
-    }
+  buildHypoglycemiaPredictionPrompt(glucoseData, userContextText = '', language = 'zh') {
+    const userContext = userContextText
+      ? (language === 'en' ? 'User context:\n' : '用户档案（注意降糖药）：\n') + userContextText + '\n'
+      : '';
     const langNote = language === 'en' ? 'Use English for recommendation.' : '建议请用中文。';
     return `Based on the following blood glucose time series (units: mg/dL), predict hypoglycemia risk in the next 15-30 minutes.
 ${userContext}
@@ -914,12 +928,13 @@ Output your JSON now:`;
 
   /**
    * 构建 HRV 分析提示（仅输出 JSON、语言一致）
+   * @param {Array} heartRateData 心率/HRV 数据
+   * @param {string} [userContextText] 来自 formatContextForSystemPrompt 的用户上下文
    */
-  buildHRVAnalysisPrompt(heartRateData, userHealthData = null, language = 'zh') {
-    let userContext = '';
-    if (userHealthData) {
-      userContext = `User health context: ${userHealthData.medicalHistory || '-'}, medications: ${userHealthData.medications || '-'}\n`;
-    }
+  buildHRVAnalysisPrompt(heartRateData, userContextText = '', language = 'zh') {
+    const userContext = userContextText
+      ? (language === 'en' ? 'User health context:\n' : '用户健康档案：\n') + userContextText + '\n'
+      : '';
     const langNote = language === 'en' ? 'Use English for recommendation and risk factors.' : '建议与风险因素请用中文。';
     return `Analyze the following heart rate / HRV data for cardiac fatigue and trend.
 ${userContext}

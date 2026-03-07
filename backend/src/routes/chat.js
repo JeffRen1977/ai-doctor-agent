@@ -6,6 +6,7 @@ const { authenticateToken, optionalAuth } = require('../middleware/auth');
 const { doc, setDoc, getDoc, collection, getDocs } = require('firebase/firestore');
 const { db } = require('../config/firebase');
 const { chatSessionRepo } = require('../repositories');
+const contextBuilderService = require('../services/contextBuilderService');
 
 const router = express.Router();
 
@@ -93,8 +94,22 @@ router.post('/send', authenticateToken, async (req, res) => {
     
     console.log(`🤖 Using AI provider: ${userProvider}, model: ${userModel}, language: ${userLanguage} for chat`);
     
+    // 通过 Context Builder 获取基础档案 + 最近对话，拼入 prompt 上下文
+    let chatContext = '';
+    try {
+      const sanitizedUserId = sanitizeUserId(userEmail);
+      const payload = await contextBuilderService.buildAIContext(sanitizedUserId, {
+        medications: true,
+        chatRecent: true,
+        language: userLanguage
+      });
+      chatContext = contextBuilderService.formatContextForSystemPrompt(payload);
+    } catch (e) {
+      console.warn('⚠️ buildAIContext for chat failed:', e.message);
+    }
+    
     // 使用AI服务工厂生成回复
-    const aiResult = await aiServiceFactory.healthChat(message, '', {
+    const aiResult = await aiServiceFactory.healthChat(message, chatContext, {
       provider: userProvider,
       model: userModel,
       language: userLanguage
