@@ -3,6 +3,7 @@ const { db } = require('../config/firebase');
 const { doc, getDoc } = require('firebase/firestore');
 const { authenticateToken } = require('../middleware/auth');
 const firebaseService = require('../services/firebaseService');
+const { medicationRepo } = require('../repositories');
 const pdfCaseExtractionService = require('../services/pdfCaseExtractionService');
 const fhirService = require('../services/fhirService');
 const multer = require('multer');
@@ -56,10 +57,13 @@ router.get('/personal-health-record', authenticateToken, async (req, res) => {
       });
     }
 
+    const data = recordDoc.data();
+    const medications = await medicationRepo.listActive(sanitizedEmail);
+    const dataWithMedications = { ...data, medications };
     console.log(`✅ Personal health record found for: ${userEmail}`);
     res.json({
       success: true,
-      data: recordDoc.data()
+      data: dataWithMedications
     });
 
   } catch (error) {
@@ -99,7 +103,8 @@ router.post('/personal-health-record', authenticateToken, upload.array('files', 
       documentType // 文档类型（如果上传了文件）
     } = req.body;
 
-    // 准备健康档案数据（新格式）
+    // 准备健康档案数据（新格式）；用药记录通过 medicationRepo 写入，不写入根文档
+    const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
     let healthRecordData = {
       basicInfo: {
         name: name || null,
@@ -108,11 +113,10 @@ router.post('/personal-health-record', authenticateToken, upload.array('files', 
         bloodType: bloodType || null,
         height: height ? parseFloat(height) : null,
         weight: weight ? parseFloat(weight) : null,
-        // BMI 将在后端计算
         bmi: (height && weight) ? parseFloat(weight) / Math.pow(parseFloat(height) / 100, 2) : null
       },
       medicalHistory: medicalHistory || null,
-      medications: medications || null,
+      medications: null,
       familyHistory: familyHistory || null,
       allergies: allergies || null,
       // 注意：紧急联系人的基本信息保存在健康档案中，但详细的紧急联系人管理（多个联系人、通知设置等）
@@ -260,6 +264,24 @@ router.post('/personal-health-record', authenticateToken, upload.array('files', 
     
     if (!saveResult.success) {
       throw new Error(saveResult.error);
+    }
+
+    if (medications != null && medications !== '') {
+      try {
+        const list = Array.isArray(medications) ? medications : (typeof medications === 'string' ? JSON.parse(medications || '[]') : []);
+        const current = await medicationRepo.listActive(sanitizedEmail);
+        for (const med of list) {
+          const item = med && typeof med === 'object' ? med : {};
+          const existing = item.id ? current.find(m => m.id === item.id) : null;
+          if (existing) {
+            await medicationRepo.update(sanitizedEmail, item.id, item);
+          } else {
+            await medicationRepo.add(sanitizedEmail, item);
+          }
+        }
+      } catch (e) {
+        console.warn('⚠️ Medication sync skipped:', e.message);
+      }
     }
 
     console.log('✅ Personal health record saved successfully');

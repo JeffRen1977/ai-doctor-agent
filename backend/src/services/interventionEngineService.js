@@ -5,10 +5,9 @@ const aiServiceFactory = require('./aiServiceFactory');
 const userSettingsService = require('./userSettingsService');
 const wearableService = require('./wearableService');
 const openaiService = require('./openaiService');
+const { medicationRepo } = require('../repositories');
 const {
-  createMedicationsCollection,
   createInterventionCollection,
-  validateMedicationsCollection,
   validateInterventionCollection
 } = require('../models/interventionModels');
 
@@ -31,23 +30,13 @@ class InterventionEngineService {
       console.log(`💊 Managing medication for user: ${userEmail}`);
       
       const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
-      const medicationRef = doc(db, 'medications', sanitizedEmail);
-      const medicationDoc = await getDoc(medicationRef);
-      
-      let medications = [];
-      
-      if (medicationDoc.exists()) {
-        const medicationData = medicationDoc.data();
-        medications = (medicationData.medications || []).map(med => ({
-          ...med,
-          schedule: med.schedule || [],
-          history: med.history || [],
-          time: med.time || this.inferMedicationTimes(med.frequency)
-        }));
-      } else {
-        const initialData = createMedicationsCollection(userEmail, []);
-        await setDoc(medicationRef, initialData, { merge: true });
-      }
+      let medications = await medicationRepo.listActive(sanitizedEmail);
+      medications = medications.map(med => ({
+        ...med,
+        schedule: med.schedule || [],
+        history: med.history || [],
+        time: med.time || this.inferMedicationTimes(med.frequency)
+      }));
       
       const adherenceData = this.calculateAdherence(medications);
       const reminders = this.generateMedicationReminders(medications);
@@ -106,9 +95,8 @@ class InterventionEngineService {
       const { aiProvider, aiModel } = this.getAIServiceConfig(userSettings);
       
       const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
-      const medicationRef = doc(db, 'medications', sanitizedEmail);
-      const medicationDoc = await getDoc(medicationRef);
-      const medicationData = medicationDoc.exists() ? medicationDoc.data() : null;
+      const medicationsList = await medicationRepo.listActive(sanitizedEmail);
+      const medicationData = { medications: medicationsList };
       
       const wearableData = await wearableService.getUserWearableData(userEmail, 'fitbit');
       
@@ -294,11 +282,7 @@ class InterventionEngineService {
       let currentMedications = [];
       let currentExercisePlan = null;
       try {
-        const medicationRef = doc(db, 'medications', sanitizedEmail);
-        const medicationDoc = await getDoc(medicationRef);
-        if (medicationDoc.exists() && medicationDoc.data().medications) {
-          currentMedications = medicationDoc.data().medications;
-        }
+        currentMedications = await medicationRepo.listActive(sanitizedEmail);
       } catch (e) {
         console.warn('⚠️ Failed to load medications for adjustment:', e.message);
       }
@@ -1075,51 +1059,32 @@ ${JSON.stringify(healthData, null, 2)}
   }
 
   /**
-   * 添加或更新用药记录
+   * 添加或更新用药记录（通过 Medication Repository，双写子集合与旧集合）
    */
   async addOrUpdateMedication(userEmail, medication) {
     try {
       const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
-      const medicationRef = doc(db, 'medications', sanitizedEmail);
-      const medicationDoc = await getDoc(medicationRef);
-      
-      let medications = [];
-      if (medicationDoc.exists()) {
-        medications = medicationDoc.data().medications || [];
-      }
-      
+      const medications = await medicationRepo.listActive(sanitizedEmail);
       const existingIndex = medications.findIndex(
         m => m.id === medication.id || (m.name === medication.name && m.status === 'active')
       );
-      
+
       if (existingIndex >= 0) {
-        medications[existingIndex] = {
+        const merged = {
           ...medications[existingIndex],
           ...medication,
-          schedule: medications[existingIndex].schedule || medication.schedule || [],
-          history: medications[existingIndex].history || medication.history || []
+          schedule: medication.schedule ?? medications[existingIndex].schedule ?? [],
+          history: medication.history ?? medications[existingIndex].history ?? []
         };
-      } else {
-        medications.push({
-          ...medication,
-          schedule: medication.schedule || [],
-          history: medication.history || []
-        });
+        await medicationRepo.update(sanitizedEmail, medications[existingIndex].id, merged);
+        return { success: true, medication: merged };
       }
-      
-      const medicationData = createMedicationsCollection(userEmail, medications);
-      const validation = validateMedicationsCollection(medicationData);
-      
-      if (!validation.valid) {
-        console.warn('⚠️ Medications validation warning:', validation.error);
-      }
-      
-      await setDoc(medicationRef, validation.value || medicationData, { merge: true });
-      
-      return {
-        success: true,
-        medication: existingIndex >= 0 ? medications[existingIndex] : medications[medications.length - 1]
-      };
+      const added = await medicationRepo.add(sanitizedEmail, {
+        ...medication,
+        schedule: medication.schedule || [],
+        history: medication.history || []
+      });
+      return { success: true, medication: added };
     } catch (error) {
       console.error('❌ Error adding/updating medication:', error);
       return {
@@ -1135,47 +1100,29 @@ ${JSON.stringify(healthData, null, 2)}
   async recordMedicationHistory(userEmail, medicationId, date, time, status, notes = null) {
     try {
       const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
-      const medicationRef = doc(db, 'medications', sanitizedEmail);
-      const medicationDoc = await getDoc(medicationRef);
-      
-      if (!medicationDoc.exists()) {
-        return { success: false, error: 'Medication record not found' };
-      }
-      
-      const medicationData = medicationDoc.data();
-      const medications = medicationData.medications || [];
-      const medIndex = medications.findIndex(m => m.id === medicationId);
-      
-      if (medIndex < 0) {
+      const medications = await medicationRepo.listActive(sanitizedEmail);
+      const med = medications.find(m => m.id === medicationId);
+      if (!med) {
         return { success: false, error: 'Medication not found' };
       }
-      
-      const medication = medications[medIndex];
-      if (!medication.schedule) medication.schedule = [];
-      if (!medication.history) medication.history = [];
-      
-      const scheduleIndex = medication.schedule.findIndex(s => s.date === date && s.time === time);
+      const schedule = med.schedule || [];
+      const history = med.history || [];
       const scheduleItem = { date, time, status, timestamp: new Date().toISOString() };
-      
+      const scheduleIndex = schedule.findIndex(s => s.date === date && s.time === time);
       if (scheduleIndex >= 0) {
-        medication.schedule[scheduleIndex] = scheduleItem;
+        schedule[scheduleIndex] = scheduleItem;
       } else {
-        medication.schedule.push(scheduleItem);
+        schedule.push(scheduleItem);
       }
-      
-      medication.history.push({
+      history.push({
         date,
         time,
         status,
         timestamp: new Date().toISOString(),
         notes: notes
       });
-      
-      medications[medIndex] = medication;
-      const updatedData = createMedicationsCollection(userEmail, medications);
-      await setDoc(medicationRef, updatedData, { merge: true });
-      
-      return { success: true, medication: medication };
+      await medicationRepo.update(sanitizedEmail, medicationId, { schedule, history });
+      return { success: true, medication: { ...med, schedule, history } };
     } catch (error) {
       console.error('❌ Error recording medication history:', error);
       return { success: false, error: error.message };
