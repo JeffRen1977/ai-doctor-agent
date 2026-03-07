@@ -20,6 +20,8 @@
     "start": "node scripts/start-railway.js",
     "start:railway": "node scripts/start-railway.js",
     "start:backend": "node backend/src/index.js",
+    "test": "jest --testPathIgnorePatterns=node_modules",
+    "test:unit": "jest backend/src --testPathIgnorePatterns=node_modules",
     "test:login": "node scripts/test-login.js",
     "test:language": "node scripts/test-language-sync.js",
     "fix:deployment": "node scripts/fix-deployment-errors.js",
