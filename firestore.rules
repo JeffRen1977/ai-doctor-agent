@@ -1,0 +1,28 @@
+rules_version = '2';
+// Firestore 安全规则：personalHealthRecords 及其子集合
+// 仅允许已认证用户读写「自身」路径下的数据。
+// 说明：若使用 Firebase Auth UID 作为文档 ID（personalHealthRecords/{uid}），
+// 则下列规则可直接生效；当前后端使用 Admin SDK 并以 sanitized email 作为 userId，
+// 若需客户端直连 Firestore，请将 document id 与 request.auth.uid 对齐或使用 custom claim 映射。
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 根文档：仅允许对应用户读写自己的档案
+    match /personalHealthRecords/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      // 子集合：用药（一药一文档）
+      match /medications/{medicationId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      // 子集合：日聚合体征（文档 ID = 日期 YYYY-MM-DD）
+      match /vitals_daily/{date} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      // 子集合：对话会话（一会话一文档）
+      match /chat_sessions/{sessionId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+  }
+}
