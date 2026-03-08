@@ -153,8 +153,6 @@ class RiskMonitoringService {
    */
   async processStreamData(userEmail, deviceType, data) {
     try {
-      console.log(`📊 Processing stream data for user: ${userEmail}, device: ${deviceType}`);
-
       const dataQuality = computeStreamDataQuality(data);
       const timestamp = new Date().toISOString();
       const dataPoint = {
@@ -215,8 +213,6 @@ class RiskMonitoringService {
   async detectAnomalies(userEmail, dataStream, options = {}) {
     try {
       const { timeRange, deviceType } = options;
-      console.log(`🔍 Detecting anomalies for user: ${userEmail}, timeRange: ${timeRange || 'default'}, deviceType: ${deviceType || 'all'}`);
-
       const limitCount = 100;
       const fetchOptions = {};
       if (timeRange && TIME_RANGE_MS[timeRange]) fetchOptions.timeRange = timeRange;
@@ -265,34 +261,14 @@ class RiskMonitoringService {
         );
       } catch (llmError) {
         if (ruleAlerts.length > 0) {
-          return {
-            hasAnomaly: true,
-            anomalies: ruleHits.map((h) => ({ ...h, type: h.type, severity: h.severity })),
-            alerts: ruleAlerts,
-            analysis: { hasAnomaly: true, anomalies: ruleHits, trend: { direction: 'stable', rate: 0, significance: 'low' } },
-            dataPointCount: allData.length,
-            fallbackMessage: '当前仅规则检测可用，AI 分析暂时不可用',
-            ...(sampledDown && { sampledDown: true, sampledTo: dataForPrompt.length }),
-            ...(timeRange && { timeRange }),
-            ...(deviceType && { deviceType })
-          };
+          return this._ruleOnlyResult(ruleHits, ruleAlerts, allData, sampledDown, dataForPrompt.length, timeRange, deviceType, '当前仅规则检测可用，AI 分析暂时不可用');
         }
         throw llmError;
       }
 
       if (!aiResult.success) {
         if (ruleAlerts.length > 0) {
-          return {
-            hasAnomaly: true,
-            anomalies: ruleHits.map((h) => ({ ...h, type: h.type, severity: h.severity })),
-            alerts: ruleAlerts,
-            analysis: { hasAnomaly: true, anomalies: ruleHits, trend: { direction: 'stable', rate: 0, significance: 'low' } },
-            dataPointCount: allData.length,
-            fallbackMessage: 'AI 分析失败，已根据规则生成上述预警',
-            ...(sampledDown && { sampledDown: true, sampledTo: dataForPrompt.length }),
-            ...(timeRange && { timeRange }),
-            ...(deviceType && { deviceType })
-          };
+          return this._ruleOnlyResult(ruleHits, ruleAlerts, allData, sampledDown, dataForPrompt.length, timeRange, deviceType, 'AI 分析失败，已根据规则生成上述预警');
         }
         throw new Error(aiResult.error || 'AI analysis failed');
       }
@@ -339,9 +315,6 @@ class RiskMonitoringService {
    */
   async predictHypoglycemia(userEmail, glucoseData) {
     try {
-      console.log(`🍬 Predicting hypoglycemia for user: ${userEmail}`);
-      
-      // 获取用户AI设置并优先使用OpenAI
       const userSettings = await userSettingsService.getUserAISettings(userEmail);
       const userLanguage = (userSettings.success && userSettings.language) ? userSettings.language : 'zh';
       const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
@@ -384,11 +357,7 @@ class RiskMonitoringService {
         );
       }
       
-      return {
-        success: true,
-        prediction: prediction,
-        alert: alert
-      };
+      return { success: true, prediction, alert };
     } catch (error) {
       console.error('❌ Error predicting hypoglycemia:', error);
       return {
@@ -406,9 +375,6 @@ class RiskMonitoringService {
    */
   async analyzeHRVTrend(userEmail, heartRateData) {
     try {
-      console.log(`❤️ Analyzing HRV trend for user: ${userEmail}`);
-      
-      // 获取历史心率数据
       const historicalData = await this.getRecentHeartRateData(userEmail, 30); // 最近30天
       const allData = [...historicalData, ...heartRateData];
       
@@ -455,11 +421,7 @@ class RiskMonitoringService {
         );
       }
       
-      return {
-        success: true,
-        analysis: hrvAnalysis,
-        alert: alert
-      };
+      return { success: true, analysis: hrvAnalysis, alert };
     } catch (error) {
       console.error('❌ Error analyzing HRV trend:', error);
       return {
@@ -479,8 +441,6 @@ class RiskMonitoringService {
    */
   async generateAlert(userEmail, alertType, severity, details = {}) {
     try {
-      console.log(`🚨 Generating alert for user: ${userEmail}, type: ${alertType}, severity: ${severity}`);
-      
       const alert = {
         userEmail,
         alertType,
@@ -543,35 +503,21 @@ class RiskMonitoringService {
    */
   async getMonitoringStatus(userEmail) {
     try {
-      // 获取最近的设备数据
-      const recentData = await this.getRecentDataPoints(userEmail, 50);
-      
-      // 获取最近的预警
-      const recentAlerts = await this.getRecentAlerts(userEmail, 10);
-      
-      // 提取最新数据点（完整对象，包含所有指标）
-      const latestDataPoint = recentData.length > 0 ? recentData[recentData.length - 1] : null;
-      const lastDataPoint = latestDataPoint ? {
-        ...latestDataPoint.data,  // 包含所有健康指标数据
-        timestamp: latestDataPoint.timestamp
-      } : null;
-      
-      // 分析当前状态
+      const [recentData, recentAlerts] = await Promise.all([
+        this.getRecentDataPoints(userEmail, 50),
+        this.getRecentAlerts(userEmail, 10)
+      ]);
+      const latest = recentData.length > 0 ? recentData[recentData.length - 1] : null;
+      const lastDataPoint = latest ? { ...latest.data, timestamp: latest.timestamp } : null;
       const status = {
         isMonitoring: recentData.length > 0,
-        lastDataPoint: lastDataPoint,  // 返回完整数据对象，而不仅仅是时间戳
-        lastDataPointTimestamp: latestDataPoint?.timestamp || null,  // 保留时间戳字段以保持向后兼容
+        lastDataPoint,
+        lastDataPointTimestamp: latest?.timestamp || null,
         activeAlerts: recentAlerts.filter(a => !a.acknowledged && a.severity !== 'low'),
         riskLevel: this.calculateOverallRiskLevel(recentAlerts),
-        metrics: this.extractCurrentMetrics(recentData)  // 保留 metrics 字段以保持向后兼容
+        metrics: this.extractCurrentMetrics(recentData)
       };
-      
-      return {
-        success: true,
-        status: status,
-        // 为了前端兼容性，也在顶层返回 lastDataPoint
-        lastDataPoint: lastDataPoint
-      };
+      return { success: true, status, lastDataPoint };
     } catch (error) {
       console.error('❌ Error getting monitoring status:', error);
       return {
@@ -686,6 +632,20 @@ class RiskMonitoringService {
       }
     }
     return { success: false, error: lastError?.message || 'AI analysis failed' };
+  }
+
+  _ruleOnlyResult(ruleHits, ruleAlerts, allData, sampledDown, sampledTo, timeRange, deviceType, fallbackMessage) {
+    return {
+      hasAnomaly: true,
+      anomalies: ruleHits.map((h) => ({ ...h, type: h.type, severity: h.severity })),
+      alerts: ruleAlerts,
+      analysis: { hasAnomaly: true, anomalies: ruleHits, trend: { direction: 'stable', rate: 0, significance: 'low' } },
+      dataPointCount: allData.length,
+      fallbackMessage,
+      ...(sampledDown && { sampledDown: true, sampledTo }),
+      ...(timeRange && { timeRange }),
+      ...(deviceType && { deviceType })
+    };
   }
 
   /**

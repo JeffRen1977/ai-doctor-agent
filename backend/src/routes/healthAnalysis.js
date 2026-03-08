@@ -1,45 +1,38 @@
 const express = require('express');
 const multer = require('multer');
 const { authenticateToken } = require('../middleware/auth');
-const { analyzeHealthDocuments } = require('../services/healthAnalysisService');
-const { getHealthAnalysisHistory, getHealthAnalysisById } = require('../services/healthAnalysisService');
+const {
+  analyzeHealthDocuments,
+  getHealthAnalysisHistory,
+  getHealthAnalysisById
+} = require('../services/healthAnalysisService');
 const aiServiceFactory = require('../services/aiServiceFactory');
 
 const router = express.Router();
 
-// Configure multer for file uploads (memory storage only)
-const storage = multer.memoryStorage();
+const ALLOWED_MIMES = [
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'text/plain',
+  'text/csv',
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/gif',
+  'image/bmp',
+  'image/tiff',
+  'image/webp'
+];
 
-const upload = multer({ 
-  storage: storage,
-  limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
-  },
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    const allowedTypes = [
-      'application/pdf',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'text/plain',
-      'text/csv',
-      'image/jpeg',
-      'image/jpg',
-      'image/png',
-      'image/gif',
-      'image/bmp',
-      'image/tiff',
-      'image/webp'
-    ];
-    
-    if (allowedTypes.includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Unsupported file type'), false);
-    }
+    const ok = ALLOWED_MIMES.includes(file.mimetype);
+    cb(ok ? null : new Error('Unsupported file type'), ok);
   }
 });
-
-// No need for local upload directory since we're using memory storage
 
 // Multer error handling middleware
 const handleMulterError = (error, req, res, next) => {
@@ -79,65 +72,17 @@ const handleMulterError = (error, req, res, next) => {
  * @access Private
  */
 router.post('/analyze', authenticateToken, (req, res, next) => {
-  console.log('🔍 /analyze route - Before multer middleware');
-  console.log('🔍 Request headers:', req.headers);
-  console.log('🔍 Request body keys:', Object.keys(req.body));
-  
   upload.array('documents', 20)(req, res, (err) => {
-    if (err) {
-      console.error('❌ Multer error:', err);
-      return handleMulterError(err, req, res, next);
-    }
-    console.log('✅ Multer middleware completed successfully');
+    if (err) return handleMulterError(err, req, res, next);
     next();
   });
 }, async (req, res) => {
   try {
-    console.log('🔍 Starting health document analysis...');
-    console.log('📁 Uploaded files:', req.files?.length || 0);
-    console.log('👤 User:', req.user.email);
-    console.log('📋 Request body keys:', Object.keys(req.body));
-    console.log('📋 Request files:', req.files);
-    
-    // Debug file structure
-    if (req.files && req.files.length > 0) {
-      req.files.forEach((file, index) => {
-        console.log(`📄 File ${index}:`, {
-          fieldname: file.fieldname,
-          originalname: file.originalname,
-          encoding: file.encoding,
-          mimetype: file.mimetype,
-          size: file.size,
-          buffer: file.buffer ? `Buffer(${file.buffer.length} bytes)` : 'No buffer'
-        });
-      });
+    if (!req.files?.length) {
+      return res.status(400).json({ success: false, message: 'No documents provided for analysis' });
     }
-
-    if (!req.files || req.files.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'No documents provided for analysis'
-      });
-    }
-
-    const userId = req.user.id;
-    const userEmail = req.user.email;
-
-    console.log('🔍 Route - userId:', userId, 'userEmail:', userEmail);
-    console.log('🔍 Route - req.user:', req.user);
-
-    // Get AI service options from request body
     const { provider = 'gemini', model } = req.body;
-    
-    console.log('🤖 AI Service options:', { provider, model });
-
-    // Analyze documents using AI (includes saving to database)
-    const analysisResult = await analyzeHealthDocuments(req.files, userId, userEmail, {
-      provider,
-      model
-    });
-
-    console.log('✅ Health analysis completed and saved');
+    const analysisResult = await analyzeHealthDocuments(req.files, req.user.id, req.user.email, { provider, model });
 
     res.json({
       success: true,
@@ -173,23 +118,11 @@ router.post('/analyze', authenticateToken, (req, res, next) => {
  */
 router.get('/ai-services', authenticateToken, async (req, res) => {
   try {
-    const availableServices = aiServiceFactory.getAvailableServices();
-    
-    res.json({
-      success: true,
-      data: {
-        services: availableServices,
-        totalServices: Object.keys(availableServices).length
-      }
-    });
-
+    const services = aiServiceFactory.getAvailableServices();
+    res.json({ success: true, data: { services, totalServices: Object.keys(services).length } });
   } catch (error) {
     console.error('❌ Get AI services error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to retrieve AI services',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Failed to retrieve AI services', error: error.message });
   }
 });
 
@@ -200,26 +133,14 @@ router.get('/ai-services', authenticateToken, async (req, res) => {
  */
 router.get('/history', authenticateToken, async (req, res) => {
   try {
-    const userEmail = req.user.email;
-    const { page = 1, limit = 10 } = req.query;
-
-    const history = await getHealthAnalysisHistory(userEmail, {
-      page: parseInt(page),
-      limit: parseInt(limit)
+    const history = await getHealthAnalysisHistory(req.user.email, {
+      page: parseInt(req.query.page, 10) || 1,
+      limit: parseInt(req.query.limit, 10) || 10
     });
-
-    res.json({
-      success: true,
-      data: history
-    });
-
+    res.json({ success: true, data: history });
   } catch (error) {
     console.error('❌ Get analysis history error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to retrieve analysis history',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Failed to retrieve analysis history', error: error.message });
   }
 });
 
@@ -230,30 +151,12 @@ router.get('/history', authenticateToken, async (req, res) => {
  */
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
-    const { id } = req.params;
-    const userEmail = req.user.email;
-
-    const analysis = await getHealthAnalysisById(id, userEmail);
-
-    if (!analysis) {
-      return res.status(404).json({
-        success: false,
-        message: 'Analysis not found'
-      });
-    }
-
-    res.json({
-      success: true,
-      data: analysis
-    });
-
+    const analysis = await getHealthAnalysisById(req.params.id, req.user.email);
+    if (!analysis) return res.status(404).json({ success: false, message: 'Analysis not found' });
+    res.json({ success: true, data: analysis });
   } catch (error) {
     console.error('❌ Get analysis details error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to retrieve analysis details',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Failed to retrieve analysis details', error: error.message });
   }
 });
 

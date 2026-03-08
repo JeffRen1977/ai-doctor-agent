@@ -13,10 +13,8 @@ const {
 
 const router = express.Router();
 
-// Configure multer for memory storage to handle file uploads
-const storage = multer.memoryStorage();
-const upload = multer({ 
-  storage: storage,
+const upload = multer({
+  storage: multer.memoryStorage(),
   limits: {
     fileSize: 50 * 1024 * 1024, // 50MB limit
     files: 10, // Maximum 10 files
@@ -26,41 +24,18 @@ const upload = multer({
 
 // ========== 个人健康档案 ==========
 
-// GET /personal-health-record - 获取个人健康档案
 router.get('/personal-health-record', authenticateToken, async (req, res) => {
-  console.log('✅ GET /personal-health-record route matched');
   try {
     const userEmail = req.user?.email;
-    
-    if (!userEmail) {
-      console.warn('⚠️ No user email in request');
-      return res.status(401).json({ 
-        success: false,
-        error: 'User not authenticated' 
-      });
-    }
-
-    console.log(`🔍 Fetching personal health record for: ${userEmail}`);
+    if (!userEmail) return res.status(401).json({ success: false, error: 'User not authenticated' });
 
     const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
     const data = await personalHealthRecordRepo.get(sanitizedEmail);
-
     if (!data) {
-      console.log(`⚠️ Personal health record not found for: ${userEmail}`);
-      return res.json({
-        success: true,
-        data: null,
-        message: 'Personal health record not found'
-      });
+      return res.json({ success: true, data: null, message: 'Personal health record not found' });
     }
     const medications = await medicationRepo.listActive(sanitizedEmail);
-    const dataWithMedications = { ...data, medications };
-    console.log(`✅ Personal health record found for: ${userEmail}`);
-    res.json({
-      success: true,
-      data: dataWithMedications
-    });
-
+    res.json({ success: true, data: { ...data, medications } });
   } catch (error) {
     console.error('❌ Get personal health record error:', error);
     res.status(500).json({ 

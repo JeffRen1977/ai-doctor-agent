@@ -1,10 +1,4 @@
-const { 
-  getStorage, 
-  ref, 
-  uploadBytes,
-  uploadBytesResumable, 
-  getDownloadURL 
-} = require('firebase/storage');
+const { ref, uploadBytes, getDownloadURL } = require('firebase/storage');
 const { 
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword,
@@ -77,13 +71,6 @@ class FirebaseService {
           });
           userData = await userRepo.getByEmail(email);
         }
-
-        const fallbackData = userData || {
-          uid: 'test-user-' + Date.now(),
-          email: email,
-          name: 'Jianfeng Ren',
-          avatar: null
-        };
 
         return {
           success: true,
@@ -305,84 +292,43 @@ class FirebaseService {
         console.error('❌ Firebase Storage is not initialized');
         return { success: false, error: 'Firebase Storage not initialized' };
       }
-      
-      // 调试信息：检查 Storage 实例
-      console.log('🔍 Storage instance check:', {
-        hasStorage: !!storage,
-        storageType: typeof storage,
-        storageApp: storage?.app?.name || 'unknown'
-      });
 
       const uploadResults = [];
       const errors = [];
       
+      const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
       for (const file of files) {
         try {
-          console.log(`📤 Uploading file: ${file.originalname} (${file.size} bytes, ${file.mimetype})`);
-          
-          const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
-          const timestamp = Date.now();
-          // 清理文件名，移除特殊字符
           const safeFileName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
-          const fileName = `${timestamp}-${safeFileName}`;
+          const fileName = `${Date.now()}-${safeFileName}`;
           const storagePath = `${folder}/${sanitizedEmail}/${fileName}`;
-          
-          console.log(`📁 Storage path: ${storagePath}`);
-          
           const storageRef = ref(storage, storagePath);
-          
-          // 确保文件有正确的 MIME 类型
           const contentType = file.mimetype || (file.originalname.endsWith('.pdf') ? 'application/pdf' : 'application/octet-stream');
-          
-          // 使用 uploadBytes 而不是 uploadBytesResumable（更简单，适合小文件）
-          // uploadBytesResumable 需要监听上传进度，对于小文件使用 uploadBytes 更直接
-          console.log(`📦 Storage reference created`);
-          console.log(`📦 Full path: ${storageRef.fullPath}`);
-          console.log(`📦 Bucket: ${storageRef.bucket || 'default'}`);
-          
+
           const snapshot = await uploadBytes(storageRef, file.buffer, {
-            contentType: contentType,
+            contentType,
             customMetadata: {
               originalName: file.originalname,
               uploadedBy: userEmail,
               uploadedAt: new Date().toISOString()
             }
           });
-          
-          console.log(`✅ Upload snapshot created, getting download URL...`);
           const downloadURL = await getDownloadURL(snapshot.ref);
-          
-          console.log(`✅ File uploaded successfully: ${file.originalname}`);
-          console.log(`🔗 Download URL: ${downloadURL}`);
-          
+
           uploadResults.push({
             originalName: file.originalname,
-            fileName: fileName,
-            downloadURL: downloadURL,
-            storagePath: storagePath,
+            fileName,
+            downloadURL,
+            storagePath,
             size: file.size,
-            contentType: contentType,
+            contentType,
             uploadedAt: new Date().toISOString()
           });
         } catch (fileError) {
-          console.error(`❌ Error uploading file ${file.originalname}:`, fileError);
-          console.error(`❌ Error details:`, {
-            code: fileError.code,
-            status: fileError.status_,
-            message: fileError.message,
-            customData: fileError.customData,
-            serverResponse: fileError.customData?.serverResponse || 'No server response'
-          });
-          
-          // 如果是 404 错误，提供更详细的诊断信息
+          console.error(`❌ Upload failed ${file.originalname}:`, fileError.message);
           if (fileError.code === 'storage/unknown' && fileError.status_ === 404) {
-            console.error(`🔍 404 错误诊断:`);
-            console.error(`   - 检查 Storage Bucket 是否正确`);
-            console.error(`   - 检查 Storage 规则是否允许上传`);
-            console.error(`   - 检查 Storage 服务是否已启用`);
-            console.error(`   - 尝试在 Firebase 控制台手动上传文件测试`);
+            console.error('🔍 404: 检查 Storage Bucket/规则/服务是否启用');
           }
-          
           errors.push({
             fileName: file.originalname,
             error: fileError.message,
@@ -390,7 +336,6 @@ class FirebaseService {
             status: fileError.status_,
             details: fileError.customData?.serverResponse || 'No server response'
           });
-          // 继续处理其他文件，即使某个文件失败
         }
       }
       

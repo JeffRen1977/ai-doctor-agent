@@ -5,9 +5,10 @@ const { digitalTwinRepo } = require('../repositories');
 
 const router = express.Router();
 
-async function getDigitalTwinDoc(userEmail) {
-  return await digitalTwinRepo.getDigitalTwin(userEmail);
-}
+const send500 = (res, err) => {
+  console.error('❌ Digital twin endpoint error:', err);
+  res.status(500).json({ success: false, error: 'Internal server error', details: err.message });
+};
 
 /**
  * 构建数字孪生模型
@@ -16,73 +17,27 @@ async function getDigitalTwinDoc(userEmail) {
 router.post('/build', authenticateToken, async (req, res) => {
   try {
     const userEmail = req.user?.email;
-    
-    if (!userEmail) {
-      return res.status(401).json({ 
-        success: false,
-        error: 'User not authenticated' 
-      });
-    }
-
-    console.log(`🏗️ Building digital twin for user: ${userEmail}`);
-    
+    if (!userEmail) return res.status(401).json({ success: false, error: 'User not authenticated' });
     const result = await digitalTwinService.buildDigitalTwin(userEmail);
-    
-    if (!result.success) {
-      return res.status(500).json({
-        success: false,
-        error: result.error || 'Failed to build digital twin'
-      });
-    }
-
-    res.json({
-      success: true,
-      message: 'Digital twin built successfully',
-      data: result.digitalTwin
-    });
+    if (!result.success) return res.status(500).json({ success: false, error: result.error || 'Failed to build digital twin' });
+    res.json({ success: true, message: 'Digital twin built successfully', data: result.digitalTwin });
   } catch (error) {
-    console.error('❌ Error in build digital twin endpoint:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Internal server error',
-      details: error.message
-    });
+    send500(res, error);
   }
 });
 
-/**
- * 获取数字孪生模型
- * GET /api/digital-twin/get 或 GET /api/digital-twin
- */
+/** GET /api/digital-twin or /api/digital-twin/get */
 async function handleGetDigitalTwin(req, res) {
   const userEmail = req.user?.email;
-  if (!userEmail) {
-    return res.status(401).json({ success: false, error: 'User not authenticated' });
-  }
-  const data = await getDigitalTwinDoc(userEmail);
+  if (!userEmail) return res.status(401).json({ success: false, error: 'User not authenticated' });
+  const data = await digitalTwinRepo.getDigitalTwin(userEmail);
   if (!data) {
-    return res.status(404).json({
-      success: false,
-      error: 'Digital twin not found. Please build it first.',
-      needsBuild: true
-    });
+    return res.status(404).json({ success: false, error: 'Digital twin not found. Please build it first.', needsBuild: true });
   }
   res.json({ success: true, data });
 }
-
-router.get('/', authenticateToken, (req, res) => {
-  handleGetDigitalTwin(req, res).catch((err) => {
-    console.error('❌ Error in get digital twin endpoint:', err);
-    res.status(500).json({ success: false, error: 'Internal server error', details: err.message });
-  });
-});
-
-router.get('/get', authenticateToken, (req, res) => {
-  handleGetDigitalTwin(req, res).catch((err) => {
-    console.error('❌ Error in get digital twin endpoint:', err);
-    res.status(500).json({ success: false, error: 'Internal server error', details: err.message });
-  });
-});
+router.get('/', authenticateToken, (req, res) => handleGetDigitalTwin(req, res).catch(err => send500(res, err)));
+router.get('/get', authenticateToken, (req, res) => handleGetDigitalTwin(req, res).catch(err => send500(res, err)));
 
 /**
  * 更新数字孪生模型
@@ -91,38 +46,12 @@ router.get('/get', authenticateToken, (req, res) => {
 router.put('/update', authenticateToken, async (req, res) => {
   try {
     const userEmail = req.user?.email;
-    const newData = req.body;
-    
-    if (!userEmail) {
-      return res.status(401).json({ 
-        success: false,
-        error: 'User not authenticated' 
-      });
-    }
-
-    console.log(`🔄 Updating digital twin for user: ${userEmail}`);
-    
-    const result = await digitalTwinService.updateDigitalTwin(userEmail, newData);
-    
-    if (!result.success) {
-      return res.status(500).json({
-        success: false,
-        error: result.error || 'Failed to update digital twin'
-      });
-    }
-
-    res.json({
-      success: true,
-      message: 'Digital twin updated successfully',
-      data: result.digitalTwin
-    });
+    if (!userEmail) return res.status(401).json({ success: false, error: 'User not authenticated' });
+    const result = await digitalTwinService.updateDigitalTwin(userEmail, req.body);
+    if (!result.success) return res.status(500).json({ success: false, error: result.error || 'Failed to update digital twin' });
+    res.json({ success: true, message: 'Digital twin updated successfully', data: result.digitalTwin });
   } catch (error) {
-    console.error('❌ Error in update digital twin endpoint:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Internal server error',
-      details: error.message
-    });
+    send500(res, error);
   }
 });
 
@@ -133,46 +62,14 @@ router.put('/update', authenticateToken, async (req, res) => {
 router.post('/simulate', authenticateToken, async (req, res) => {
   try {
     const userEmail = req.user?.email;
+    if (!userEmail) return res.status(401).json({ success: false, error: 'User not authenticated' });
     const { scenario } = req.body;
-    
-    if (!userEmail) {
-      return res.status(401).json({ 
-        success: false,
-        error: 'User not authenticated' 
-      });
-    }
-
-    if (!scenario) {
-      return res.status(400).json({
-        success: false,
-        error: 'Scenario is required'
-      });
-    }
-
-    console.log(`🎮 Running simulation for user: ${userEmail}`);
-    console.log('📋 Scenario:', scenario);
-    
+    if (!scenario) return res.status(400).json({ success: false, error: 'Scenario is required' });
     const result = await digitalTwinService.runSimulation(userEmail, scenario);
-    
-    if (!result.success) {
-      return res.status(500).json({
-        success: false,
-        error: result.error || 'Failed to run simulation'
-      });
-    }
-
-    res.json({
-      success: true,
-      message: 'Simulation completed successfully',
-      data: result
-    });
+    if (!result.success) return res.status(500).json({ success: false, error: result.error || 'Failed to run simulation' });
+    res.json({ success: true, message: 'Simulation completed successfully', data: result });
   } catch (error) {
-    console.error('❌ Error in simulate endpoint:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Internal server error',
-      details: error.message
-    });
+    send500(res, error);
   }
 });
 
@@ -183,52 +80,14 @@ router.post('/simulate', authenticateToken, async (req, res) => {
 router.post('/assess-risk', authenticateToken, async (req, res) => {
   try {
     const userEmail = req.user?.email;
-    const { condition, timeframe } = req.body;
-    
-    if (!userEmail) {
-      return res.status(401).json({ 
-        success: false,
-        error: 'User not authenticated' 
-      });
-    }
-
-    if (!condition) {
-      return res.status(400).json({
-        success: false,
-        error: 'Condition is required'
-      });
-    }
-
-    const assessmentTimeframe = timeframe || 12; // 默认12个月
-    
-    console.log(`⚠️ Assessing risk for user: ${userEmail}`);
-    console.log(`🔍 Condition: ${condition}, Timeframe: ${assessmentTimeframe} months`);
-    
-    const result = await digitalTwinService.assessComplicationRisk(
-      userEmail, 
-      condition, 
-      assessmentTimeframe
-    );
-    
-    if (!result.success) {
-      return res.status(500).json({
-        success: false,
-        error: result.error || 'Failed to assess risk'
-      });
-    }
-
-    res.json({
-      success: true,
-      message: 'Risk assessment completed successfully',
-      data: result
-    });
+    if (!userEmail) return res.status(401).json({ success: false, error: 'User not authenticated' });
+    const { condition, timeframe = 12 } = req.body;
+    if (!condition) return res.status(400).json({ success: false, error: 'Condition is required' });
+    const result = await digitalTwinService.assessComplicationRisk(userEmail, condition, timeframe);
+    if (!result.success) return res.status(500).json({ success: false, error: result.error || 'Failed to assess risk' });
+    res.json({ success: true, message: 'Risk assessment completed successfully', data: result });
   } catch (error) {
-    console.error('❌ Error in assess-risk endpoint:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Internal server error',
-      details: error.message
-    });
+    send500(res, error);
   }
 });
 
@@ -239,44 +98,13 @@ router.post('/assess-risk', authenticateToken, async (req, res) => {
 router.post('/project', authenticateToken, async (req, res) => {
   try {
     const userEmail = req.user?.email;
-    const { timeframe } = req.body;
-    
-    if (!userEmail) {
-      return res.status(401).json({ 
-        success: false,
-        error: 'User not authenticated' 
-      });
-    }
-
-    const projectionTimeframe = timeframe || 6; // 默认6个月
-    
-    console.log(`📈 Generating projection for user: ${userEmail}`);
-    console.log(`⏱️ Timeframe: ${projectionTimeframe} months`);
-    
-    const result = await digitalTwinService.generateHealthProjection(
-      userEmail, 
-      projectionTimeframe
-    );
-    
-    if (!result.success) {
-      return res.status(500).json({
-        success: false,
-        error: result.error || 'Failed to generate projection'
-      });
-    }
-
-    res.json({
-      success: true,
-      message: 'Health projection generated successfully',
-      data: result
-    });
+    if (!userEmail) return res.status(401).json({ success: false, error: 'User not authenticated' });
+    const timeframe = req.body.timeframe ?? 6;
+    const result = await digitalTwinService.generateHealthProjection(userEmail, timeframe);
+    if (!result.success) return res.status(500).json({ success: false, error: result.error || 'Failed to generate projection' });
+    res.json({ success: true, message: 'Health projection generated successfully', data: result });
   } catch (error) {
-    console.error('❌ Error in project endpoint:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Internal server error',
-      details: error.message
-    });
+    send500(res, error);
   }
 });
 
@@ -287,27 +115,11 @@ router.post('/project', authenticateToken, async (req, res) => {
 router.get('/health-data', authenticateToken, async (req, res) => {
   try {
     const userEmail = req.user?.email;
-    
-    if (!userEmail) {
-      return res.status(401).json({ 
-        success: false,
-        error: 'User not authenticated' 
-      });
-    }
-
+    if (!userEmail) return res.status(401).json({ success: false, error: 'User not authenticated' });
     const healthData = await digitalTwinService.aggregateUserHealthData(userEmail);
-    
-    res.json({
-      success: true,
-      data: healthData
-    });
+    res.json({ success: true, data: healthData });
   } catch (error) {
-    console.error('❌ Error in get health-data endpoint:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Internal server error',
-      details: error.message
-    });
+    send500(res, error);
   }
 });
 

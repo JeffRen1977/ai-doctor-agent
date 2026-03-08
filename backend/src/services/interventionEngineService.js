@@ -26,8 +26,6 @@ class InterventionEngineService {
    */
   async manageMedication(userEmail) {
     try {
-      console.log(`💊 Managing medication for user: ${userEmail}`);
-      
       const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
       let medications = await medicationRepo.listActive(sanitizedEmail);
       medications = medications.map(med => ({
@@ -88,8 +86,6 @@ class InterventionEngineService {
    */
   async analyzeMedicationEffectiveness(userEmail, medication, timeframe) {
     try {
-      console.log(`🔍 Analyzing medication effectiveness: ${medication} (${timeframe})`);
-      
       const userSettings = await userSettingsService.getUserAISettings(userEmail);
       const { aiProvider, aiModel } = this.getAIServiceConfig(userSettings);
       
@@ -138,13 +134,7 @@ class InterventionEngineService {
         wearableData
       );
       
-      return {
-        success: true,
-        medication: medication,
-        timeframe: timeframe,
-        effectiveness: effectiveness,
-        recommendations: effectiveness.recommendations || []
-      };
+      return { success: true, medication, timeframe, effectiveness, recommendations: effectiveness.recommendations || [] };
     } catch (error) {
       console.error('❌ Error analyzing medication effectiveness:', error);
       return {
@@ -163,8 +153,6 @@ class InterventionEngineService {
    */
   async generateNutritionAdvice(userEmail, mealImagePath, currentMetrics = {}) {
     try {
-      console.log(`🍎 Generating nutrition advice for user: ${userEmail}`);
-      
       const userSettings = await userSettingsService.getUserAISettings(userEmail);
       const userLanguage = userSettings.success ? (userSettings.language || 'zh') : 'zh';
       
@@ -211,7 +199,7 @@ class InterventionEngineService {
       return {
         success: true,
         nutrition: nutritionAnalysis,
-        instantFeedback: instantFeedback,
+        instantFeedback,
         recommendations: instantFeedback.recommendations || [],
         aiAnalysis: aiResult.analysis || aiResult.response,
         recognizedFoods: aiResult.recognizedFoods || nutritionAnalysis.foods || []
@@ -233,8 +221,6 @@ class InterventionEngineService {
    */
   async generateExercisePlan(userEmail, healthState = {}) {
     try {
-      console.log(`🏃 Generating exercise plan for user: ${userEmail}`);
-      
       const userSettings = await userSettingsService.getUserAISettings(userEmail);
       const { aiProvider, aiModel } = this.getAIServiceConfig(userSettings);
       
@@ -256,10 +242,7 @@ class InterventionEngineService {
       const exercisePlan = this.parseExercisePlan(rawText, healthState);
       await this.saveExercisePlan(userEmail, exercisePlan);
       
-      return {
-        success: true,
-        plan: exercisePlan
-      };
+      return { success: true, plan: exercisePlan };
     } catch (error) {
       console.error('❌ Error generating exercise plan:', error);
       return {
@@ -277,8 +260,6 @@ class InterventionEngineService {
    */
   async adjustIntervention(userEmail, feedback) {
     try {
-      console.log(`🔄 Adjusting intervention for user: ${userEmail}`);
-      
       const userSettings = await userSettingsService.getUserAISettings(userEmail);
       const { aiProvider, aiModel } = this.getAIServiceConfig(userSettings);
       
@@ -447,10 +428,7 @@ class InterventionEngineService {
       ? Math.round(adherenceByMed.reduce((sum, m) => sum + m.adherence, 0) / adherenceByMed.length)
       : 0;
     
-    return {
-      overall: overall,
-      byMedication: adherenceByMed
-    };
+    return { overall, byMedication: adherenceByMed };
   }
 
   /**
