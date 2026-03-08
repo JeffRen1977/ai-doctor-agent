@@ -1,6 +1,6 @@
 const aiServiceFactory = require('./aiServiceFactory');
 const userSettingsService = require('./userSettingsService');
-const openaiService = require('./openaiService');
+const aiProviderConfig = require('../config/aiProviderConfig');
 const contextBuilderService = require('./contextBuilderService');
 const { riskAlertRepo, notificationRepo, riskMonitoringStateRepo, wearableStreamDataRepo } = require('../repositories');
 const { userIdFromEmail } = require('../models/riskMonitoringState');
@@ -237,7 +237,7 @@ class RiskMonitoringService {
 
       // 获取用户AI设置并优先使用OpenAI
       const userSettings = await userSettingsService.getUserAISettings(userEmail);
-      const { aiProvider, aiModel } = this.getAIServiceConfig(userSettings);
+      const { aiProvider, aiModel } = aiProviderConfig.getAIServiceConfig(userSettings);
       const userLanguage = (userSettings.success && userSettings.language) ? userSettings.language : 'zh';
 
       // 通过 Context Builder 获取档案+用药（便于换库、统一 prompt 来源）
@@ -326,7 +326,7 @@ class RiskMonitoringService {
         console.warn('⚠️ buildAIContext failed, using empty context:', e.message);
       }
 
-      const { aiProvider, aiModel } = this.getAIServiceConfig(userSettings);
+      const { aiProvider, aiModel } = aiProviderConfig.getAIServiceConfig(userSettings);
       // 构建预测提示
       const prompt = this.buildHypoglycemiaPredictionPrompt(glucoseData, userContextText, userLanguage);
 
@@ -390,7 +390,7 @@ class RiskMonitoringService {
         console.warn('⚠️ buildAIContext failed, using empty context:', e.message);
       }
 
-      const { aiProvider, aiModel } = this.getAIServiceConfig(userSettings);
+      const { aiProvider, aiModel } = aiProviderConfig.getAIServiceConfig(userSettings);
       // 构建HRV分析提示
       const prompt = this.buildHRVAnalysisPrompt(allData, userContextText, userLanguage);
 
@@ -568,42 +568,6 @@ class RiskMonitoringService {
       console.error('❌ Error getting recent heart rate data:', error);
       return [];
     }
-  }
-
-  /**
-   * 获取AI服务配置（优先使用OpenAI）
-   */
-  getAIServiceConfig(userSettings) {
-    // 优先检查OpenAI是否可用
-    if (openaiService.isServiceAvailable && openaiService.isServiceAvailable()) {
-      const openaiModels = openaiService.getAvailableModels ? openaiService.getAvailableModels() : ['gpt-4o', 'gpt-4-turbo'];
-      const models = Array.isArray(openaiModels) ? openaiModels : (openaiModels.all || ['gpt-4o']);
-      return {
-        aiProvider: 'openai',
-        aiModel: models[0] || 'gpt-4o'
-      };
-    }
-    
-    // 如果OpenAI不可用，使用用户设置
-    if (userSettings.success && userSettings.aiProvider) {
-      // 如果用户选择的是Gemini，使用gemini-2.5模型
-      if (userSettings.aiProvider === 'gemini') {
-        return {
-          aiProvider: 'gemini',
-          aiModel: userSettings.aiModel || 'gemini-2.5'
-        };
-      }
-      return {
-        aiProvider: userSettings.aiProvider,
-        aiModel: userSettings.aiModel || ''
-      };
-    }
-    
-    // 最后使用Gemini作为后备，使用gemini-2.5模型
-    return {
-      aiProvider: 'gemini',
-      aiModel: 'gemini-2.5'
-    };
   }
 
   /**

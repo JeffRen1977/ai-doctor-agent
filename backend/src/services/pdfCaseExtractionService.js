@@ -1,5 +1,6 @@
 const aiServiceFactory = require('./aiServiceFactory');
 const userSettingsService = require('./userSettingsService');
+const aiProviderConfig = require('../config/aiProviderConfig');
 
 /**
  * PDF病例提取服务
@@ -23,33 +24,8 @@ class PDFCaseExtractionService {
       // 获取用户AI设置
       const userAISettings = await userSettingsService.getUserAISettings(userEmail);
       const userLanguage = userAISettings.success ? (userAISettings.language || 'zh') : 'zh';
-      
-      // 优先使用 OpenAI（如果可用），否则使用用户设置的 provider
-      let aiProvider = 'openai'; // 默认使用 OpenAI
-      let aiModel = '';
-      
-      // 检查 OpenAI 是否可用（优先使用 OpenAI，因为它对 PDF 支持更好）
-      const openaiService = require('./openaiService');
-      
-      // 检查 OpenAI 服务是否可用
-      if (openaiService.isServiceAvailable && openaiService.isServiceAvailable()) {
-        aiProvider = 'openai';
-        // 尝试使用 gpt-4o 或 gpt-4-turbo（这些模型对 PDF 支持更好）
-        const openaiModels = openaiService.getAvailableModels ? openaiService.getAvailableModels() : { all: ['gpt-4o', 'gpt-4-turbo'] };
-        const models = Array.isArray(openaiModels) ? openaiModels : (openaiModels.all || ['gpt-4o']);
-        aiModel = models[0] || 'gpt-4o';
-        console.log(`✅ Using OpenAI (${aiModel}) for PDF analysis`);
-      } else if (userAISettings.success && userAISettings.aiProvider && userAISettings.aiProvider !== 'gemini') {
-        // 如果 OpenAI 不可用，使用用户设置的其他 provider（排除 gemini，因为不支持 PDF）
-        aiProvider = userAISettings.aiProvider;
-        aiModel = userAISettings.aiModel || '';
-        console.log(`⚠️ OpenAI not available, using ${aiProvider} for PDF analysis`);
-      } else {
-        // 如果只有 gemini 可用，我们仍然尝试，但主要依赖文本分析
-        aiProvider = 'gemini';
-        aiModel = '';
-        console.log('⚠️ Using Gemini as fallback (will rely on text analysis)');
-      }
+      const { aiProvider, aiModel } = aiProviderConfig.getAIServiceConfig(userAISettings);
+      console.log(`📄 Using ${aiProvider} (${aiModel || 'default'}) for PDF analysis`);
 
       // 使用 pdf-parse 作为回退方案先提取文本
       let pdfText = '';

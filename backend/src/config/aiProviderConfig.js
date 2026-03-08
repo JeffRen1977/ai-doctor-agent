@@ -71,10 +71,21 @@ function resolveAIConfig(userSettings) {
   };
 }
 
+/**
+ * 返回与业务层兼容的 AI 配置（aiProvider / aiModel），供各 service 替换本地 getAIServiceConfig。
+ * @param {Object} [userSettings] 用户 AI 设置
+ * @returns {{ aiProvider: string, aiModel: string }}
+ */
+function getAIServiceConfig(userSettings) {
+  const { provider, model } = resolveAIConfig(userSettings);
+  return { aiProvider: provider, aiModel: model };
+}
+
 module.exports = {
   getDefaultProvider,
   getDefaultModel,
   resolveAIConfig,
+  getAIServiceConfig,
   DEFAULT_MODEL_BY_PROVIDER,
   CN_DEFAULT_PROVIDER,
   OVERSEAS_DEFAULT_PROVIDER

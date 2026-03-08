@@ -1,7 +1,7 @@
 const aiServiceFactory = require('./aiServiceFactory');
 const wearableService = require('./wearableService');
 const userSettingsService = require('./userSettingsService');
-const openaiService = require('./openaiService');
+const aiProviderConfig = require('../config/aiProviderConfig');
 const { userBasicInfoRepo, digitalTwinRepo, userWearablesRepo, healthRecordRepo } = require('../repositories');
 
 /**
@@ -248,7 +248,7 @@ class DigitalTwinService {
       
       // 2. 获取用户AI设置（优先使用OpenAI，如果可用）
       const userSettings = await userSettingsService.getUserAISettings(userEmail);
-      const { aiProvider, aiModel } = this.getAIServiceConfig(userSettings);
+      const { aiProvider, aiModel } = aiProviderConfig.getAIServiceConfig(userSettings);
       
       // 3. 构建LLM提示词
       const prompt = this.buildDigitalTwinPrompt(healthData);
@@ -349,7 +349,7 @@ class DigitalTwinService {
         if (!digitalTwin) throw new Error('Failed to build digital twin');
       }
       const userSettings = await userSettingsService.getUserAISettings(userEmail);
-      const { aiProvider, aiModel } = this.getAIServiceConfig(userSettings);
+      const { aiProvider, aiModel } = aiProviderConfig.getAIServiceConfig(userSettings);
       const prompt = this.buildSimulationPrompt(digitalTwin, scenario);
       
       // 4. 调用LLM进行模拟分析
@@ -403,7 +403,7 @@ class DigitalTwinService {
         if (!digitalTwin) throw new Error('Failed to build digital twin');
       }
       const userSettings = await userSettingsService.getUserAISettings(userEmail);
-      const { aiProvider, aiModel } = this.getAIServiceConfig(userSettings);
+      const { aiProvider, aiModel } = aiProviderConfig.getAIServiceConfig(userSettings);
       const prompt = this.buildRiskAssessmentPrompt(digitalTwin, condition, timeframe);
       
       // 4. 调用LLM进行风险评估
@@ -454,7 +454,7 @@ class DigitalTwinService {
       
       let digitalTwin = await digitalTwinRepo.getDigitalTwin(userEmail);
       const userSettings = await userSettingsService.getUserAISettings(userEmail);
-      const { aiProvider, aiModel } = this.getAIServiceConfig(userSettings);
+      const { aiProvider, aiModel } = aiProviderConfig.getAIServiceConfig(userSettings);
       
       // 4. 构建预测提示词
       const prompt = this.buildProjectionPrompt(healthData, digitalTwin, timeframe);
@@ -489,46 +489,6 @@ class DigitalTwinService {
   }
 
   // ========== AI服务配置方法 ==========
-
-  /**
-   * 获取AI服务配置
-   * 优先使用OpenAI（如果可用），否则使用用户设置，最后使用Gemini
-   * 
-   * @param {Object} userSettings 用户AI设置
-   * @returns {Object} { aiProvider, aiModel }
-   */
-  getAIServiceConfig(userSettings) {
-    // 优先检查OpenAI是否可用
-    if (openaiService.isServiceAvailable && openaiService.isServiceAvailable()) {
-      const openaiModels = openaiService.getAvailableModels ? openaiService.getAvailableModels() : ['gpt-4o', 'gpt-4-turbo'];
-      const models = Array.isArray(openaiModels) ? openaiModels : (openaiModels.all || ['gpt-4o']);
-      return {
-        aiProvider: 'openai',
-        aiModel: models[0] || 'gpt-4o'
-      };
-    }
-    
-    // 如果OpenAI不可用，使用用户设置
-    if (userSettings.success && userSettings.aiProvider) {
-      // 如果用户选择的是Gemini，使用gemini-2.5模型
-      if (userSettings.aiProvider === 'gemini') {
-        return {
-          aiProvider: 'gemini',
-          aiModel: userSettings.aiModel || 'gemini-2.5'
-        };
-      }
-      return {
-        aiProvider: userSettings.aiProvider,
-        aiModel: userSettings.aiModel || ''
-      };
-    }
-    
-    // 最后使用Gemini作为后备，使用gemini-2.5模型
-    return {
-      aiProvider: 'gemini',
-      aiModel: 'gemini-2.5'
-    };
-  }
 
   // ========== LLM提示词构建方法 ==========
 

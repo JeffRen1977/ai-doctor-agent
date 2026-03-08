@@ -5,51 +5,12 @@
 const { createReport } = require('../models/reportModels');
 const aiServiceFactory = require('./aiServiceFactory');
 const userSettingsService = require('./userSettingsService');
-const openaiService = require('./openaiService');
+const aiProviderConfig = require('../config/aiProviderConfig');
 const { userBasicInfoRepo, reportRepo } = require('../repositories');
 
 class ReportService {
   constructor() {
     console.log('📄 Report Service initialized');
-  }
-
-  /**
-   * 获取AI服务配置（优先使用OpenAI）
-   * 优先使用OpenAI（如果可用），否则使用用户设置，最后使用Gemini（gemini-2.5）
-   * @param {Object} userSettings 用户设置
-   * @returns {Object} AI服务配置 { aiProvider, aiModel }
-   */
-  getAIServiceConfig(userSettings) {
-    // 优先检查OpenAI是否可用
-    if (openaiService.isServiceAvailable && openaiService.isServiceAvailable()) {
-      const openaiModels = openaiService.getAvailableModels ? openaiService.getAvailableModels() : ['gpt-4o', 'gpt-4-turbo'];
-      const models = Array.isArray(openaiModels) ? openaiModels : (openaiModels.all || ['gpt-4o']);
-      return {
-        aiProvider: 'openai',
-        aiModel: models[0] || 'gpt-4o'
-      };
-    }
-
-    // 如果OpenAI不可用，使用用户设置
-    if (userSettings.success && userSettings.aiProvider) {
-      // 如果用户选择的是Gemini，使用gemini-2.5模型
-      if (userSettings.aiProvider === 'gemini') {
-        return {
-          aiProvider: 'gemini',
-          aiModel: userSettings.aiModel || 'gemini-2.5'
-        };
-      }
-      return {
-        aiProvider: userSettings.aiProvider,
-        aiModel: userSettings.aiModel || ''
-      };
-    }
-
-    // 最后使用Gemini作为后备，使用gemini-2.5模型
-    return {
-      aiProvider: 'gemini',
-      aiModel: 'gemini-2.5'
-    };
   }
 
   /**
@@ -67,7 +28,7 @@ class ReportService {
       
       // 获取用户AI设置
       const userSettings = await userSettingsService.getUserAISettings(userEmail);
-      const { aiProvider, aiModel } = this.getAIServiceConfig(userSettings);
+      const { aiProvider, aiModel } = aiProviderConfig.getAIServiceConfig(userSettings);
 
       // 构建报告生成提示
       const prompt = this.buildHealthAssessmentPrompt(healthRecord, options);
@@ -137,7 +98,7 @@ class ReportService {
       
       // 获取用户AI设置
       const userSettings = await userSettingsService.getUserAISettings(userEmail);
-      const { aiProvider, aiModel } = this.getAIServiceConfig(userSettings);
+      const { aiProvider, aiModel } = aiProviderConfig.getAIServiceConfig(userSettings);
 
       // 构建综合报告生成提示
       const prompt = this.buildComprehensiveReportPrompt(healthRecord, options);

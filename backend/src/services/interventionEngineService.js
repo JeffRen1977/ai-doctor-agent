@@ -2,7 +2,7 @@ const fs = require('fs');
 const aiServiceFactory = require('./aiServiceFactory');
 const userSettingsService = require('./userSettingsService');
 const wearableService = require('./wearableService');
-const openaiService = require('./openaiService');
+const aiProviderConfig = require('../config/aiProviderConfig');
 const { userBasicInfoRepo, medicationRepo, interventionRepo, exercisePlanRepo, nutritionAnalysisRepo } = require('../repositories');
 const contextBuilderService = require('./contextBuilderService');
 const {
@@ -87,7 +87,7 @@ class InterventionEngineService {
   async analyzeMedicationEffectiveness(userEmail, medication, timeframe) {
     try {
       const userSettings = await userSettingsService.getUserAISettings(userEmail);
-      const { aiProvider, aiModel } = this.getAIServiceConfig(userSettings);
+      const { aiProvider, aiModel } = aiProviderConfig.getAIServiceConfig(userSettings);
       
       const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
       const medicationsList = await medicationRepo.listActive(sanitizedEmail);
@@ -222,7 +222,7 @@ class InterventionEngineService {
   async generateExercisePlan(userEmail, healthState = {}) {
     try {
       const userSettings = await userSettingsService.getUserAISettings(userEmail);
-      const { aiProvider, aiModel } = this.getAIServiceConfig(userSettings);
+      const { aiProvider, aiModel } = aiProviderConfig.getAIServiceConfig(userSettings);
       
       const healthData = await this.getUserHealthData(userEmail);
       
@@ -261,7 +261,7 @@ class InterventionEngineService {
   async adjustIntervention(userEmail, feedback) {
     try {
       const userSettings = await userSettingsService.getUserAISettings(userEmail);
-      const { aiProvider, aiModel } = this.getAIServiceConfig(userSettings);
+      const { aiProvider, aiModel } = aiProviderConfig.getAIServiceConfig(userSettings);
       
       const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
       let currentIntervention = await interventionRepo.getIntervention(sanitizedEmail);
@@ -361,46 +361,6 @@ class InterventionEngineService {
   }
 
   // ========== Helper Methods ==========
-
-  /**
-   * 获取AI服务配置（优先使用OpenAI）
-   * 优先使用OpenAI（如果可用），否则使用用户设置，最后使用Gemini（gemini-2.5）
-   * 
-   * @param {Object} userSettings 用户AI设置
-   * @returns {Object} { aiProvider, aiModel }
-   */
-  getAIServiceConfig(userSettings) {
-    // 优先检查OpenAI是否可用
-    if (openaiService.isServiceAvailable && openaiService.isServiceAvailable()) {
-      const openaiModels = openaiService.getAvailableModels ? openaiService.getAvailableModels() : ['gpt-4o', 'gpt-4-turbo'];
-      const models = Array.isArray(openaiModels) ? openaiModels : (openaiModels.all || ['gpt-4o']);
-      return {
-        aiProvider: 'openai',
-        aiModel: models[0] || 'gpt-4o'
-      };
-    }
-    
-    // 如果OpenAI不可用，使用用户设置
-    if (userSettings.success && userSettings.aiProvider) {
-      // 如果用户选择的是Gemini，使用gemini-2.5模型
-      if (userSettings.aiProvider === 'gemini') {
-        return {
-          aiProvider: 'gemini',
-          aiModel: userSettings.aiModel || 'gemini-2.5'
-        };
-      }
-      return {
-        aiProvider: userSettings.aiProvider,
-        aiModel: userSettings.aiModel || ''
-      };
-    }
-    
-    // 最后使用Gemini作为后备，使用gemini-2.5模型
-    return {
-      aiProvider: 'gemini',
-      aiModel: 'gemini-2.5'
-    };
-  }
 
   /**
    * 计算用药依从性
