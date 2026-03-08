@@ -1,16 +1,12 @@
 const express = require('express');
 const { authenticateToken } = require('../middleware/auth');
 const digitalTwinService = require('../services/digitalTwinService');
-const { db } = require('../config/firebase');
-const { doc, getDoc } = require('firebase/firestore');
+const { digitalTwinRepo } = require('../repositories');
 
 const router = express.Router();
 
 async function getDigitalTwinDoc(userEmail) {
-  const sanitizedEmail = (userEmail || '').replace(/[^a-zA-Z0-9@._-]/g, '_');
-  const ref = doc(db, 'digitalTwins', sanitizedEmail);
-  const snap = await getDoc(ref);
-  return snap.exists() ? snap.data() : null;
+  return await digitalTwinRepo.getDigitalTwin(userEmail);
 }
 
 /**

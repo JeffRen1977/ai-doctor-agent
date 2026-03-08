@@ -19,5 +19,11 @@ module.exports = {
   rehabilitationFeedbackRepo: adapters.rehabilitationFeedbackRepo,
   conversationRepo: adapters.conversationRepo,
   reportRepo: adapters.reportRepo,
-  riskMonitoringStateRepo: adapters.riskMonitoringStateRepo
+  riskMonitoringStateRepo: adapters.riskMonitoringStateRepo,
+  appointmentRepo: adapters.appointmentRepo,
+  emergencyContactRepo: adapters.emergencyContactRepo,
+  emergencyAlertRepo: adapters.emergencyAlertRepo,
+  userSettingsRepo: adapters.userSettingsRepo,
+  userWearablesRepo: adapters.userWearablesRepo,
+  digitalTwinRepo: adapters.digitalTwinRepo
 };

@@ -1,6 +1,5 @@
 const axios = require('axios');
-const { db } = require('../config/firebase');
-const { doc, setDoc, getDoc, updateDoc } = require('firebase/firestore');
+const { userWearablesRepo } = require('../repositories');
 
 // --- IMPORTANT --- 
 // In a real app, you would store and retrieve these tokens from your database for each user.
@@ -82,29 +81,16 @@ async function exchangeFitbitCodeForToken(code, userEmail) {
  */
 async function storeUserWearableTokens(userEmail, deviceType, tokenData) {
   try {
-    const userWearablesRef = doc(db, 'userWearables', userEmail);
-    const userWearablesDoc = await getDoc(userWearablesRef);
-    
-    if (userWearablesDoc.exists()) {
-      // Update existing document
-      await updateDoc(userWearablesRef, {
-        [`${deviceType}Tokens`]: tokenData,
-        [`${deviceType}Connected`]: true,
-        [`${deviceType}LastSync`]: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      });
-    } else {
-      // Create new document
-      await setDoc(userWearablesRef, {
-        userEmail,
-        [`${deviceType}Tokens`]: tokenData,
-        [`${deviceType}Connected`]: true,
-        [`${deviceType}LastSync`]: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      });
-    }
-    
+    const existing = await userWearablesRepo.getUserWearables(userEmail);
+    const now = new Date().toISOString();
+    await userWearablesRepo.setUserWearables(userEmail, {
+      ...(existing || { userEmail }),
+      [`${deviceType}Tokens`]: tokenData,
+      [`${deviceType}Connected`]: true,
+      [`${deviceType}LastSync`]: now,
+      ...(existing ? {} : { createdAt: now }),
+      updatedAt: now
+    });
     console.log(`✅ ${deviceType} tokens stored for user:`, userEmail);
   } catch (error) {
     console.error(`❌ Error storing ${deviceType} tokens:`, error);
@@ -119,15 +105,8 @@ async function storeUserWearableTokens(userEmail, deviceType, tokenData) {
  */
 async function getUserWearableTokens(userEmail, deviceType) {
   try {
-    const userWearablesRef = doc(db, 'userWearables', userEmail);
-    const userWearablesDoc = await getDoc(userWearablesRef);
-    
-    if (!userWearablesDoc.exists()) {
-      return null;
-    }
-    
-    const data = userWearablesDoc.data();
-    return data[`${deviceType}Tokens`] || null;
+    const data = await userWearablesRepo.getUserWearables(userEmail);
+    return data?.[`${deviceType}Tokens`] || null;
   } catch (error) {
     console.error(`❌ Error getting ${deviceType} tokens:`, error);
     return null;
@@ -252,27 +231,15 @@ async function refreshFitbitToken(userEmail, refreshToken) {
  */
 async function storeWearableData(userEmail, deviceType, data) {
   try {
-    const userWearablesRef = doc(db, 'userWearables', userEmail);
-    const userWearablesDoc = await getDoc(userWearablesRef);
-    
-    if (userWearablesDoc.exists()) {
-      // Update existing document with new data
-      await updateDoc(userWearablesRef, {
-        [`${deviceType}Data`]: data,
-        [`${deviceType}LastSync`]: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      });
-    } else {
-      // Create new document
-      await setDoc(userWearablesRef, {
-        userEmail,
-        [`${deviceType}Data`]: data,
-        [`${deviceType}LastSync`]: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      });
-    }
-    
+    const existing = await userWearablesRepo.getUserWearables(userEmail);
+    const now = new Date().toISOString();
+    await userWearablesRepo.setUserWearables(userEmail, {
+      ...(existing || { userEmail }),
+      [`${deviceType}Data`]: data,
+      [`${deviceType}LastSync`]: now,
+      ...(existing ? {} : { createdAt: now }),
+      updatedAt: now
+    });
     console.log(`✅ ${deviceType} data stored for user:`, userEmail);
   } catch (error) {
     console.error(`❌ Error storing ${deviceType} data:`, error);
@@ -287,15 +254,8 @@ async function storeWearableData(userEmail, deviceType, data) {
  */
 async function getUserWearableData(userEmail, deviceType) {
   try {
-    const userWearablesRef = doc(db, 'userWearables', userEmail);
-    const userWearablesDoc = await getDoc(userWearablesRef);
-    
-    if (!userWearablesDoc.exists()) {
-      return null;
-    }
-    
-    const data = userWearablesDoc.data();
-    return data[`${deviceType}Data`] || null;
+    const data = await userWearablesRepo.getUserWearables(userEmail);
+    return data?.[`${deviceType}Data`] || null;
   } catch (error) {
     console.error(`❌ Error getting ${deviceType} data:`, error);
     return null;

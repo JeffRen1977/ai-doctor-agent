@@ -51,6 +51,39 @@ jest.mock('../adapters', () => ({
   riskMonitoringStateRepo: {
     getRiskMonitoringState: jest.fn(),
     setRiskMonitoringState: jest.fn()
+  },
+  appointmentRepo: {
+    saveAppointment: jest.fn(),
+    getAppointment: jest.fn(),
+    updateAppointment: jest.fn(),
+    deleteAppointment: jest.fn(),
+    listAppointmentsByUser: jest.fn()
+  },
+  emergencyContactRepo: {
+    saveContact: jest.fn(),
+    getContact: jest.fn(),
+    listByUser: jest.fn(),
+    updateContact: jest.fn(),
+    deleteContact: jest.fn(),
+    unsetPrimaryForUser: jest.fn()
+  },
+  emergencyAlertRepo: {
+    saveAlert: jest.fn(),
+    getAlert: jest.fn(),
+    listByUser: jest.fn(),
+    updateAlert: jest.fn()
+  },
+  userSettingsRepo: {
+    getUserSettings: jest.fn(),
+    setUserSettings: jest.fn()
+  },
+  userWearablesRepo: {
+    getUserWearables: jest.fn(),
+    setUserWearables: jest.fn()
+  },
+  digitalTwinRepo: {
+    getDigitalTwin: jest.fn(),
+    setDigitalTwin: jest.fn()
   }
 }));
 
@@ -69,7 +102,7 @@ describe('repositories/index.js facade', () => {
     expect(typeof repos.userBasicInfoRepo.getFullHealthRecord).toBe('function');
   });
 
-  test('导出 medicationRepo、vitalsDailyRepo、chatSessionRepo、interventionRepo、exercisePlanRepo、nutritionAnalysisRepo、riskAlertRepo、notificationRepo、rehabilitationRecordRepo、rehabilitationFeedbackRepo、conversationRepo、reportRepo、riskMonitoringStateRepo', () => {
+  test('导出 appointmentRepo、emergencyContactRepo、emergencyAlertRepo、userSettingsRepo、userWearablesRepo、digitalTwinRepo 及原有 repos', () => {
     const repos = require('./index');
     expect('medicationRepo' in repos).toBe(true);
     expect('vitalsDailyRepo' in repos).toBe(true);
@@ -84,6 +117,12 @@ describe('repositories/index.js facade', () => {
     expect('conversationRepo' in repos).toBe(true);
     expect('reportRepo' in repos).toBe(true);
     expect('riskMonitoringStateRepo' in repos).toBe(true);
+    expect('appointmentRepo' in repos).toBe(true);
+    expect('emergencyContactRepo' in repos).toBe(true);
+    expect('emergencyAlertRepo' in repos).toBe(true);
+    expect('userSettingsRepo' in repos).toBe(true);
+    expect('userWearablesRepo' in repos).toBe(true);
+    expect('digitalTwinRepo' in repos).toBe(true);
   });
 
   test('interventionRepo 有 getIntervention、setIntervention 方法', () => {
@@ -143,5 +182,50 @@ describe('repositories/index.js facade', () => {
     const repos = require('./index');
     expect(typeof repos.riskMonitoringStateRepo.getRiskMonitoringState).toBe('function');
     expect(typeof repos.riskMonitoringStateRepo.setRiskMonitoringState).toBe('function');
+  });
+
+  test('appointmentRepo 有 saveAppointment、getAppointment、updateAppointment、deleteAppointment、listAppointmentsByUser 方法', () => {
+    const repos = require('./index');
+    expect(typeof repos.appointmentRepo.saveAppointment).toBe('function');
+    expect(typeof repos.appointmentRepo.getAppointment).toBe('function');
+    expect(typeof repos.appointmentRepo.updateAppointment).toBe('function');
+    expect(typeof repos.appointmentRepo.deleteAppointment).toBe('function');
+    expect(typeof repos.appointmentRepo.listAppointmentsByUser).toBe('function');
+  });
+
+  test('emergencyContactRepo 有 saveContact、getContact、listByUser、updateContact、deleteContact、unsetPrimaryForUser 方法', () => {
+    const repos = require('./index');
+    expect(typeof repos.emergencyContactRepo.saveContact).toBe('function');
+    expect(typeof repos.emergencyContactRepo.getContact).toBe('function');
+    expect(typeof repos.emergencyContactRepo.listByUser).toBe('function');
+    expect(typeof repos.emergencyContactRepo.updateContact).toBe('function');
+    expect(typeof repos.emergencyContactRepo.deleteContact).toBe('function');
+    expect(typeof repos.emergencyContactRepo.unsetPrimaryForUser).toBe('function');
+  });
+
+  test('emergencyAlertRepo 有 saveAlert、getAlert、listByUser、updateAlert 方法', () => {
+    const repos = require('./index');
+    expect(typeof repos.emergencyAlertRepo.saveAlert).toBe('function');
+    expect(typeof repos.emergencyAlertRepo.getAlert).toBe('function');
+    expect(typeof repos.emergencyAlertRepo.listByUser).toBe('function');
+    expect(typeof repos.emergencyAlertRepo.updateAlert).toBe('function');
+  });
+
+  test('userSettingsRepo 有 getUserSettings、setUserSettings 方法', () => {
+    const repos = require('./index');
+    expect(typeof repos.userSettingsRepo.getUserSettings).toBe('function');
+    expect(typeof repos.userSettingsRepo.setUserSettings).toBe('function');
+  });
+
+  test('userWearablesRepo 有 getUserWearables、setUserWearables 方法', () => {
+    const repos = require('./index');
+    expect(typeof repos.userWearablesRepo.getUserWearables).toBe('function');
+    expect(typeof repos.userWearablesRepo.setUserWearables).toBe('function');
+  });
+
+  test('digitalTwinRepo 有 getDigitalTwin、setDigitalTwin 方法', () => {
+    const repos = require('./index');
+    expect(typeof repos.digitalTwinRepo.getDigitalTwin).toBe('function');
+    expect(typeof repos.digitalTwinRepo.setDigitalTwin).toBe('function');
   });
 });

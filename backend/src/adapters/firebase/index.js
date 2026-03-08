@@ -16,6 +16,12 @@ const rehabilitationFeedbackAdapter = require('./rehabilitationFeedbackAdapter')
 const conversationAdapter = require('./conversationAdapter');
 const reportAdapter = require('./reportAdapter');
 const riskMonitoringStateAdapter = require('./riskMonitoringStateAdapter');
+const appointmentAdapter = require('./appointmentAdapter');
+const emergencyContactAdapter = require('./emergencyContactAdapter');
+const emergencyAlertAdapter = require('./emergencyAlertAdapter');
+const userSettingsAdapter = require('./userSettingsAdapter');
+const userWearablesAdapter = require('./userWearablesAdapter');
+const digitalTwinAdapter = require('./digitalTwinAdapter');
 
 module.exports = {
   userBasicInfoRepo: userBasicInfoAdapter,
@@ -31,5 +37,11 @@ module.exports = {
   rehabilitationFeedbackRepo: rehabilitationFeedbackAdapter,
   conversationRepo: conversationAdapter,
   reportRepo: reportAdapter,
-  riskMonitoringStateRepo: riskMonitoringStateAdapter
+  riskMonitoringStateRepo: riskMonitoringStateAdapter,
+  appointmentRepo: appointmentAdapter,
+  emergencyContactRepo: emergencyContactAdapter,
+  emergencyAlertRepo: emergencyAlertAdapter,
+  userSettingsRepo: userSettingsAdapter,
+  userWearablesRepo: userWearablesAdapter,
+  digitalTwinRepo: digitalTwinAdapter
 };

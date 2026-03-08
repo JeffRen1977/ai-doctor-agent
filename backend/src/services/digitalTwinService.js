@@ -1,10 +1,10 @@
 const { db } = require('../config/firebase');
-const { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, orderBy, limit } = require('firebase/firestore');
+const { doc, getDoc, collection, query, where, getDocs, orderBy, limit } = require('firebase/firestore');
 const aiServiceFactory = require('./aiServiceFactory');
 const wearableService = require('./wearableService');
 const userSettingsService = require('./userSettingsService');
 const openaiService = require('./openaiService');
-const { userBasicInfoRepo } = require('../repositories');
+const { userBasicInfoRepo, digitalTwinRepo, userWearablesRepo } = require('../repositories');
 
 /**
  * 数字孪生服务
@@ -169,18 +169,10 @@ class DigitalTwinService {
             aggregatedData.currentState.wearableData.apple = appleData;
           }
         } else {
-          // 备用方案：直接从 Firestore 获取
-          const userWearablesRef = doc(db, 'userWearables', userEmail);
-          const userWearablesDoc = await getDoc(userWearablesRef);
-          
-          if (userWearablesDoc.exists()) {
-            const data = userWearablesDoc.data();
-            if (data.fitbitData) {
-              aggregatedData.currentState.wearableData.fitbit = data.fitbitData;
-            }
-            if (data.appleData) {
-              aggregatedData.currentState.wearableData.apple = data.appleData;
-            }
+          const data = await userWearablesRepo.getUserWearables(userEmail);
+          if (data) {
+            if (data.fitbitData) aggregatedData.currentState.wearableData.fitbit = data.fitbitData;
+            if (data.appleData) aggregatedData.currentState.wearableData.apple = data.appleData;
           }
         }
         
@@ -317,10 +309,7 @@ class DigitalTwinService {
         }
       };
       
-      // 7. 保存到Firestore
-      const digitalTwinRef = doc(db, 'digitalTwins', sanitizedEmail);
-      await setDoc(digitalTwinRef, digitalTwin, { merge: true });
-      
+      await digitalTwinRepo.setDigitalTwin(userEmail, digitalTwin);
       console.log('✅ Digital twin built successfully');
       return {
         success: true,
@@ -346,40 +335,23 @@ class DigitalTwinService {
   async updateDigitalTwin(userEmail, newData) {
     try {
       console.log(`🔄 Updating digital twin for user: ${userEmail}`);
-      
-      const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
-      const digitalTwinRef = doc(db, 'digitalTwins', sanitizedEmail);
-      const digitalTwinDoc = await getDoc(digitalTwinRef);
-      
-      // 如果模型不存在，先构建
-      if (!digitalTwinDoc.exists()) {
+      const currentTwin = await digitalTwinRepo.getDigitalTwin(userEmail);
+      if (!currentTwin) {
         console.log('⚠️ Digital twin not found, building new one...');
         return await this.buildDigitalTwin(userEmail);
       }
-      
-      // 合并新数据并更新版本
-      const currentTwin = digitalTwinDoc.data();
       const updatedTwin = {
         ...currentTwin,
         ...newData,
         lastUpdated: new Date(),
         version: (currentTwin.version || 1) + 1
       };
-      
-      // 保存更新
-      await updateDoc(digitalTwinRef, updatedTwin);
-      
+      await digitalTwinRepo.setDigitalTwin(userEmail, updatedTwin);
       console.log('✅ Digital twin updated successfully');
-      return {
-        success: true,
-        digitalTwin: updatedTwin
-      };
+      return { success: true, digitalTwin: updatedTwin };
     } catch (error) {
       console.error('❌ Error updating digital twin:', error);
-      return {
-        success: false,
-        error: error.message
-      };
+      return { success: false, error: error.message };
     }
   }
 
@@ -396,31 +368,15 @@ class DigitalTwinService {
       console.log(`🎮 Running simulation for user: ${userEmail}`);
       console.log('📋 Scenario:', JSON.stringify(scenario, null, 2));
       
-      // 1. 获取数字孪生模型
-      const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
-      const digitalTwinRef = doc(db, 'digitalTwins', sanitizedEmail);
-      const digitalTwinDoc = await getDoc(digitalTwinRef);
-      
-      // 如果模型不存在，先构建
-      let digitalTwin;
-      if (!digitalTwinDoc.exists()) {
+      let digitalTwin = await digitalTwinRepo.getDigitalTwin(userEmail);
+      if (!digitalTwin) {
         console.log('⚠️ Digital twin not found, building new one...');
         await this.buildDigitalTwin(userEmail);
-        // 重新获取
-        const updatedDoc = await getDoc(digitalTwinRef);
-        if (!updatedDoc.exists()) {
-          throw new Error('Failed to build digital twin');
-        }
-        digitalTwin = updatedDoc.data();
-      } else {
-        digitalTwin = digitalTwinDoc.data();
+        digitalTwin = await digitalTwinRepo.getDigitalTwin(userEmail);
+        if (!digitalTwin) throw new Error('Failed to build digital twin');
       }
-      
-      // 2. 获取用户AI设置（优先使用OpenAI，如果可用）
       const userSettings = await userSettingsService.getUserAISettings(userEmail);
       const { aiProvider, aiModel } = this.getAIServiceConfig(userSettings);
-      
-      // 3. 构建模拟提示词
       const prompt = this.buildSimulationPrompt(digitalTwin, scenario);
       
       // 4. 调用LLM进行模拟分析
@@ -466,31 +422,15 @@ class DigitalTwinService {
       console.log(`⚠️ Assessing complication risk for user: ${userEmail}`);
       console.log(`🔍 Condition: ${condition}, Timeframe: ${timeframe} months`);
       
-      // 1. 获取数字孪生模型
-      const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
-      const digitalTwinRef = doc(db, 'digitalTwins', sanitizedEmail);
-      const digitalTwinDoc = await getDoc(digitalTwinRef);
-      
-      // 如果模型不存在，先构建
-      let digitalTwin;
-      if (!digitalTwinDoc.exists()) {
+      let digitalTwin = await digitalTwinRepo.getDigitalTwin(userEmail);
+      if (!digitalTwin) {
         console.log('⚠️ Digital twin not found, building new one...');
         await this.buildDigitalTwin(userEmail);
-        // 重新获取
-        const updatedDoc = await getDoc(digitalTwinRef);
-        if (!updatedDoc.exists()) {
-          throw new Error('Failed to build digital twin');
-        }
-        digitalTwin = updatedDoc.data();
-      } else {
-        digitalTwin = digitalTwinDoc.data();
+        digitalTwin = await digitalTwinRepo.getDigitalTwin(userEmail);
+        if (!digitalTwin) throw new Error('Failed to build digital twin');
       }
-      
-      // 2. 获取用户AI设置（优先使用OpenAI，如果可用）
       const userSettings = await userSettingsService.getUserAISettings(userEmail);
       const { aiProvider, aiModel } = this.getAIServiceConfig(userSettings);
-      
-      // 3. 构建风险评估提示词
       const prompt = this.buildRiskAssessmentPrompt(digitalTwin, condition, timeframe);
       
       // 4. 调用LLM进行风险评估
@@ -539,17 +479,7 @@ class DigitalTwinService {
       // 1. 获取整合的健康数据（包含历史数据）
       const healthData = await this.aggregateUserHealthData(userEmail);
       
-      // 2. 获取数字孪生模型（如果存在）
-      const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
-      const digitalTwinRef = doc(db, 'digitalTwins', sanitizedEmail);
-      const digitalTwinDoc = await getDoc(digitalTwinRef);
-      
-      let digitalTwin = null;
-      if (digitalTwinDoc.exists()) {
-        digitalTwin = digitalTwinDoc.data();
-      }
-      
-      // 3. 获取用户AI设置（优先使用OpenAI，如果可用）
+      let digitalTwin = await digitalTwinRepo.getDigitalTwin(userEmail);
       const userSettings = await userSettingsService.getUserAISettings(userEmail);
       const { aiProvider, aiModel } = this.getAIServiceConfig(userSettings);
       

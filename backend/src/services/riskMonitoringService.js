@@ -1,3 +1,4 @@
+// wearableStreamData 读写仍直接使用 Firestore，尚未纳入 Repository 设计；状态与预警已通过 riskMonitoringStateRepo / riskAlertRepo / notificationRepo
 const { db } = require('../config/firebase');
 const { collection, query, where, orderBy, limit, addDoc, getDocs } = require('firebase/firestore');
 const aiServiceFactory = require('./aiServiceFactory');
