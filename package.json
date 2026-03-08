@@ -82,5 +82,8 @@
     "vite": "^4.1.0"
   },
   "author": "Jeffren",
-  "license": "MIT"
+  "license": "MIT",
+  "jest": {
+    "setupFiles": ["<rootDir>/jest.setup.js"]
+  }
 }

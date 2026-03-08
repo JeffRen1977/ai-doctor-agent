@@ -1,17 +1,18 @@
-const geminiService = require('./geminiService');
-const openaiService = require('./openaiService');
-const ernieService = require('./ernieService');
-const qwenService = require('./qwenService');
+const geminiService = require('./adapters/geminiService');
+const openaiService = require('./adapters/openaiService');
+const ernieService = require('./adapters/ernieService');
+const qwenService = require('./adapters/qwenService');
 
 class AIServiceFactory {
   constructor() {
-    this.services = {
+    /** 适配器注册表：按 provider 名取适配器，所有适配器实现统一接口（见 services/adapters/README.md） */
+    this.adapters = {
       gemini: geminiService,
       openai: openaiService,
       ernie: ernieService,
       qwen: qwenService
     };
-    
+
     this.availableServices = this.checkAvailableServices();
     console.log('🏭 AI Service Factory initialized');
     console.log('📋 Available services:', Object.keys(this.availableServices));
@@ -64,158 +65,137 @@ class AIServiceFactory {
   }
 
   getService(provider) {
-    if (!this.services[provider]) {
+    const adapter = this.adapters[provider];
+    if (!adapter) {
       throw new Error(`AI service provider '${provider}' not found`);
     }
-    
     if (!this.availableServices[provider]) {
       throw new Error(`AI service provider '${provider}' is not available. Please check API keys.`);
     }
-    
-    return this.services[provider];
+    return adapter;
   }
 
   async analyzeHealthRecords(healthData, options = {}) {
     const { provider = 'gemini', model, ...otherOptions } = options;
-    
+
     console.log(`🤖 Using AI provider: ${provider}`);
     console.log(`🎯 Model: ${model || 'default'}`);
-    
-    const service = this.getService(provider);
-    
-    // Add model to options if provided
+
+    const adapter = this.getService(provider);
     const serviceOptions = { ...otherOptions };
     if (model) {
       serviceOptions.model = model;
     }
-    
+
     const startTime = Date.now();
-    const result = await service.analyzeHealthRecords(healthData, serviceOptions);
+    const result = await adapter.analyzeHealthRecords(healthData, serviceOptions);
     const endTime = Date.now();
-    
-    // Add performance metrics
+
     result.processingTime = endTime - startTime;
     result.provider = provider;
     result.model = model || 'default';
-    
     return result;
   }
 
   async extractTextFromImage(base64Image, options = {}) {
     const { provider = 'gemini', model, ...otherOptions } = options;
-    
+
     console.log(`🖼️ Using AI provider for image analysis: ${provider}`);
-    
-    const service = this.getService(provider);
-    
+
+    const adapter = this.getService(provider);
     const serviceOptions = { ...otherOptions };
     if (model) {
       serviceOptions.model = model;
     }
-    
-    return await service.extractTextFromImage(base64Image, serviceOptions);
+    return await adapter.extractTextFromImage(base64Image, serviceOptions);
   }
 
   async analyzePDFDocument(base64PDF, options = {}) {
     const { provider = 'gemini', model, ...otherOptions } = options;
-    
+
     console.log(`📄 Using AI provider for PDF analysis: ${provider}`);
-    
-    const service = this.getService(provider);
-    
+
+    const adapter = this.getService(provider);
     const serviceOptions = { ...otherOptions };
     if (model) {
       serviceOptions.model = model;
     }
-    
-    return await service.analyzePDFDocument(base64PDF, serviceOptions);
+    return await adapter.analyzePDFDocument(base64PDF, serviceOptions);
   }
 
   async healthChat(message, context = '', options = {}) {
     const { provider = 'gemini', model, language = 'zh', ...otherOptions } = options;
-    
+
     console.log(`💬 Using AI provider for health chat: ${provider}, language: ${language}`);
-    
-    const service = this.getService(provider);
-    
+
+    const adapter = this.getService(provider);
     const serviceOptions = { ...otherOptions };
     if (model) {
       serviceOptions.model = model;
     }
     serviceOptions.language = language;
-    
-    return await service.healthChat(message, context, serviceOptions);
+    return await adapter.healthChat(message, context, serviceOptions);
   }
 
   async analyzeDiet(foodItems, userHealthData = {}, options = {}) {
     const { provider = 'gemini', model, ...otherOptions } = options;
-    
+
     console.log(`🍎 Using AI provider for diet analysis: ${provider}`);
-    
-    const service = this.getService(provider);
-    
+
+    const adapter = this.getService(provider);
+    if (typeof adapter.analyzeDiet !== 'function') {
+      return { success: false, error: `Provider '${provider}' does not support analyzeDiet` };
+    }
     const serviceOptions = { ...otherOptions };
     if (model) {
       serviceOptions.model = model;
     }
-    
-    return await service.analyzeDiet(foodItems, userHealthData, serviceOptions);
+    return await adapter.analyzeDiet(foodItems, userHealthData, serviceOptions);
   }
 
   async analyzeImageWithAI(base64Image, prompt, options = {}) {
     const { provider = 'gemini', model, ...otherOptions } = options;
-    
+
     console.log(`🖼️ Using AI provider for image analysis: ${provider}`);
-    
-    const service = this.getService(provider);
-    
+
+    const adapter = this.getService(provider);
     const serviceOptions = { ...otherOptions };
     if (model) {
       serviceOptions.model = model;
     }
-    
-    // Use the appropriate method name for each service
-    if (provider === 'gemini') {
-      return await service.analyzeImageWithGemini(base64Image, prompt, serviceOptions);
-    } else if (provider === 'openai') {
-      return await service.analyzeImageWithOpenAI(base64Image, prompt, serviceOptions);
-    } else if (provider === 'ernie') {
-      return await service.analyzeImageWithErnie(base64Image, prompt, serviceOptions);
-    } else if (provider === 'qwen') {
-      return await service.analyzeImageWithQwen(base64Image, prompt, serviceOptions);
-    } else {
-      throw new Error(`Unsupported provider for image analysis: ${provider}`);
-    }
+    return await adapter.analyzeImageWithAI(base64Image, prompt, serviceOptions);
   }
 
   async analyzeSymptoms(symptoms, userProfile = {}, options = {}) {
     const { provider = 'gemini', model, ...otherOptions } = options;
-    
+
     console.log(`🩺 Using AI provider for symptom analysis: ${provider}`);
-    
-    const service = this.getService(provider);
-    
+
+    const adapter = this.getService(provider);
+    if (typeof adapter.analyzeSymptoms !== 'function') {
+      return { success: false, error: `Provider '${provider}' does not support analyzeSymptoms` };
+    }
     const serviceOptions = { ...otherOptions };
     if (model) {
       serviceOptions.model = model;
     }
-    
-    return await service.analyzeSymptoms(symptoms, userProfile, serviceOptions);
+    return await adapter.analyzeSymptoms(symptoms, userProfile, serviceOptions);
   }
 
   async checkDrugInteractions(medications, options = {}) {
     const { provider = 'gemini', model, ...otherOptions } = options;
-    
+
     console.log(`💊 Using AI provider for drug interaction check: ${provider}`);
-    
-    const service = this.getService(provider);
-    
+
+    const adapter = this.getService(provider);
+    if (typeof adapter.checkDrugInteractions !== 'function') {
+      return { success: false, error: `Provider '${provider}' does not support checkDrugInteractions` };
+    }
     const serviceOptions = { ...otherOptions };
     if (model) {
       serviceOptions.model = model;
     }
-    
-    return await service.checkDrugInteractions(medications, serviceOptions);
+    return await adapter.checkDrugInteractions(medications, serviceOptions);
   }
 
   getAvailableServices() {

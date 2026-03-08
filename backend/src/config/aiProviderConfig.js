@@ -4,10 +4,6 @@
  * 见 docs/AI_PROVIDER_SWITCH_DESIGN.md 阶段 1。
  */
 
-const DEPLOYMENT_REGION = process.env.DEPLOYMENT_REGION || '';
-const DEFAULT_AI_PROVIDER_ENV = process.env.DEFAULT_AI_PROVIDER || '';
-const DEFAULT_AI_MODEL_ENV = process.env.DEFAULT_AI_MODEL || '';
-
 /** 各 provider 的默认模型（未配置 DEFAULT_AI_MODEL 时使用） */
 const DEFAULT_MODEL_BY_PROVIDER = {
   gemini: 'gemini-2.5-flash',
@@ -27,10 +23,11 @@ const OVERSEAS_DEFAULT_PROVIDER = 'gemini';
  * @returns {string}
  */
 function getDefaultProvider() {
-  if (DEFAULT_AI_PROVIDER_ENV) {
-    return DEFAULT_AI_PROVIDER_ENV;
+  const envProvider = process.env.DEFAULT_AI_PROVIDER || '';
+  if (envProvider) {
+    return envProvider;
   }
-  if (DEPLOYMENT_REGION === 'cn') {
+  if ((process.env.DEPLOYMENT_REGION || '') === 'cn') {
     return CN_DEFAULT_PROVIDER;
   }
   return OVERSEAS_DEFAULT_PROVIDER;
@@ -42,8 +39,9 @@ function getDefaultProvider() {
  * @returns {string}
  */
 function getDefaultModel(provider) {
-  if (DEFAULT_AI_MODEL_ENV) {
-    return DEFAULT_AI_MODEL_ENV;
+  const envModel = process.env.DEFAULT_AI_MODEL || '';
+  if (envModel) {
+    return envModel;
   }
   return DEFAULT_MODEL_BY_PROVIDER[provider] || '';
 }

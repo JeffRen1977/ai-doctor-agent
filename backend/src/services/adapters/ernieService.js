@@ -329,6 +329,18 @@ ${JSON.stringify(healthData, null, 2)}
   }
 
   /**
+   * 统一接口：图像+提示分析（委托给 analyzeImageWithErnie，统一返回 analysis 字段）
+   * @see backend/src/services/adapters/README.md
+   */
+  async analyzeImageWithAI(base64Image, prompt, options = {}) {
+    const out = await this.analyzeImageWithErnie(base64Image, prompt, options);
+    if (out.success && out.result != null && out.analysis == null) {
+      return { ...out, analysis: out.result };
+    }
+    return out;
+  }
+
+  /**
    * 图片分析（多模态）
    */
   async analyzeImageWithErnie(base64Image, prompt, options = {}) {

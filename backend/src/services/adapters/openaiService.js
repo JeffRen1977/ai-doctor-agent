@@ -427,6 +427,15 @@ ${pdfText.substring(0, 15000)}` // 限制长度以适应 token 限制
     }
   }
 
+  /**
+   * 统一接口：图像+提示分析（委托给 analyzeImageWithOpenAI）
+   * @see backend/src/services/adapters/README.md
+   */
+  async analyzeImageWithAI(base64Image, prompt, options = {}) {
+    const retryCount = options.retryCount ?? 0;
+    return this.analyzeImageWithOpenAI(base64Image, prompt, retryCount);
+  }
+
   async analyzeImageWithOpenAI(base64Image, prompt, retryCount = 0) {
     if (!this.isInitialized) {
       throw new Error('OpenAI service not initialized. Please check OPENAI_API_KEY.');

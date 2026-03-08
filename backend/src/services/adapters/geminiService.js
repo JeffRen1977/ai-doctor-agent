@@ -248,6 +248,15 @@ class GeminiService {
     }
   }
 
+  /**
+   * 统一接口：图像+提示分析（委托给 analyzeImageWithGemini）
+   * @see backend/src/services/adapters/README.md
+   */
+  async analyzeImageWithAI(base64Image, prompt, options = {}) {
+    const retryCount = options.retryCount ?? 0;
+    return this.analyzeImageWithGemini(base64Image, prompt, retryCount);
+  }
+
   // 图片分析（支持饮食分析）- 使用视觉模型，配额限制时 fallback 到文本模型
   async analyzeImageWithGemini(base64Image, prompt, retryCount = 0) {
     try {
