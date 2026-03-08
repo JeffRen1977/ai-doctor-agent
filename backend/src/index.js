@@ -25,35 +25,11 @@ const emergencyRoutes = require('./routes/emergency');
 const app = express();
 const PORT = process.env.PORT || 8000;
 
-// Railway-specific configuration (only log in development)
 if (process.env.NODE_ENV !== 'production') {
-  console.log("=== RAILWAY CONFIGURATION ===");
-  console.log(`PORT from env: ${process.env.PORT}`);
-  console.log(`NODE_ENV: ${process.env.NODE_ENV}`);
-  console.log(`Final PORT: ${PORT}`);
-  console.log(`Current working directory: ${process.cwd()}`);
-  console.log(`__dirname: ${__dirname}`);
-  console.log("================================");
+  app.use((req, res, next) => { console.log(`${req.method} ${req.path}`); next(); });
 }
 
-// Add request logging middleware (only in development)
-if (process.env.NODE_ENV !== 'production') {
-  app.use((req, res, next) => {
-    console.log(`🌐 ${req.method} ${req.path} - ${req.ip}`);
-    next();
-  });
-}
-
-// --- Enhanced Logging (only in development) ---
-if (process.env.NODE_ENV !== 'production') {
-  console.log("--- Starting Server ---");
-  console.log(`Node Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`Port: ${PORT}`);
-  console.log(`Current Directory: ${__dirname}`);
-}
-
-// --- Path Verification ---
-// Try multiple possible paths for frontend files
+// Frontend static paths
 const possibleDistPaths = [
   path.join(__dirname, '../dist'),             // From backend (Docker container structure)
   path.join(__dirname, '../../dist'),          // From backend/src (alternative)
@@ -71,30 +47,12 @@ for (const testPath of possibleDistPaths) {
   if (require('fs').existsSync(testPath) && require('fs').existsSync(testIndexPath)) {
     distPath = testPath;
     indexPath = testIndexPath;
-    if (process.env.NODE_ENV !== 'production') {
-      console.log(`✅ Found frontend files at: ${distPath}`);
-    }
     break;
   }
 }
-
 if (!distPath) {
-  console.error("--- CRITICAL: Frontend build files not found! ---");
-  if (process.env.NODE_ENV !== 'production') {
-    console.log("Searched paths:", possibleDistPaths);
-    // List available directories for debugging
-    try {
-      const rootContents = require('fs').readdirSync(path.join(__dirname, '../..'));
-      console.log("Root directory contents:", rootContents);
-    } catch (e) {
-      console.error("Could not read root directory:", e.message);
-    }
-  }
-} else if (process.env.NODE_ENV !== 'production') {
-  console.log(`Serving static files from: ${distPath}`);
-  console.log(`Expecting index.html at: ${indexPath}`);
+  console.error("Frontend build not found. Searched:", possibleDistPaths.map(p => path.relative(process.cwd(), p)));
 }
-// --- End Enhanced Logging ---
 
 // CORS configuration for Railway deployment
 const allowedOrigins = [
@@ -113,45 +71,18 @@ const allowedOrigins = [
   process.env.FRONTEND_URL // Custom frontend URL if set
 ].filter(Boolean);
 
-// Log allowed origins for debugging
-console.log('=== CORS Configuration ===');
-console.log('Allowed origins:', allowedOrigins);
-console.log('FRONTEND_URL from env:', process.env.FRONTEND_URL);
-console.log('==========================');
-
+const isDev = process.env.NODE_ENV !== 'production';
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) {
-      console.log('✅ Allowing request with no origin');
-      return callback(null, true);
-    }
-    
-    // Check if origin is in allowed list
+    if (!origin) return callback(null, true);
     const isAllowed = allowedOrigins.some(allowedOrigin => {
       if (allowedOrigin.includes('*')) {
-        // Handle wildcard domains
-        const domain = allowedOrigin.replace('*.', '');
-        const matches = origin.endsWith(domain);
-        if (matches) {
-          console.log(`✅ Allowed origin (wildcard): ${origin} matches ${allowedOrigin}`);
-        }
-        return matches;
+        return origin.endsWith(allowedOrigin.replace('*.', ''));
       }
-      const matches = origin === allowedOrigin;
-      if (matches) {
-        console.log(`✅ Allowed origin (exact): ${origin}`);
-      }
-      return matches;
+      return origin === allowedOrigin;
     });
-    
-    if (isAllowed) {
-      return callback(null, true);
-    }
-    
-    // Log blocked origins for debugging
-    console.log(`❌ Blocked origin: ${origin}`);
-    console.log(`   Allowed origins:`, allowedOrigins);
+    if (isAllowed) return callback(null, true);
+    if (isDev) console.warn('CORS blocked:', origin);
     return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
@@ -186,20 +117,12 @@ app.use('/api/appointments', appointmentsRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/emergency', emergencyRoutes);
 
-// Basic health check for Railway (works immediately)
 app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    message: 'Service is running',
+  res.json({
+    status: 'OK',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
-    memory: process.memoryUsage(),
-    env: process.env.NODE_ENV || 'development',
-    requestInfo: {
-      ip: req.ip,
-      userAgent: req.get('User-Agent'),
-      headers: req.headers
-    }
+    env: process.env.NODE_ENV || 'development'
   });
 });
 
@@ -495,18 +418,13 @@ if (distPath) {
         res.set('Cache-Control', 'public, max-age=3600, must-revalidate'); // 1 hour
         res.set('X-Version', Date.now().toString());
       } else {
-        // Default cache control for other files
-        res.set('Cache-Control', 'public, max-age=300, must-revalidate'); // 5 minutes
+        res.set('Cache-Control', 'public, max-age=300, must-revalidate');
         res.set('X-Version', Date.now().toString());
       }
-      
-      // Log static file requests for debugging
-      console.log(`📁 Serving static file: ${path} (${res.get('Content-Type')}) - Cache: ${res.get('Cache-Control')} - Version: ${res.get('X-Version')}`);
     }
   }));
-  console.log(`✅ Static files being served from: ${distPath}`);
 } else {
-  console.error("❌ Cannot serve static files - distPath not found");
+  console.error("Static files: distPath not found");
 }
 
 // Helper function to find main JavaScript file
@@ -561,14 +479,11 @@ app.get('/', (req, res) => {
   }
   
   if (require('fs').existsSync(indexPath)) {
-    console.log(`✅ Serving fresh index.html for root route`);
-    // Set headers to prevent caching of HTML
     res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.set('Pragma', 'no-cache');
     res.set('Expires', '0');
     res.sendFile(indexPath);
   } else {
-    console.error(`❌ index.html not found at: ${indexPath}`);
     res.status(404).json({ 
       error: 'Frontend not found', 
       path: indexPath,
@@ -583,7 +498,6 @@ app.get('/', (req, res) => {
 app.get('*', (req, res) => {
   // Skip if this is a static file request (should be handled by express.static above)
   if (req.path.startsWith('/assets/') || req.path.startsWith('/icon') || req.path.startsWith('/manifest.json') || req.path.startsWith('/sw.js')) {
-    console.log(`⚠️ Static file request caught by catch-all route: ${req.path}`);
     return res.status(404).json({ error: 'Static file not found' });
   }
   
@@ -597,14 +511,11 @@ app.get('*', (req, res) => {
   }
   
   if (require('fs').existsSync(indexPath)) {
-    console.log(`✅ Serving index.html for route: ${req.path}`);
-    // Set headers to prevent caching of HTML
     res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.set('Pragma', 'no-cache');
     res.set('Expires', '0');
     res.sendFile(indexPath);
   } else {
-    console.error(`❌ index.html not found at: ${indexPath}`);
     res.status(404).json({ 
       error: 'Frontend not found', 
       path: indexPath,
@@ -620,43 +531,10 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: '服务器内部错误' });
 });
 
-// Start server with error handling
 const server = app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 AI医生助理后端服务启动成功！`);
-  console.log(`📍 服务地址: http://0.0.0.0:${PORT}`);
-  console.log(`📍 外部访问: https://ai-doctor-agent-production.up.railway.app`);
-  console.log(`📊 健康检查: http://0.0.0.0:${PORT}/health`);
-  console.log(`🔍 环境: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔍 端口: ${PORT}`);
-  console.log(`🔍 绑定地址: 0.0.0.0`);
-  console.log(`🔍 进程ID: ${process.pid}`);
-  console.log(`🔍 工作目录: ${process.cwd()}`);
-  
-  // Test if we can actually bind to the port
-  const address = server.address();
-  console.log(`🔍 服务器绑定信息:`, address);
-  
-  // Verify the server is listening
-  if (server.listening) {
-    console.log(`✅ 服务器正在监听端口 ${PORT}`);
-  } else {
-    console.error(`❌ 服务器未在监听端口 ${PORT}`);
-  }
+  console.log(`Server listening on ${PORT} (env: ${process.env.NODE_ENV || 'development'})`);
 }).on('error', (error) => {
-  console.error(`❌ 服务器启动失败:`, error.message);
-  console.error(`❌ 错误代码:`, error.code);
-  console.error(`❌ 错误详情:`, error);
-  
-  if (error.code === 'EADDRINUSE') {
-    console.error(`❌ 端口 ${PORT} 已被占用`);
-  } else if (error.code === 'EACCES') {
-    console.error(`❌ 没有权限绑定到端口 ${PORT}`);
-  } else if (error.code === 'EINVAL') {
-    console.error(`❌ 无效的端口号: ${PORT}`);
-  } else if (error.code === 'EADDRNOTAVAIL') {
-    console.error(`❌ 地址不可用: 0.0.0.0:${PORT}`);
-  }
-  
+  console.error('Server start failed:', error.message, error.code);
   process.exit(1);
 });
 

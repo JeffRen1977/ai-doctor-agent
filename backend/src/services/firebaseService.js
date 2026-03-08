@@ -9,9 +9,7 @@ const { auth, storage } = require('../config/firebase');
 const { userRepo, userProfileRepo, personalHealthRecordRepo } = require('../repositories');
 
 class FirebaseService {
-  constructor() {
-    console.log('✅ 使用真实Firebase服务');
-  }
+  constructor() {}
 
   // 用户注册
   async registerUser(email, password, name) {
@@ -56,14 +54,16 @@ class FirebaseService {
   // 用户登录
   async loginUser(email, password) {
     try {
-      // 临时解决方案：检查是否是测试用户
-      if (email === 'jianfengren.sd@gmail.com' && password === '123456') {
+      // 仅开发环境：可通过环境变量配置测试账号（不写死密码）
+      const testEmail = process.env.TEST_USER_EMAIL;
+      const testPassword = process.env.TEST_USER_PASSWORD;
+      if (process.env.NODE_ENV !== 'production' && testEmail && testPassword && email === testEmail && password === testPassword) {
         let userData = await userRepo.getByEmail(email);
         if (!userData) {
           await userRepo.setByEmail(email, {
             uid: 'test-user-' + Date.now(),
-            email: email,
-            name: 'Jianfeng Ren',
+            email,
+            name: process.env.TEST_USER_NAME || 'Test User',
             createdAt: new Date(),
             updatedAt: new Date(),
             avatar: null,
@@ -71,19 +71,13 @@ class FirebaseService {
           });
           userData = await userRepo.getByEmail(email);
         }
-
         return {
           success: true,
-          user: {
-            id: userData.uid,
-            email: userData.email,
-            name: userData.name,
-            avatar: userData.avatar
-          }
+          user: { id: userData.uid, email: userData.email, name: userData.name, avatar: userData.avatar }
         };
       }
 
-      // 正常的Firebase认证流程
+      // Firebase 认证
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 

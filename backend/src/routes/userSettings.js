@@ -11,11 +11,7 @@ const router = express.Router();
  */
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
-    
-    console.log('🔧 Getting user settings for:', userId);
-    
-    const result = await userSettingsService.getUserSettings(userId);
+    const result = await userSettingsService.getUserSettings(req.user.id);
     
     if (result.success) {
       res.json({
@@ -46,13 +42,7 @@ router.get('/', authenticateToken, async (req, res) => {
  */
 router.put('/', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
-    const settings = req.body;
-    
-    console.log('🔧 Updating user settings for:', userId);
-    console.log('📝 Settings to update:', settings);
-    
-    const result = await userSettingsService.updateUserSettings(userId, settings);
+    const result = await userSettingsService.updateUserSettings(req.user.id, req.body);
     
     if (result.success) {
       res.json({
@@ -84,11 +74,7 @@ router.put('/', authenticateToken, async (req, res) => {
  */
 router.get('/ai', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
-    
-    console.log('🤖 Getting user AI settings for:', userId);
-    
-    const result = await userSettingsService.getUserAISettings(userId);
+    const result = await userSettingsService.getUserAISettings(req.user.id);
     
     if (result.success) {
       res.json({
@@ -123,17 +109,8 @@ router.get('/ai', authenticateToken, async (req, res) => {
  */
 router.put('/ai', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
     const { aiProvider, aiModel, language } = req.body;
-    
-    console.log('🤖 Updating user AI settings for:', userId);
-    console.log('📝 AI settings to update:', { aiProvider, aiModel, language });
-    
-    const result = await userSettingsService.updateUserAISettings(userId, {
-      aiProvider,
-      aiModel,
-      language
-    });
+    const result = await userSettingsService.updateUserAISettings(req.user.id, { aiProvider, aiModel, language });
     
     if (result.success) {
       res.json({
@@ -169,11 +146,7 @@ router.put('/ai', authenticateToken, async (req, res) => {
  */
 router.post('/reset', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
-    
-    console.log('🔄 Resetting user settings for:', userId);
-    
-    const result = await userSettingsService.resetUserSettings(userId);
+    const result = await userSettingsService.resetUserSettings(req.user.id);
     
     if (result.success) {
       res.json({

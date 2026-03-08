@@ -6,21 +6,15 @@ const { createAppointment } = require('../models/appointmentModels');
 const { appointmentRepo } = require('../repositories');
 
 class AppointmentService {
-  constructor() {
-    console.log('📅 Appointment Service initialized');
-  }
+  constructor() {}
 
   async createAppointment(userEmail, appointmentData) {
     try {
-      const appointment = createAppointment({
-        ...appointmentData,
-        userEmail: userEmail
-      });
+      const appointment = createAppointment({ ...appointmentData, userEmail });
       await appointmentRepo.saveAppointment(appointment);
-      console.log(`✅ Appointment created: ${appointment.appointmentId}`);
       return { success: true, appointment };
     } catch (error) {
-      console.error('❌ Error creating appointment:', error);
+      console.error('createAppointment:', error.message);
       return { success: false, error: error.message };
     }
   }
@@ -31,7 +25,7 @@ class AppointmentService {
       if (!appointment) return { success: false, error: 'Appointment not found' };
       return { success: true, appointment };
     } catch (error) {
-      console.error('❌ Error getting appointment:', error);
+      console.error('getAppointment:', error.message);
       return { success: false, error: error.message };
     }
   }
@@ -43,7 +37,7 @@ class AppointmentService {
       await appointmentRepo.updateAppointment(appointmentId, updates);
       return { success: true, appointmentId };
     } catch (error) {
-      console.error('❌ Error updating appointment:', error);
+      console.error('updateAppointment:', error.message);
       return { success: false, error: error.message };
     }
   }
@@ -53,7 +47,7 @@ class AppointmentService {
       await appointmentRepo.deleteAppointment(appointmentId);
       return { success: true };
     } catch (error) {
-      console.error('❌ Error deleting appointment:', error);
+      console.error('deleteAppointment:', error.message);
       return { success: false, error: error.message };
     }
   }
@@ -68,7 +62,7 @@ class AppointmentService {
       });
       return { success: true, appointments };
     } catch (error) {
-      console.error('❌ Error getting user appointments:', error);
+      console.error('getUserAppointments:', error.message);
       return { success: false, error: error.message };
     }
   }
@@ -84,7 +78,7 @@ class AppointmentService {
         limit: 10
       });
     } catch (error) {
-      console.error('❌ Error getting upcoming appointments:', error);
+      console.error('getUpcomingAppointments:', error.message);
       return { success: false, error: error.message };
     }
   }

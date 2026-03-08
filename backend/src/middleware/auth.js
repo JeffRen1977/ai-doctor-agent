@@ -6,35 +6,19 @@ const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
-  console.log('🔐 Auth middleware - Authorization header:', authHeader);
-  console.log('🔐 Auth middleware - Extracted token:', token ? `${token.substring(0, 20)}...` : 'none');
-  console.log('🔐 Auth middleware - JWT_SECRET:', process.env.JWT_SECRET ? `${process.env.JWT_SECRET.substring(0, 20)}...` : 'none');
-
   if (!token) {
     return res.status(401).json({ error: '未提供认证token' });
   }
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-    console.log('🔐 JWT解码成功:', decoded);
-    
-    // 验证用户是否存在
     const userResult = await firebaseService.getUserById(decoded.userId);
     if (!userResult.success) {
-      console.error('❌ 用户不存在:', decoded.userId);
       return res.status(401).json({ error: '用户不存在' });
     }
-
     req.user = userResult.user;
-    console.log('✅ 用户认证成功:', req.user.id, '邮箱:', req.user.email);
     next();
   } catch (error) {
-    console.error('❌ Token验证错误:', error);
-    console.error('❌ Token验证错误详情:', {
-      name: error.name,
-      message: error.message,
-      stack: error.stack
-    });
     return res.status(403).json({ error: '无效的token' });
   }
 };

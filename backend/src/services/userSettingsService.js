@@ -7,17 +7,11 @@ class UserSettingsService {
 
   async getUserSettings(userId) {
     try {
-      console.log('🔧 Getting user settings for:', userId);
       const settings = await userSettingsRepo.getUserSettings(userId);
-      if (settings) {
-        console.log('✅ User settings found:', settings);
-        return { success: true, settings };
-      }
-      const defaultSettings = this.getDefaultSettings();
-      console.log('📝 No user settings found, returning defaults:', defaultSettings);
-      return { success: true, settings: defaultSettings };
+      if (settings) return { success: true, settings };
+      return { success: true, settings: this.getDefaultSettings() };
     } catch (error) {
-      console.error('❌ Error getting user settings:', error);
+      console.error('getUserSettings:', error.message);
       return { success: false, error: error.message };
     }
   }
@@ -66,7 +60,7 @@ class UserSettingsService {
       }
       return { success: false, error: result.error };
     } catch (error) {
-      console.error('❌ Error getting user AI settings:', error);
+      console.error('getUserAISettings:', error.message);
       return { success: false, error: error.message };
     }
   }
@@ -81,18 +75,16 @@ class UserSettingsService {
         updatedAt: new Date().toISOString()
       });
     } catch (error) {
-      console.error('❌ Error updating user AI settings:', error);
+      console.error('updateUserAISettings:', error.message);
       return { success: false, error: error.message };
     }
   }
 
   async resetUserSettings(userId) {
     try {
-      console.log('🔄 Resetting user settings for:', userId);
-      const defaultSettings = this.getDefaultSettings();
-      return await this.updateUserSettings(userId, defaultSettings);
+      return await this.updateUserSettings(userId, this.getDefaultSettings());
     } catch (error) {
-      console.error('❌ Error resetting user settings:', error);
+      console.error('resetUserSettings:', error.message);
       return { success: false, error: error.message };
     }
   }
