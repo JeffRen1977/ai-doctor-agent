@@ -42,6 +42,11 @@ jest.mock('../adapters', () => ({
   },
   conversationRepo: {
     getActiveConversationsByUser: jest.fn()
+  },
+  reportRepo: {
+    saveReport: jest.fn(),
+    getReport: jest.fn(),
+    listReportsByUser: jest.fn()
   }
 }));
 
@@ -60,7 +65,7 @@ describe('repositories/index.js facade', () => {
     expect(typeof repos.userBasicInfoRepo.getFullHealthRecord).toBe('function');
   });
 
-  test('导出 medicationRepo、vitalsDailyRepo、chatSessionRepo、interventionRepo、exercisePlanRepo、nutritionAnalysisRepo、riskAlertRepo、notificationRepo、rehabilitationRecordRepo、rehabilitationFeedbackRepo、conversationRepo', () => {
+  test('导出 medicationRepo、vitalsDailyRepo、chatSessionRepo、interventionRepo、exercisePlanRepo、nutritionAnalysisRepo、riskAlertRepo、notificationRepo、rehabilitationRecordRepo、rehabilitationFeedbackRepo、conversationRepo、reportRepo', () => {
     const repos = require('./index');
     expect('medicationRepo' in repos).toBe(true);
     expect('vitalsDailyRepo' in repos).toBe(true);
@@ -73,6 +78,7 @@ describe('repositories/index.js facade', () => {
     expect('rehabilitationRecordRepo' in repos).toBe(true);
     expect('rehabilitationFeedbackRepo' in repos).toBe(true);
     expect('conversationRepo' in repos).toBe(true);
+    expect('reportRepo' in repos).toBe(true);
   });
 
   test('interventionRepo 有 getIntervention、setIntervention 方法', () => {
@@ -119,5 +125,12 @@ describe('repositories/index.js facade', () => {
   test('conversationRepo 有 getActiveConversationsByUser 方法', () => {
     const repos = require('./index');
     expect(typeof repos.conversationRepo.getActiveConversationsByUser).toBe('function');
+  });
+
+  test('reportRepo 有 saveReport、getReport、listReportsByUser 方法', () => {
+    const repos = require('./index');
+    expect(typeof repos.reportRepo.saveReport).toBe('function');
+    expect(typeof repos.reportRepo.getReport).toBe('function');
+    expect(typeof repos.reportRepo.listReportsByUser).toBe('function');
   });
 });

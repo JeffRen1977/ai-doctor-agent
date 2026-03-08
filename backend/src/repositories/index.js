@@ -17,5 +17,6 @@ module.exports = {
   notificationRepo: adapters.notificationRepo,
   rehabilitationRecordRepo: adapters.rehabilitationRecordRepo,
   rehabilitationFeedbackRepo: adapters.rehabilitationFeedbackRepo,
-  conversationRepo: adapters.conversationRepo
+  conversationRepo: adapters.conversationRepo,
+  reportRepo: adapters.reportRepo
 };

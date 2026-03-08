@@ -2,13 +2,11 @@
  * 临床报告生成服务
  */
 
-const { db } = require('../config/firebase');
-const { doc, getDoc, setDoc, collection, query, where, orderBy, limit, getDocs } = require('firebase/firestore');
 const { createReport } = require('../models/reportModels');
 const aiServiceFactory = require('./aiServiceFactory');
 const userSettingsService = require('./userSettingsService');
 const openaiService = require('./openaiService');
-const { userBasicInfoRepo } = require('../repositories');
+const { userBasicInfoRepo, reportRepo } = require('../repositories');
 
 class ReportService {
   constructor() {
@@ -109,10 +107,7 @@ class ReportService {
         }
       });
 
-      // 保存报告到Firestore
-      const reportRef = doc(collection(db, 'reports'), report.reportId);
-      await setDoc(reportRef, report);
-
+      await reportRepo.saveReport(report);
       console.log(`✅ Health assessment report generated: ${report.reportId}`);
       return {
         success: true,
@@ -182,10 +177,7 @@ class ReportService {
         }
       });
 
-      // 保存报告到Firestore
-      const reportRef = doc(collection(db, 'reports'), report.reportId);
-      await setDoc(reportRef, report);
-
+      await reportRepo.saveReport(report);
       console.log(`✅ Comprehensive report generated: ${report.reportId}`);
       return {
         success: true,
@@ -207,23 +199,14 @@ class ReportService {
    */
   async getReport(reportId) {
     try {
-      const reportRef = doc(db, 'reports', reportId);
-      const reportDoc = await getDoc(reportRef);
-
-      if (!reportDoc.exists()) {
+      const report = await reportRepo.getReport(reportId);
+      if (!report) {
         return { success: false, error: 'Report not found' };
       }
-
-      return {
-        success: true,
-        report: reportDoc.data()
-      };
+      return { success: true, report };
     } catch (error) {
       console.error('❌ Error getting report:', error);
-      return {
-        success: false,
-        error: error.message
-      };
+      return { success: false, error: error.message };
     }
   }
 
@@ -235,70 +218,14 @@ class ReportService {
    */
   async getUserReports(userEmail, filters = {}) {
     try {
-      const reportsRef = collection(db, 'reports');
-      let q = query(
-        reportsRef,
-        where('userEmail', '==', userEmail)
-      );
-
-      // 按类型过滤
-      if (filters.reportType) {
-        q = query(q, where('reportType', '==', filters.reportType));
-      }
-
-      let reports = [];
-      try {
-        // 尝试使用索引查询
-        q = query(q, orderBy('generatedAt', 'desc')); // 尝试排序
-        if (filters.limit) {
-          q = query(q, limit(filters.limit));
-        }
-        const querySnapshot = await getDocs(q);
-        reports = querySnapshot.docs.map(doc => ({
-          reportId: doc.id,
-          ...doc.data()
-        }));
-      } catch (indexError) {
-        // 如果索引不存在，使用备用方案：只使用 where 查询，然后在内存中排序和限制
-        if (indexError.code === 'failed-precondition') {
-          console.warn('⚠️ Firestore index not found for reports, using fallback query method');
-          const fallbackQuery = query(
-            reportsRef,
-            where('userEmail', '==', userEmail)
-          );
-          const fallbackSnapshot = await getDocs(fallbackQuery);
-          reports = fallbackSnapshot.docs.map(doc => ({
-            reportId: doc.id,
-            ...doc.data()
-          }));
-          
-          // 在内存中按类型过滤
-          if (filters.reportType) {
-            reports = reports.filter(r => r.reportType === filters.reportType);
-          }
-          
-          // 在内存中按时间戳排序并限制数量
-          reports.sort((a, b) => {
-            return new Date(b.generatedAt || 0) - new Date(a.generatedAt || 0);
-          });
-          if (filters.limit) {
-            reports = reports.slice(0, filters.limit);
-          }
-        } else {
-          throw indexError; // 其他错误重新抛出
-        }
-      }
-
-      return {
-        success: true,
-        reports: reports
-      };
+      const reports = await reportRepo.listReportsByUser(userEmail, {
+        limit: filters.limit,
+        reportType: filters.reportType
+      });
+      return { success: true, reports };
     } catch (error) {
       console.error('❌ Error getting user reports:', error);
-      return {
-        success: false,
-        error: error.message
-      };
+      return { success: false, error: error.message };
     }
   }
 
