@@ -11,6 +11,8 @@ const exercisePlanAdapter = require('./exercisePlanAdapter');
 const nutritionAnalysisAdapter = require('./nutritionAnalysisAdapter');
 const riskAlertAdapter = require('./riskAlertAdapter');
 const notificationAdapter = require('./notificationAdapter');
+const rehabilitationRecordAdapter = require('./rehabilitationRecordAdapter');
+const rehabilitationFeedbackAdapter = require('./rehabilitationFeedbackAdapter');
 
 module.exports = {
   userBasicInfoRepo: userBasicInfoAdapter,
@@ -21,5 +23,7 @@ module.exports = {
   exercisePlanRepo: exercisePlanAdapter,
   nutritionAnalysisRepo: nutritionAnalysisAdapter,
   riskAlertRepo: riskAlertAdapter,
-  notificationRepo: notificationAdapter
+  notificationRepo: notificationAdapter,
+  rehabilitationRecordRepo: rehabilitationRecordAdapter,
+  rehabilitationFeedbackRepo: rehabilitationFeedbackAdapter
 };

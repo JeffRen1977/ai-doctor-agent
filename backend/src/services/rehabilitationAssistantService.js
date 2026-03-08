@@ -1,11 +1,10 @@
-const { db } = require('../config/firebase');
-const { doc, getDoc, updateDoc, collection, query, where, orderBy, limit, addDoc, getDocs } = require('firebase/firestore');
 const aiServiceFactory = require('./aiServiceFactory');
 const userSettingsService = require('./userSettingsService');
 const userContextService = require('./userContextService');
 const contextBuilderService = require('./contextBuilderService');
 const openaiService = require('./openaiService');
-const { createRehabilitationRecord, validateRehabilitationRecord } = require('../models/rehabilitationModels');
+const { createRehabilitationRecord, validateRehabilitationRecord, validateFeedback } = require('../models/rehabilitationModels');
+const { rehabilitationRecordRepo, rehabilitationFeedbackRepo } = require('../repositories');
 
 /**
  * 生成式AI康复助理服务
@@ -698,11 +697,7 @@ ${healthAndChatBlock}
       if (!validation.valid) {
         console.warn('⚠️ Rehabilitation record validation warning:', validation.error);
       }
-      
-      // 保存到 Firestore
-      const recordRef = collection(db, 'rehabilitationRecords');
-      await addDoc(recordRef, validation.value || record);
-      
+      await rehabilitationRecordRepo.addRehabilitationRecord(validation.value || record);
       console.log(`✅ Saved rehabilitation record: ${record.recordId} (${type}/${subtype || 'none'})`);
     } catch (error) {
       console.error('❌ Error saving rehabilitation record:', error);
@@ -716,94 +711,17 @@ ${healthAndChatBlock}
    * @returns {Promise<Object>} 记录列表
    */
   async getRehabilitationRecords(userEmail, options = {}) {
-    // 提取选项参数（在try-catch外部，确保fallback可以访问）
-    const {
-      type = null,
-      subtype = null,
-      limitCount = 20,
-      startAfter = null
-    } = options;
-
+    const { type = null, subtype = null, limitCount = 20 } = options;
     try {
-      const recordsRef = collection(db, 'rehabilitationRecords');
-      let q = query(
-        recordsRef,
-        where('userEmail', '==', userEmail),
-        orderBy('timestamp', 'desc')
-      );
-
-      // 如果指定了类型，添加类型过滤
-      if (type) {
-        q = query(q, where('type', '==', type));
-      }
-
-      // 如果指定了子类型，添加子类型过滤（需要先有类型过滤）
-      if (subtype && type) {
-        q = query(q, where('subtype', '==', subtype));
-      }
-
-      // 添加限制
-      q = query(q, limit(limitCount));
-
-      const querySnapshot = await getDocs(q);
-      const records = [];
-
-      querySnapshot.forEach((doc) => {
-        records.push({
-          id: doc.id,
-          ...doc.data()
-        });
+      const { records, count } = await rehabilitationRecordRepo.getRehabilitationRecords(userEmail, {
+        type,
+        subtype,
+        limitCount
       });
-
-      return {
-        success: true,
-        records: records,
-        count: records.length
-      };
+      return { success: true, records, count };
     } catch (error) {
       console.error('❌ Error getting rehabilitation records:', error);
-      console.warn('⚠️ Firestore index not found, using fallback query method');
-      
-      // Fallback: 如果索引不存在，使用内存排序
-      try {
-        const recordsRef = collection(db, 'rehabilitationRecords');
-        const allSnapshot = await getDocs(recordsRef);
-        let allRecords = allSnapshot.docs
-          .map(doc => ({ id: doc.id, ...doc.data() }))
-          .filter(record => record.userEmail === userEmail);
-
-        // 应用类型和子类型过滤
-        if (type) {
-          allRecords = allRecords.filter(record => record.type === type);
-        }
-        if (subtype) {
-          allRecords = allRecords.filter(record => record.subtype === subtype);
-        }
-
-        // 排序
-        allRecords.sort((a, b) => {
-          const timeA = a.timestamp ? new Date(a.timestamp) : new Date(0);
-          const timeB = b.timestamp ? new Date(b.timestamp) : new Date(0);
-          return timeB - timeA;
-        });
-
-        // 限制数量
-        allRecords = allRecords.slice(0, limitCount);
-
-        return {
-          success: true,
-          records: allRecords,
-          count: allRecords.length
-        };
-      } catch (fallbackError) {
-        console.error('❌ Fallback query also failed:', fallbackError);
-        return {
-          success: false,
-          error: fallbackError.message,
-          records: [],
-          count: 0
-        };
-      }
+      return { success: false, error: error.message, records: [], count: 0 };
     }
   }
 
@@ -824,58 +742,25 @@ ${healthAndChatBlock}
         comments: feedback.comments || '',
         timestamp: new Date().toISOString()
       };
-
-      // 验证反馈
-      const { validateFeedback } = require('../models/rehabilitationModels');
       const validation = validateFeedback(feedbackData);
       if (!validation.valid) {
-        return {
-          success: false,
-          error: validation.error
-        };
+        return { success: false, error: validation.error };
       }
-
-      // 保存反馈
-      const feedbackRef = collection(db, 'rehabilitationFeedback');
-      await addDoc(feedbackRef, validation.value);
-
-      // 更新记录的反馈字段（可选）
+      await rehabilitationFeedbackRepo.addRehabilitationFeedback(validation.value);
       try {
-        const recordsRef = collection(db, 'rehabilitationRecords');
-        const recordsQuery = query(
-          recordsRef,
-          where('recordId', '==', recordId),
-          where('userEmail', '==', userEmail),
-          limit(1)
-        );
-        const recordsSnapshot = await getDocs(recordsQuery);
-        
-        if (!recordsSnapshot.empty) {
-          const recordDoc = recordsSnapshot.docs[0];
-          await updateDoc(recordDoc.ref, {
-            feedback: {
-              effectiveness: feedback.effectiveness,
-              helpful: feedback.helpful,
-              comments: feedback.comments,
-              timestamp: feedbackData.timestamp
-            },
-            updatedAt: new Date().toISOString()
-          });
-        }
+        await rehabilitationRecordRepo.updateRehabilitationRecordFeedback(recordId, userEmail, {
+          effectiveness: feedback.effectiveness,
+          helpful: feedback.helpful,
+          comments: feedback.comments,
+          timestamp: feedbackData.timestamp
+        });
       } catch (updateError) {
         console.warn('⚠️ Could not update record with feedback:', updateError.message);
       }
-
-      return {
-        success: true,
-        message: 'Feedback saved successfully'
-      };
+      return { success: true, message: 'Feedback saved successfully' };
     } catch (error) {
       console.error('❌ Error saving feedback:', error);
-      return {
-        success: false,
-        error: error.message
-      };
+      return { success: false, error: error.message };
     }
   }
 
