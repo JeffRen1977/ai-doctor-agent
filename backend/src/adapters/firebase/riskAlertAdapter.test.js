@@ -61,6 +61,7 @@ describe('getRecentAlertsByUser', () => {
   });
 
   test('on failed-precondition uses fallback and sorts by timestamp', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
     const ts = { toDate: () => new Date('2025-01-02T00:00:00.000Z') };
     mockGetDocs
       .mockRejectedValueOnce({ code: 'failed-precondition' })
@@ -74,6 +75,7 @@ describe('getRecentAlertsByUser', () => {
     expect(result).toHaveLength(2);
     expect(result[0].id).toBe('b1');
     expect(result[0].timestamp).toBe('2025-01-02T00:00:00.000Z');
+    warnSpy.mockRestore();
   });
 });
 

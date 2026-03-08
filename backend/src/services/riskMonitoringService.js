@@ -1,11 +1,8 @@
-// wearableStreamData 读写仍直接使用 Firestore，尚未纳入 Repository 设计；状态与预警已通过 riskMonitoringStateRepo / riskAlertRepo / notificationRepo
-const { db } = require('../config/firebase');
-const { collection, query, where, orderBy, limit, addDoc, getDocs } = require('firebase/firestore');
 const aiServiceFactory = require('./aiServiceFactory');
 const userSettingsService = require('./userSettingsService');
 const openaiService = require('./openaiService');
 const contextBuilderService = require('./contextBuilderService');
-const { riskAlertRepo, notificationRepo, riskMonitoringStateRepo } = require('../repositories');
+const { riskAlertRepo, notificationRepo, riskMonitoringStateRepo, wearableStreamDataRepo } = require('../repositories');
 const { userIdFromEmail } = require('../models/riskMonitoringState');
 
 /**
@@ -169,8 +166,7 @@ class RiskMonitoringService {
         ...(dataQuality !== 'ok' && { dataQuality })
       };
 
-      const streamRef = collection(db, 'wearableStreamData');
-      await addDoc(streamRef, dataPoint);
+      await wearableStreamDataRepo.addDataPoint(dataPoint);
 
       this.maybeTriggerAutoDetect(userEmail).catch((err) => {
         console.error('❌ Auto anomaly detect failed:', err.message);
@@ -596,50 +592,11 @@ class RiskMonitoringService {
     try {
       const cappedLimit = Math.min(Math.max(1, Number(limitCount) || 100), MAX_RECENT_DATA_POINTS_LIMIT);
       const { timeRange, deviceType } = options;
-      const fetchLimit = timeRange && TIME_RANGE_MS[timeRange] ? Math.max(cappedLimit, DEFAULT_FETCH_LIMIT_FOR_TIME_RANGE) : cappedLimit;
-
-      const streamRef = collection(db, 'wearableStreamData');
-      let dataPoints = [];
-
-      try {
-        const q = query(
-          streamRef,
-          where('userEmail', '==', userEmail),
-          orderBy('timestamp', 'desc'),
-          limit(fetchLimit)
-        );
-        const querySnapshot = await getDocs(q);
-        querySnapshot.forEach((doc) => {
-          dataPoints.push({ id: doc.id, ...doc.data() });
-        });
-        dataPoints = dataPoints.reverse();
-      } catch (indexError) {
-        if (indexError.code === 'failed-precondition') {
-          console.warn('⚠️ Firestore index not found for wearableStreamData, using fallback query method');
-          const fallbackQuery = query(streamRef, where('userEmail', '==', userEmail));
-          const querySnapshot = await getDocs(fallbackQuery);
-          querySnapshot.forEach((doc) => {
-            dataPoints.push({ id: doc.id, ...doc.data() });
-          });
-          dataPoints.sort((a, b) => {
-            const timeA = new Date(a.timestamp || 0).getTime();
-            const timeB = new Date(b.timestamp || 0).getTime();
-            return timeA - timeB;
-          });
-          dataPoints = dataPoints.slice(-fetchLimit);
-        } else {
-          throw indexError;
-        }
-      }
-
-      const since = timeRange && TIME_RANGE_MS[timeRange] ? Date.now() - TIME_RANGE_MS[timeRange] : null;
-      if (since != null) {
-        dataPoints = dataPoints.filter((p) => new Date(p.timestamp || 0).getTime() >= since);
-      }
-      if (deviceType && typeof deviceType === 'string') {
-        dataPoints = dataPoints.filter((p) => p.deviceType === deviceType);
-      }
-      return dataPoints.slice(-cappedLimit);
+      return await wearableStreamDataRepo.getRecentByUser(userEmail, {
+        limit: cappedLimit,
+        timeRange: timeRange && TIME_RANGE_MS[timeRange] ? timeRange : undefined,
+        deviceType: deviceType && typeof deviceType === 'string' ? deviceType : undefined
+      });
     } catch (error) {
       console.error('❌ Error getting recent data points:', error);
       return [];

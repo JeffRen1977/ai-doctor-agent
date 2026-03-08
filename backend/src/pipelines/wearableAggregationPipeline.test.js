@@ -2,18 +2,14 @@
  * Unit tests: WearableAggregationPipeline (colocated with source)
  */
 
-const mockGetDocs = jest.fn();
+const mockListByUserInTimeRange = jest.fn();
 const mockUpsert = jest.fn();
-jest.mock('../config/firebase', () => ({ db: {} }));
-jest.mock('firebase/firestore', () => ({
-  collection: jest.fn(() => ({ _col: 'wearableStreamData' })),
-  query: jest.fn(() => ({ _q: true })),
-  where: jest.fn(() => {}),
-  getDocs: (...args) => mockGetDocs(...args)
-}));
 jest.mock('../repositories', () => ({
   vitalsDailyRepo: {
     upsertVitalsDaily: (...args) => mockUpsert(...args)
+  },
+  wearableStreamDataRepo: {
+    listByUserInTimeRange: (...args) => mockListByUserInTimeRange(...args)
   }
 }));
 
@@ -26,7 +22,7 @@ const {
 } = require('./wearableAggregationPipeline');
 
 beforeEach(() => {
-  mockGetDocs.mockReset();
+  mockListByUserInTimeRange.mockReset();
   mockUpsert.mockReset();
 });
 
@@ -80,18 +76,17 @@ describe('buildAnomalies', () => {
 
 describe('run', () => {
   test('给定 wearableStreamData fixture，调用 upsertVitalsDaily 且 summary 正确', async () => {
-    const docs = [
-          { id: '1', data: () => ({ userEmail: 'user_1', data: { heartRate: 70, steps: 2000 }, timestamp: '2025-02-08T12:00:00.000Z' }) },
-          { id: '2', data: () => ({ userEmail: 'user_1', data: { heartRate: 90, steps: 3000 }, timestamp: '2025-02-08T14:00:00.000Z' }) }
-        ];
-    mockGetDocs.mockResolvedValue({
-      forEach: (fn) => docs.forEach((d) => fn(d))
-    });
+    const dataPoints = [
+      { id: '1', userEmail: 'user_1', data: { heartRate: 70, steps: 2000 }, timestamp: '2025-02-08T12:00:00.000Z' },
+      { id: '2', userEmail: 'user_1', data: { heartRate: 90, steps: 3000 }, timestamp: '2025-02-08T14:00:00.000Z' }
+    ];
+    mockListByUserInTimeRange.mockResolvedValue(dataPoints);
     mockUpsert.mockResolvedValue(undefined);
 
     const result = await run('user_1', '2025-02-08');
     expect(result.success).toBe(true);
     expect(result.pointsUsed).toBe(2);
+    expect(mockListByUserInTimeRange).toHaveBeenCalledTimes(1);
     expect(mockUpsert).toHaveBeenCalledTimes(1);
     const [userId, date, payload] = mockUpsert.mock.calls[0];
     expect(userId).toBe('user_1');

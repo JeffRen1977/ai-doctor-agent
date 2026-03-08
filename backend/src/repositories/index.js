@@ -25,5 +25,6 @@ module.exports = {
   emergencyAlertRepo: adapters.emergencyAlertRepo,
   userSettingsRepo: adapters.userSettingsRepo,
   userWearablesRepo: adapters.userWearablesRepo,
-  digitalTwinRepo: adapters.digitalTwinRepo
+  digitalTwinRepo: adapters.digitalTwinRepo,
+  wearableStreamDataRepo: adapters.wearableStreamDataRepo
 };

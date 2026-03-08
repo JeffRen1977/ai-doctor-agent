@@ -1,14 +1,10 @@
 /**
  * 从 wearableStreamData 按 user+date 聚合为 VitalsDaily，通过 vitalsDailyRepo 写入子集合。
- * 仅依赖 repositories 与 config/firebase，不直接写 Firestore（写通过 repo）。
+ * 仅依赖 repositories，不直接使用 Firestore。
  * 可被「写入流数据后」或定时 job 调用。
  */
 
-const { collection, query, where, getDocs } = require('firebase/firestore');
-const { db } = require('../config/firebase');
 const repositories = require('../repositories');
-
-const WEARABLE_STREAM_COLLECTION = 'wearableStreamData';
 const MAX_POINTS_PER_DAY = 2000;
 
 /**
@@ -31,16 +27,12 @@ function getDayBounds(dateStr) {
 async function fetchDataPointsForDay(userEmailOrId, date) {
   const bounds = getDayBounds(date);
   if (!bounds) return [];
-  const streamRef = collection(db, WEARABLE_STREAM_COLLECTION);
-  const q = query(streamRef, where('userEmail', '==', userEmailOrId));
-  const snap = await getDocs(q);
-  const list = [];
-  snap.forEach((d) => list.push({ id: d.id, ...d.data() }));
-  const filtered = list.filter((p) => {
-    const t = p.timestamp ? new Date(p.timestamp).getTime() : 0;
-    return t >= bounds.start && t <= bounds.end;
-  });
-  return filtered.slice(-MAX_POINTS_PER_DAY);
+  return await repositories.wearableStreamDataRepo.listByUserInTimeRange(
+    userEmailOrId,
+    bounds.start,
+    bounds.end,
+    MAX_POINTS_PER_DAY
+  );
 }
 
 /**

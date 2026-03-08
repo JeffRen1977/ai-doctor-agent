@@ -56,6 +56,7 @@ describe('getRehabilitationRecords', () => {
   });
 
   test('on failed-precondition uses fallback and filters by type', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
     mockGetDocs
       .mockRejectedValueOnce({ code: 'failed-precondition' })
       .mockResolvedValueOnce({
@@ -67,6 +68,7 @@ describe('getRehabilitationRecords', () => {
     const result = await getRehabilitationRecords('u@e.com', { type: 'qa', limitCount: 5 });
     expect(result.records).toHaveLength(1);
     expect(result.records[0].type).toBe('qa');
+    warnSpy.mockRestore();
   });
 });
 

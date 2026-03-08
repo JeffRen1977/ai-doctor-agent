@@ -35,6 +35,7 @@ describe('getActiveConversationsByUser', () => {
   });
 
   test('on failed-precondition uses fallback and sorts by updatedAt', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
     mockGetDocs
       .mockRejectedValueOnce({ code: 'failed-precondition' })
       .mockResolvedValueOnce({
@@ -47,6 +48,7 @@ describe('getActiveConversationsByUser', () => {
     expect(result).toHaveLength(2);
     expect(result[0].conversationId).toBe('b');
     expect(result[0].updatedAt).toBe('2025-01-02T00:00:00.000Z');
+    warnSpy.mockRestore();
   });
 });
 

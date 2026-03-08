@@ -84,6 +84,11 @@ jest.mock('../adapters', () => ({
   digitalTwinRepo: {
     getDigitalTwin: jest.fn(),
     setDigitalTwin: jest.fn()
+  },
+  wearableStreamDataRepo: {
+    addDataPoint: jest.fn(),
+    getRecentByUser: jest.fn(),
+    listByUserInTimeRange: jest.fn()
   }
 }));
 
@@ -123,6 +128,7 @@ describe('repositories/index.js facade', () => {
     expect('userSettingsRepo' in repos).toBe(true);
     expect('userWearablesRepo' in repos).toBe(true);
     expect('digitalTwinRepo' in repos).toBe(true);
+    expect('wearableStreamDataRepo' in repos).toBe(true);
   });
 
   test('interventionRepo 有 getIntervention、setIntervention 方法', () => {
@@ -227,5 +233,12 @@ describe('repositories/index.js facade', () => {
     const repos = require('./index');
     expect(typeof repos.digitalTwinRepo.getDigitalTwin).toBe('function');
     expect(typeof repos.digitalTwinRepo.setDigitalTwin).toBe('function');
+  });
+
+  test('wearableStreamDataRepo 有 addDataPoint、getRecentByUser、listByUserInTimeRange 方法', () => {
+    const repos = require('./index');
+    expect(typeof repos.wearableStreamDataRepo.addDataPoint).toBe('function');
+    expect(typeof repos.wearableStreamDataRepo.getRecentByUser).toBe('function');
+    expect(typeof repos.wearableStreamDataRepo.listByUserInTimeRange).toBe('function');
   });
 });

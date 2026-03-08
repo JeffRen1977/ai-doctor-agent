@@ -22,6 +22,7 @@ const emergencyAlertAdapter = require('./emergencyAlertAdapter');
 const userSettingsAdapter = require('./userSettingsAdapter');
 const userWearablesAdapter = require('./userWearablesAdapter');
 const digitalTwinAdapter = require('./digitalTwinAdapter');
+const wearableStreamDataAdapter = require('./wearableStreamDataAdapter');
 
 module.exports = {
   userBasicInfoRepo: userBasicInfoAdapter,
@@ -43,5 +44,6 @@ module.exports = {
   emergencyAlertRepo: emergencyAlertAdapter,
   userSettingsRepo: userSettingsAdapter,
   userWearablesRepo: userWearablesAdapter,
-  digitalTwinRepo: digitalTwinAdapter
+  digitalTwinRepo: digitalTwinAdapter,
+  wearableStreamDataRepo: wearableStreamDataAdapter
 };
