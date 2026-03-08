@@ -5,7 +5,7 @@ const aiServiceFactory = require('./aiServiceFactory');
 const userSettingsService = require('./userSettingsService');
 const wearableService = require('./wearableService');
 const openaiService = require('./openaiService');
-const { userBasicInfoRepo, medicationRepo, interventionRepo } = require('../repositories');
+const { userBasicInfoRepo, medicationRepo, interventionRepo, exercisePlanRepo } = require('../repositories');
 const contextBuilderService = require('./contextBuilderService');
 const {
   createInterventionCollection,
@@ -765,13 +765,10 @@ ${JSON.stringify(healthData, null, 2)}
   async saveExercisePlan(userEmail, exercisePlan) {
     try {
       const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
-      const planRef = doc(db, 'exercisePlans', sanitizedEmail);
-      await setDoc(planRef, {
+      await exercisePlanRepo.setExercisePlan(sanitizedEmail, {
         userEmail,
-        plan: exercisePlan,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      }, { merge: true });
+        plan: exercisePlan
+      });
     } catch (error) {
       console.error('❌ Error saving exercise plan:', error);
     }
@@ -785,12 +782,8 @@ ${JSON.stringify(healthData, null, 2)}
   async getExercisePlan(userEmail) {
     try {
       const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
-      const planRef = doc(db, 'exercisePlans', sanitizedEmail);
-      const planDoc = await getDoc(planRef);
-      if (planDoc.exists() && planDoc.data().plan) {
-        return { success: true, plan: planDoc.data().plan };
-      }
-      return { success: true, plan: null };
+      const plan = await exercisePlanRepo.getExercisePlan(sanitizedEmail);
+      return { success: true, plan };
     } catch (error) {
       console.error('❌ Error getting exercise plan:', error);
       return { success: false, plan: null, error: error.message };

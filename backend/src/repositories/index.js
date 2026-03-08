@@ -10,5 +10,6 @@ module.exports = {
   medicationRepo: adapters.medicationRepo,
   vitalsDailyRepo: adapters.vitalsDailyRepo,
   chatSessionRepo: adapters.chatSessionRepo,
-  interventionRepo: adapters.interventionRepo
+  interventionRepo: adapters.interventionRepo,
+  exercisePlanRepo: adapters.exercisePlanRepo
 };
