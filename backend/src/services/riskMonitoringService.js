@@ -3,7 +3,6 @@ const { doc, getDoc, setDoc, collection, query, where, orderBy, limit, addDoc, g
 const aiServiceFactory = require('./aiServiceFactory');
 const userSettingsService = require('./userSettingsService');
 const openaiService = require('./openaiService');
-const { userBasicInfoRepo, medicationRepo } = require('../repositories');
 const contextBuilderService = require('./contextBuilderService');
 
 /**
@@ -764,31 +763,6 @@ class RiskMonitoringService {
       aiProvider: 'gemini',
       aiModel: 'gemini-2.5'
     };
-  }
-
-  /**
-   * 获取用户健康数据用于分析（通过 Repository，便于今后换国内数据库）
-   */
-  async getUserHealthDataForAnalysis(userEmail) {
-    try {
-      const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
-      const basicInfo = await userBasicInfoRepo.getBasicInfo(sanitizedEmail);
-      const medications = await medicationRepo.listActive(sanitizedEmail);
-      if (!basicInfo) return null;
-      const medicationsText = medications.length
-        ? medications.map((m) => `${m.name}${m.dosage ? ' ' + m.dosage : ''}`).join('；')
-        : '';
-      return {
-        medicalHistory: basicInfo.medicalHistory || '',
-        medications: medicationsText,
-        allergies: basicInfo.allergies || '',
-        familyHistory: basicInfo.familyHistory || '',
-        basicInfo: basicInfo.basicInfo || {}
-      };
-    } catch (error) {
-      console.error('❌ Error getting user health data:', error);
-      return null;
-    }
   }
 
   /**
