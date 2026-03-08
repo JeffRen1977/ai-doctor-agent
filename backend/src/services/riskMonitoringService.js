@@ -4,7 +4,7 @@ const aiServiceFactory = require('./aiServiceFactory');
 const userSettingsService = require('./userSettingsService');
 const openaiService = require('./openaiService');
 const contextBuilderService = require('./contextBuilderService');
-const { riskAlertRepo } = require('../repositories');
+const { riskAlertRepo, notificationRepo } = require('../repositories');
 
 /**
  * 流数据推荐字段的合理范围（用于轻量校验与质量标记，不拒绝请求）
@@ -510,8 +510,7 @@ class RiskMonitoringService {
    */
   async sendNotification(userEmail, alert) {
     try {
-      const notificationsRef = collection(db, 'notifications');
-      await addDoc(notificationsRef, {
+      await notificationRepo.addNotification({
         userEmail,
         type: 'risk_alert',
         alertId: alert.id,

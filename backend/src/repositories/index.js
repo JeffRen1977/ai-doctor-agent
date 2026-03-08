@@ -13,5 +13,6 @@ module.exports = {
   interventionRepo: adapters.interventionRepo,
   exercisePlanRepo: adapters.exercisePlanRepo,
   nutritionAnalysisRepo: adapters.nutritionAnalysisRepo,
-  riskAlertRepo: adapters.riskAlertRepo
+  riskAlertRepo: adapters.riskAlertRepo,
+  notificationRepo: adapters.notificationRepo
 };
