@@ -13,6 +13,7 @@ const riskAlertAdapter = require('./riskAlertAdapter');
 const notificationAdapter = require('./notificationAdapter');
 const rehabilitationRecordAdapter = require('./rehabilitationRecordAdapter');
 const rehabilitationFeedbackAdapter = require('./rehabilitationFeedbackAdapter');
+const conversationAdapter = require('./conversationAdapter');
 
 module.exports = {
   userBasicInfoRepo: userBasicInfoAdapter,
@@ -25,5 +26,6 @@ module.exports = {
   riskAlertRepo: riskAlertAdapter,
   notificationRepo: notificationAdapter,
   rehabilitationRecordRepo: rehabilitationRecordAdapter,
-  rehabilitationFeedbackRepo: rehabilitationFeedbackAdapter
+  rehabilitationFeedbackRepo: rehabilitationFeedbackAdapter,
+  conversationRepo: conversationAdapter
 };

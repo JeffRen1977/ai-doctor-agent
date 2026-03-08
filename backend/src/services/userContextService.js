@@ -3,11 +3,9 @@
  * 提供统一的用户上下文获取服务，整合健康数据、对话历史和用户偏好
  */
 
-const { db } = require('../config/firebase');
-const { doc, getDoc, collection, query, where, orderBy, limit, getDocs } = require('firebase/firestore');
 const userSettingsService = require('./userSettingsService');
 const wearableService = require('./wearableService');
-const { userBasicInfoRepo, chatSessionRepo, riskAlertRepo } = require('../repositories');
+const { userBasicInfoRepo, chatSessionRepo, riskAlertRepo, conversationRepo } = require('../repositories');
 
 class UserContextService {
   constructor() {
@@ -140,40 +138,11 @@ class UserContextService {
         console.warn('⚠️ Error fetching chat history for context:', error.message);
       }
 
-      // 2. 获取活跃对话
+      // 2. 获取活跃对话（遗留 conversations 集合，通过 Repository）
       try {
-        const conversationsRef = collection(db, 'conversations');
-        const conversationsQuery = query(
-          conversationsRef,
-          where('userEmail', '==', userEmail),
-          orderBy('updatedAt', 'desc'),
-          limit(5)
-        );
-
-        const conversationsSnapshot = await getDocs(conversationsQuery);
-        context.activeConversations = conversationsSnapshot.docs.map(doc => ({
-          conversationId: doc.id,
-          ...doc.data()
-        }));
+        context.activeConversations = await conversationRepo.getActiveConversationsByUser(userEmail, 5);
       } catch (error) {
         console.warn('⚠️ Error fetching conversations for context:', error.message);
-        // 如果索引不存在，使用fallback方法
-        try {
-          const conversationsRef = collection(db, 'conversations');
-          const allConversationsSnapshot = await getDocs(conversationsRef);
-          const userConversations = allConversationsSnapshot.docs
-            .map(doc => ({ conversationId: doc.id, ...doc.data() }))
-            .filter(conv => conv.userEmail === userEmail)
-            .sort((a, b) => {
-              const timeA = a.updatedAt?.toDate?.() || new Date(a.updatedAt);
-              const timeB = b.updatedAt?.toDate?.() || new Date(b.updatedAt);
-              return timeB - timeA;
-            })
-            .slice(0, 5);
-          context.activeConversations = userConversations;
-        } catch (fallbackError) {
-          console.warn('⚠️ Fallback query also failed:', fallbackError.message);
-        }
       }
 
       return context;
