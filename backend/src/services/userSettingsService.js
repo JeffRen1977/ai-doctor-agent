@@ -1,4 +1,5 @@
 const { userSettingsRepo } = require('../repositories');
+const aiProviderConfig = require('../config/aiProviderConfig');
 
 class UserSettingsService {
   constructor() {
@@ -36,7 +37,7 @@ class UserSettingsService {
 
   getDefaultSettings() {
     return {
-      aiProvider: 'gemini',
+      aiProvider: aiProviderConfig.getDefaultProvider(),
       aiModel: '',
       language: 'zh',
       theme: 'light',
@@ -53,7 +54,7 @@ class UserSettingsService {
       if (result.success) {
         return {
           success: true,
-          aiProvider: result.settings.aiProvider || 'gemini',
+          aiProvider: result.settings.aiProvider || aiProviderConfig.getDefaultProvider(),
           aiModel: result.settings.aiModel || '',
           language: result.settings.language || 'zh'
         };
@@ -69,7 +70,7 @@ class UserSettingsService {
     try {
       const { aiProvider, aiModel, language } = aiSettings;
       return await this.updateUserSettings(userId, {
-        aiProvider: aiProvider || 'gemini',
+        aiProvider: aiProvider || aiProviderConfig.getDefaultProvider(),
         aiModel: aiModel || '',
         language: language || 'zh',
         updatedAt: new Date().toISOString()

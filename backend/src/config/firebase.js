@@ -49,17 +49,24 @@ if (missingVars.length > 0 && !serviceAccount) {
 // Firebase配置 - 优先使用服务账号文件，否则使用环境变量
 let firebaseConfig;
 if (serviceAccount) {
-  // 使用服务账号文件中的信息
-  // 优先使用环境变量中的 storageBucket，否则使用默认格式
   const storageBucket = process.env.FIREBASE_STORAGE_BUCKET || `${serviceAccount.project_id}.firebasestorage.app`;
-  
+  const rawKey = (process.env.FIREBASE_API_KEY || '').trim();
+  const apiKey = rawKey.replace(/^["']|["']$/g, ''); // strip surrounding quotes from .env
+  if (!apiKey || apiKey === 'AIzaSyDummyKey') {
+    console.error('❌ Firebase Auth 需要有效的 Web API Key。');
+    console.error('   请在 backend/.env 中设置 FIREBASE_API_KEY（从 Firebase 控制台 → 项目设置 → 常规 → 您的应用 → Web API Key）');
+    process.exit(1);
+  }
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('Firebase: FIREBASE_API_KEY loaded, length:', apiKey.length, 'starts with AIzaSy:', apiKey.startsWith('AIzaSy'));
+  }
   firebaseConfig = {
-    apiKey: process.env.FIREBASE_API_KEY || "AIzaSyDummyKey", // 需要从Firebase控制台获取Web API Key
+    apiKey,
     authDomain: `${serviceAccount.project_id}.firebaseapp.com`,
     projectId: serviceAccount.project_id,
-    storageBucket: storageBucket,
+    storageBucket,
     messagingSenderId: serviceAccount.client_id,
-    appId: process.env.FIREBASE_APP_ID || "1:103828834479878192658:web:dummy" // 需要从Firebase控制台获取
+    appId: process.env.FIREBASE_APP_ID || "1:103828834479878192658:web:dummy"
   };
 } else {
   // 使用环境变量
@@ -82,8 +89,12 @@ if (serviceAccount) {
     storageBucket = `${projectId}.firebasestorage.app`;
   }
   
+  const envApiKey = (process.env.FIREBASE_API_KEY || '').trim().replace(/^["']|["']$/g, '');
+  if (process.env.NODE_ENV !== 'production' && envApiKey) {
+    console.log('Firebase: FIREBASE_API_KEY loaded, length:', envApiKey.length, 'starts with AIzaSy:', envApiKey.startsWith('AIzaSy'));
+  }
   firebaseConfig = {
-    apiKey: process.env.FIREBASE_API_KEY,
+    apiKey: envApiKey,
     authDomain: process.env.FIREBASE_AUTH_DOMAIN,
     projectId: process.env.FIREBASE_PROJECT_ID,
     storageBucket: storageBucket,

@@ -9,16 +9,15 @@ class GeminiService {
       // 初始化Gemini AI
       this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
       
-      // 文本任务使用flash模型（更快、更经济）
-      this.textModel = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-      
-      // 图片任务使用 gemini-2.5-flash（支持视觉；2.0-flash 已对新用户不可用）
-      this.imageModel = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-      
+      // 默认统一使用 gemini-2.5-flash；各方法可接收 options.model 覆盖
+      const defaultModel = 'gemini-2.5-flash';
+      this.textModel = this.genAI.getGenerativeModel({ model: defaultModel });
+      this.imageModel = this.genAI.getGenerativeModel({ model: defaultModel });
+      this.defaultModel = defaultModel;
+
       this.isInitialized = true;
       console.log('✅ Gemini AI 服务初始化成功');
-      console.log('📝 文本模型: gemini-1.5-flash');
-      console.log('🖼️  图片模型: gemini-2.5-flash');
+      console.log('📝 默认模型: gemini-2.5-flash');
     } catch (error) {
       console.error('❌ Gemini AI 服务初始化失败:', error);
       this.isInitialized = false;
@@ -78,8 +77,7 @@ class GeminiService {
     try {
       console.log('📄 Analyzing PDF document with Gemini Vision...');
       
-      // 尝试使用 gemini-1.5-flash 模型（支持更多格式）
-      const modelToUse = options.model || 'gemini-1.5-flash';
+      const modelToUse = options.model || this.defaultModel || 'gemini-2.5-flash';
       const pdfModel = this.genAI.getGenerativeModel({ model: modelToUse });
       
       const prompt = `
@@ -284,9 +282,9 @@ class GeminiService {
           modelUsed: 'gemini-2.5-flash'
         };
       } catch (imageError) {
-        // 配额限制时 fallback 到文本模型 (gemini-1.5-flash)
+        // 配额限制时 fallback 到默认文本模型 (gemini-2.5-flash)
         if (imageError.status === 429 || imageError.message.includes('quota') || imageError.message.includes('Too Many Requests')) {
-          console.log('⚠️  视觉模型配额限制，fallback 到文本模型');
+          console.log('⚠️  视觉模型配额限制，fallback 到默认文本模型');
 
           try {
             const result = await this.textModel.generateContent([prompt, imageData]);
@@ -298,7 +296,7 @@ class GeminiService {
               success: true,
               analysis: response.text(),
               recognizedFoods: [],
-              modelUsed: 'gemini-1.5-flash (fallback)'
+              modelUsed: (this.defaultModel || 'gemini-2.5-flash') + ' (fallback)'
             };
           } catch (textError) {
             console.error('❌ 文本模型也失败:', textError.message);
@@ -324,9 +322,11 @@ class GeminiService {
     }
   }
 
-  // 健康记录分析
-  async analyzeHealthRecords(healthData) {
+  // 健康记录分析（使用传入的 options.model，否则 gemini-2.5-flash）
+  async analyzeHealthRecords(healthData, options = {}) {
     try {
+      const modelName = options.model || this.defaultModel || 'gemini-2.5-flash';
+      const model = this.genAI.getGenerativeModel({ model: modelName });
       const prompt = `
             你是一个专业的AI医生助理，请分析以下健康记录数据。
 
@@ -342,7 +342,7 @@ class GeminiService {
             请用中文回答，保持专业和详细。
             `;
 
-      const result = await this.textModel.generateContent(prompt);
+      const result = await model.generateContent(prompt);
       const response = await result.response;
       return {
         success: true,
@@ -428,9 +428,9 @@ class GeminiService {
 
   getAvailableModels() {
     return {
-      text: ['gemini-1.5-flash', 'gemini-2.5-flash'],
+      text: ['gemini-2.5-flash'],
       vision: ['gemini-2.5-flash'],
-      all: ['gemini-1.5-flash', 'gemini-2.5-flash']
+      all: ['gemini-2.5-flash']
     };
   }
 
