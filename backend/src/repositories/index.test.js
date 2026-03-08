@@ -41,7 +41,12 @@ jest.mock('../adapters', () => ({
     addRehabilitationFeedback: jest.fn()
   },
   conversationRepo: {
-    getActiveConversationsByUser: jest.fn()
+    getActiveConversationsByUser: jest.fn(),
+    saveConversation: jest.fn(),
+    getConversation: jest.fn(),
+    listByUser: jest.fn(),
+    updateConversation: jest.fn(),
+    deleteConversation: jest.fn()
   },
   reportRepo: {
     saveReport: jest.fn(),
@@ -89,6 +94,13 @@ jest.mock('../adapters', () => ({
     addDataPoint: jest.fn(),
     getRecentByUser: jest.fn(),
     listByUserInTimeRange: jest.fn()
+  },
+  chatHistoryRepo: {
+    addDocument: jest.fn(),
+    getDocument: jest.fn(),
+    listAll: jest.fn(),
+    getByUser: jest.fn(),
+    setByUser: jest.fn()
   }
 }));
 
@@ -129,6 +141,7 @@ describe('repositories/index.js facade', () => {
     expect('userWearablesRepo' in repos).toBe(true);
     expect('digitalTwinRepo' in repos).toBe(true);
     expect('wearableStreamDataRepo' in repos).toBe(true);
+    expect('chatHistoryRepo' in repos).toBe(true);
   });
 
   test('interventionRepo 有 getIntervention、setIntervention 方法', () => {
@@ -172,9 +185,14 @@ describe('repositories/index.js facade', () => {
     expect(typeof repos.rehabilitationFeedbackRepo.addRehabilitationFeedback).toBe('function');
   });
 
-  test('conversationRepo 有 getActiveConversationsByUser 方法', () => {
+  test('conversationRepo 有 getActiveConversationsByUser、saveConversation、getConversation、listByUser、updateConversation、deleteConversation 方法', () => {
     const repos = require('./index');
     expect(typeof repos.conversationRepo.getActiveConversationsByUser).toBe('function');
+    expect(typeof repos.conversationRepo.saveConversation).toBe('function');
+    expect(typeof repos.conversationRepo.getConversation).toBe('function');
+    expect(typeof repos.conversationRepo.listByUser).toBe('function');
+    expect(typeof repos.conversationRepo.updateConversation).toBe('function');
+    expect(typeof repos.conversationRepo.deleteConversation).toBe('function');
   });
 
   test('reportRepo 有 saveReport、getReport、listReportsByUser 方法', () => {
@@ -240,5 +258,14 @@ describe('repositories/index.js facade', () => {
     expect(typeof repos.wearableStreamDataRepo.addDataPoint).toBe('function');
     expect(typeof repos.wearableStreamDataRepo.getRecentByUser).toBe('function');
     expect(typeof repos.wearableStreamDataRepo.listByUserInTimeRange).toBe('function');
+  });
+
+  test('chatHistoryRepo 有 addDocument、getDocument、listAll、getByUser、setByUser 方法', () => {
+    const repos = require('./index');
+    expect(typeof repos.chatHistoryRepo.addDocument).toBe('function');
+    expect(typeof repos.chatHistoryRepo.getDocument).toBe('function');
+    expect(typeof repos.chatHistoryRepo.listAll).toBe('function');
+    expect(typeof repos.chatHistoryRepo.getByUser).toBe('function');
+    expect(typeof repos.chatHistoryRepo.setByUser).toBe('function');
   });
 });

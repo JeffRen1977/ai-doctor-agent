@@ -1,10 +1,15 @@
 /**
- * Repository 接口契约：Conversation（遗留对话，只读）
+ * Repository 接口契约：Conversation（对话）
  * 实际实现由 Adapter 提供（见 adapters/firebase/conversationAdapter.js）。
- * 对应旧版 conversations 集合；若弃用可返回 []。
+ * conversations 集合：getActiveConversationsByUser 供 userContextService；其余供 conversationService。
  *
  * @interface
- * getActiveConversationsByUser(userEmail: string, limit: number) => Promise<Conversation[]>
+ * getActiveConversationsByUser(userEmail, limit) => Promise<Conversation[]>
+ * saveConversation(conversation) => Promise<void>
+ * getConversation(conversationId) => Promise<Object | null>
+ * listByUser(userEmail, limit?) => Promise<Array>
+ * updateConversation(conversationId, updates) => Promise<void>
+ * deleteConversation(conversationId) => Promise<void>
  */
 
 function notImplemented() {
@@ -12,5 +17,10 @@ function notImplemented() {
 }
 
 module.exports = {
-  getActiveConversationsByUser: () => notImplemented()
+  getActiveConversationsByUser: () => notImplemented(),
+  saveConversation: () => notImplemented(),
+  getConversation: () => notImplemented(),
+  listByUser: () => notImplemented(),
+  updateConversation: () => notImplemented(),
+  deleteConversation: () => notImplemented()
 };

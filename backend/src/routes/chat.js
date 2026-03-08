@@ -3,9 +3,7 @@ const Joi = require('joi');
 const aiServiceFactory = require('../services/aiServiceFactory');
 const userSettingsService = require('../services/userSettingsService');
 const { authenticateToken, optionalAuth } = require('../middleware/auth');
-const { doc, setDoc, getDoc, collection, getDocs } = require('firebase/firestore');
-const { db } = require('../config/firebase');
-const { chatSessionRepo } = require('../repositories');
+const { chatSessionRepo, chatHistoryRepo } = require('../repositories');
 const contextBuilderService = require('../services/contextBuilderService');
 
 const router = express.Router();
@@ -196,32 +194,26 @@ router.delete('/history', authenticateToken, async (req, res) => {
   }
 });
 
-// 测试Firestore连接和权限
+// 测试存储连接和权限（通过 chatHistoryRepo）
 router.get('/test', authenticateToken, async (req, res) => {
   try {
     const userEmail = req.user.email;
-    console.log('🔍 测试Firestore连接，用户邮箱:', userEmail);
-    
-    // 尝试创建一个测试文档到chatHistory集合
-    const testRef = doc(collection(db, 'chatHistory'));
-    await setDoc(testRef, {
+    console.log('🔍 测试存储连接，用户邮箱:', userEmail);
+    const { id } = await chatHistoryRepo.addDocument({
       userEmail,
       test: true,
-      timestamp: new Date(),
+      timestamp: new Date().toISOString(),
       testType: 'connection-test'
     });
-    
-    // 尝试读取测试文档
-    const testDoc = await getDoc(testRef);
-    
-    if (testDoc.exists()) {
-      console.log('✅ Firestore连接测试成功');
+    const testDoc = await chatHistoryRepo.getDocument(id);
+    if (testDoc) {
+      console.log('✅ 存储连接测试成功');
       res.json({ message: 'Firestore连接测试成功', userEmail });
     } else {
       res.status(500).json({ error: 'Firestore连接测试失败' });
     }
   } catch (error) {
-    console.error('❌ Firestore连接测试错误:', error);
+    console.error('❌ 存储连接测试错误:', error);
     res.status(500).json({ error: 'Firestore连接测试失败', details: error.message });
   }
 });
@@ -282,38 +274,23 @@ router.get('/stats', authenticateToken, async (req, res) => {
 // 获取所有用户的聊天历史（管理员功能）
 router.get('/admin/all-users', authenticateToken, async (req, res) => {
   try {
-    // 这里可以添加管理员权限检查
-    // if (!req.user.isAdmin) {
-    //   return res.status(403).json({ error: '需要管理员权限' });
-    // }
-    
     console.log('🔍 管理员获取所有用户聊天历史');
-    
-    // 从chatHistory集合获取所有用户信息
-    const chatHistoryCollection = collection(db, 'chatHistory');
-    const chatHistorySnapshot = await getDocs(chatHistoryCollection);
-    
-    const allUsers = chatHistorySnapshot.docs.map(doc => {
-      const data = doc.data();
+    const docs = await chatHistoryRepo.listAll();
+    const allUsers = docs.map((data) => {
+      const lastMsg = data.messages && data.messages.length > 0 ? data.messages[data.messages.length - 1] : null;
       return {
-        email: doc.id,
+        email: data.id,
         messageCount: data.messages ? data.messages.length : 0,
-        lastActivity: data.messages && data.messages.length > 0 ? 
-          data.messages[data.messages.length - 1].timestamp : null,
+        lastActivity: lastMsg ? (lastMsg.timestamp || null) : null,
         createdAt: data.createdAt,
         updatedAt: data.updatedAt
       };
     });
-    
-    // 按最后活动时间排序
     allUsers.sort((a, b) => {
       if (!a.lastActivity) return 1;
       if (!b.lastActivity) return -1;
-      const timeA = a.lastActivity.toDate ? a.lastActivity.toDate() : new Date(a.lastActivity);
-      const timeB = b.lastActivity.toDate ? b.lastActivity.toDate() : new Date(b.lastActivity);
-      return timeB - timeA;
+      return new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime();
     });
-    
     res.json(allUsers);
   } catch (error) {
     console.error('❌ 获取所有用户聊天历史错误:', error);
@@ -321,29 +298,21 @@ router.get('/admin/all-users', authenticateToken, async (req, res) => {
   }
 });
 
-// 删除特定用户的聊天历史（管理员功能）
+// 删除特定用户的聊天历史（管理员功能，清空消息并标记删除）
 router.delete('/admin/user/:email', authenticateToken, async (req, res) => {
   try {
     const { email } = req.params;
-    // 这里可以添加管理员权限检查
-    // if (!req.user.isAdmin) {
-    //   return res.status(403).json({ error: '需要管理员权限' });
-    // }
-    
     console.log('🗑️  管理员删除用户聊天历史:', email);
-    
-    // 删除用户的聊天历史文档
-    const chatHistoryDocRef = doc(db, 'chatHistory', email);
-    await setDoc(chatHistoryDocRef, {
+    const now = new Date().toISOString();
+    await chatHistoryRepo.setByUser(email, {
       userEmail: email,
       messages: [],
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: now,
+      updatedAt: now,
       totalMessages: 0,
-      deletedAt: new Date(),
+      deletedAt: now,
       deletedBy: req.user.email
     });
-    
     res.json({ message: `用户 ${email} 的聊天历史已删除` });
   } catch (error) {
     console.error('❌ 删除用户聊天历史错误:', error);
