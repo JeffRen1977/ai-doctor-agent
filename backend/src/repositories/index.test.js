@@ -20,6 +20,9 @@ jest.mock('../adapters', () => ({
   exercisePlanRepo: {
     getExercisePlan: jest.fn(),
     setExercisePlan: jest.fn()
+  },
+  nutritionAnalysisRepo: {
+    addNutritionAnalysis: jest.fn()
   }
 }));
 
@@ -38,13 +41,14 @@ describe('repositories/index.js facade', () => {
     expect(typeof repos.userBasicInfoRepo.getFullHealthRecord).toBe('function');
   });
 
-  test('导出 medicationRepo、vitalsDailyRepo、chatSessionRepo、interventionRepo、exercisePlanRepo', () => {
+  test('导出 medicationRepo、vitalsDailyRepo、chatSessionRepo、interventionRepo、exercisePlanRepo、nutritionAnalysisRepo', () => {
     const repos = require('./index');
     expect('medicationRepo' in repos).toBe(true);
     expect('vitalsDailyRepo' in repos).toBe(true);
     expect('chatSessionRepo' in repos).toBe(true);
     expect('interventionRepo' in repos).toBe(true);
     expect('exercisePlanRepo' in repos).toBe(true);
+    expect('nutritionAnalysisRepo' in repos).toBe(true);
   });
 
   test('interventionRepo 有 getIntervention、setIntervention 方法', () => {
@@ -57,5 +61,10 @@ describe('repositories/index.js facade', () => {
     const repos = require('./index');
     expect(typeof repos.exercisePlanRepo.getExercisePlan).toBe('function');
     expect(typeof repos.exercisePlanRepo.setExercisePlan).toBe('function');
+  });
+
+  test('nutritionAnalysisRepo 有 addNutritionAnalysis 方法', () => {
+    const repos = require('./index');
+    expect(typeof repos.nutritionAnalysisRepo.addNutritionAnalysis).toBe('function');
   });
 });

@@ -1,11 +1,9 @@
-const { db } = require('../config/firebase');
-const { doc, getDoc, setDoc, collection, addDoc } = require('firebase/firestore');
 const fs = require('fs');
 const aiServiceFactory = require('./aiServiceFactory');
 const userSettingsService = require('./userSettingsService');
 const wearableService = require('./wearableService');
 const openaiService = require('./openaiService');
-const { userBasicInfoRepo, medicationRepo, interventionRepo, exercisePlanRepo } = require('../repositories');
+const { userBasicInfoRepo, medicationRepo, interventionRepo, exercisePlanRepo, nutritionAnalysisRepo } = require('../repositories');
 const contextBuilderService = require('./contextBuilderService');
 const {
   createInterventionCollection,
@@ -305,11 +303,7 @@ class InterventionEngineService {
         console.warn('⚠️ Failed to load medications for adjustment:', e.message);
       }
       try {
-        const planRef = doc(db, 'exercisePlans', sanitizedEmail);
-        const planDoc = await getDoc(planRef);
-        if (planDoc.exists() && planDoc.data().plan) {
-          currentExercisePlan = planDoc.data().plan;
-        }
+        currentExercisePlan = await exercisePlanRepo.getExercisePlan(sanitizedEmail);
       } catch (e) {
         console.warn('⚠️ Failed to load exercise plan for adjustment:', e.message);
       }
@@ -747,8 +741,7 @@ ${JSON.stringify(healthData, null, 2)}
    */
   async saveNutritionAnalysis(userEmail, nutritionAnalysis, instantFeedback) {
     try {
-      const analysisRef = collection(db, 'nutritionAnalyses');
-      await addDoc(analysisRef, {
+      await nutritionAnalysisRepo.addNutritionAnalysis({
         userEmail,
         nutrition: nutritionAnalysis,
         feedback: instantFeedback,

@@ -8,6 +8,7 @@ const vitalsDailyAdapter = require('./vitalsDailyAdapter');
 const chatSessionAdapter = require('./chatSessionAdapter');
 const interventionAdapter = require('./interventionAdapter');
 const exercisePlanAdapter = require('./exercisePlanAdapter');
+const nutritionAnalysisAdapter = require('./nutritionAnalysisAdapter');
 
 module.exports = {
   userBasicInfoRepo: userBasicInfoAdapter,
@@ -15,5 +16,6 @@ module.exports = {
   vitalsDailyRepo: vitalsDailyAdapter,
   chatSessionRepo: chatSessionAdapter,
   interventionRepo: interventionAdapter,
-  exercisePlanRepo: exercisePlanAdapter
+  exercisePlanRepo: exercisePlanAdapter,
+  nutritionAnalysisRepo: nutritionAnalysisAdapter
 };

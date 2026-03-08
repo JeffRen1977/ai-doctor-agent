@@ -11,5 +11,6 @@ module.exports = {
   vitalsDailyRepo: adapters.vitalsDailyRepo,
   chatSessionRepo: adapters.chatSessionRepo,
   interventionRepo: adapters.interventionRepo,
-  exercisePlanRepo: adapters.exercisePlanRepo
+  exercisePlanRepo: adapters.exercisePlanRepo,
+  nutritionAnalysisRepo: adapters.nutritionAnalysisRepo
 };
