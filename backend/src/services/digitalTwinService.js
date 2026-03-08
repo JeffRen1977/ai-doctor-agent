@@ -1,5 +1,3 @@
-const { db } = require('../config/firebase');
-const { doc, getDoc, collection, query, where, getDocs, orderBy, limit } = require('firebase/firestore');
 const aiServiceFactory = require('./aiServiceFactory');
 const wearableService = require('./wearableService');
 const userSettingsService = require('./userSettingsService');
@@ -178,21 +176,8 @@ class DigitalTwinService {
         
         // 2.2 获取可穿戴设备历史数据
         try {
-          const wearableHistoryRef = collection(db, 'userWearables');
-          const wearableHistoryQuery = query(
-            wearableHistoryRef,
-            where('userEmail', '==', userEmail),
-            orderBy('lastSync', 'desc'),
-            limit(30) // 最近30次同步
-          );
-          const wearableHistorySnapshot = await getDocs(wearableHistoryQuery);
-          aggregatedData.historicalData.wearableHistory = wearableHistorySnapshot.docs.map(doc => ({
-            id: doc.id,
-            timestamp: doc.data().lastSync,
-            ...doc.data()
-          }));
+          aggregatedData.historicalData.wearableHistory = await userWearablesRepo.listHistoryByUser(userEmail, { limit: 30 });
         } catch (historyError) {
-          // 如果查询失败（可能是缺少索引），静默失败，不影响主流程
           if (historyError.code !== 'failed-precondition') {
             console.warn('⚠️ Could not fetch wearable history:', historyError.message);
           }

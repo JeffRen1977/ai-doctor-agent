@@ -11,15 +11,7 @@ const {
   signOut,
   updateProfile
 } = require('firebase/auth');
-const {
-  doc,
-  updateDoc,
-  collection,
-  query,
-  where,
-  getDocs
-} = require('firebase/firestore');
-const { auth, db, storage } = require('../config/firebase');
+const { auth, storage } = require('../config/firebase');
 const { userRepo, userProfileRepo, personalHealthRecordRepo } = require('../repositories');
 
 class FirebaseService {
@@ -134,19 +126,13 @@ class FirebaseService {
   // 获取用户信息
   async getUserById(uid) {
     try {
-      // 首先通过uid查找用户的电子邮件
-      const usersRef = collection(db, 'users');
-      const q = query(usersRef, where('uid', '==', uid));
-      const querySnapshot = await getDocs(q);
-      
-      if (querySnapshot.empty) {
+      const userData = await userRepo.getByUid(uid);
+      if (!userData) {
         return {
           success: false,
           error: '用户不存在'
         };
       }
-
-      const userData = querySnapshot.docs[0].data();
       return {
         success: true,
         user: {
@@ -198,24 +184,18 @@ class FirebaseService {
   // 更新用户信息
   async updateUser(uid, updates) {
     try {
-      // 首先通过uid查找用户的电子邮件
-      const usersRef = collection(db, 'users');
-      const q = query(usersRef, where('uid', '==', uid));
-      const querySnapshot = await getDocs(q);
-      
-      if (querySnapshot.empty) {
+      const userData = await userRepo.getByUid(uid);
+      if (!userData) {
         return {
           success: false,
           error: '用户不存在'
         };
       }
-
-      const userEmail = querySnapshot.docs[0].data().email;
+      const userEmail = userData.email;
       await userRepo.updateByEmail(userEmail, {
         ...updates,
         updatedAt: new Date()
       });
-
       return {
         success: true,
         message: '用户信息更新成功'

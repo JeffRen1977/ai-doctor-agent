@@ -5,6 +5,7 @@
  * @interface
  * getUserWearables(userId) => Promise<Object | null>
  * setUserWearables(userId, data) => Promise<void>   // merge 语义
+ * listHistoryByUser(userEmail, options?) => Promise<Array<{ id, timestamp, ... }>>  // 按 userEmail 查历史，orderBy lastSync desc
  */
 
 function notImplemented() {
@@ -13,5 +14,6 @@ function notImplemented() {
 
 module.exports = {
   getUserWearables: () => notImplemented(),
-  setUserWearables: () => notImplemented()
+  setUserWearables: () => notImplemented(),
+  listHistoryByUser: () => notImplemented()
 };

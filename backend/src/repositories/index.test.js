@@ -84,7 +84,8 @@ jest.mock('../adapters', () => ({
   },
   userWearablesRepo: {
     getUserWearables: jest.fn(),
-    setUserWearables: jest.fn()
+    setUserWearables: jest.fn(),
+    listHistoryByUser: jest.fn()
   },
   digitalTwinRepo: {
     getDigitalTwin: jest.fn(),
@@ -115,7 +116,8 @@ jest.mock('../adapters', () => ({
   userRepo: {
     getByEmail: jest.fn(),
     setByEmail: jest.fn(),
-    updateByEmail: jest.fn()
+    updateByEmail: jest.fn(),
+    getByUid: jest.fn()
   },
   userProfileRepo: {
     getByEmail: jest.fn(),
@@ -265,10 +267,11 @@ describe('repositories/index.js facade', () => {
     expect(typeof repos.userSettingsRepo.setUserSettings).toBe('function');
   });
 
-  test('userWearablesRepo 有 getUserWearables、setUserWearables 方法', () => {
+  test('userWearablesRepo 有 getUserWearables、setUserWearables、listHistoryByUser 方法', () => {
     const repos = require('./index');
     expect(typeof repos.userWearablesRepo.getUserWearables).toBe('function');
     expect(typeof repos.userWearablesRepo.setUserWearables).toBe('function');
+    expect(typeof repos.userWearablesRepo.listHistoryByUser).toBe('function');
   });
 
   test('digitalTwinRepo 有 getDigitalTwin、setDigitalTwin 方法', () => {
@@ -307,11 +310,12 @@ describe('repositories/index.js facade', () => {
     expect(typeof repos.personalHealthRecordRepo.update).toBe('function');
   });
 
-  test('userRepo 有 getByEmail、setByEmail、updateByEmail 方法', () => {
+  test('userRepo 有 getByEmail、setByEmail、updateByEmail、getByUid 方法', () => {
     const repos = require('./index');
     expect(typeof repos.userRepo.getByEmail).toBe('function');
     expect(typeof repos.userRepo.setByEmail).toBe('function');
     expect(typeof repos.userRepo.updateByEmail).toBe('function');
+    expect(typeof repos.userRepo.getByUid).toBe('function');
   });
 
   test('userProfileRepo 有 getByEmail、setByEmail、updateByEmail 方法', () => {
