@@ -7,7 +7,7 @@ const { db } = require('../config/firebase');
 const { doc, getDoc, collection, query, where, orderBy, limit, getDocs } = require('firebase/firestore');
 const userSettingsService = require('./userSettingsService');
 const wearableService = require('./wearableService');
-const { userBasicInfoRepo, chatSessionRepo } = require('../repositories');
+const { userBasicInfoRepo, chatSessionRepo, riskAlertRepo } = require('../repositories');
 
 class UserContextService {
   constructor() {
@@ -91,40 +91,11 @@ class UserContextService {
         console.warn('⚠️ Error fetching wearable data for context:', error.message);
       }
 
-      // 3. 获取最近的风险预警
+      // 3. 获取最近的风险预警（通过 Repository）
       try {
-        const alertsRef = collection(db, 'riskAlerts');
-        const alertsQuery = query(
-          alertsRef,
-          where('userEmail', '==', userEmail),
-          orderBy('timestamp', 'desc'),
-          limit(5)
-        );
-        
-        const alertsSnapshot = await getDocs(alertsQuery);
-        snapshot.recentAlerts = alertsSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
+        snapshot.recentAlerts = await riskAlertRepo.getRecentAlertsByUser(userEmail, 5);
       } catch (error) {
         console.warn('⚠️ Error fetching risk alerts for context:', error.message);
-        // 如果索引不存在，使用fallback方法
-        try {
-          const alertsRef = collection(db, 'riskAlerts');
-          const allAlertsSnapshot = await getDocs(alertsRef);
-          const userAlerts = allAlertsSnapshot.docs
-            .map(doc => ({ id: doc.id, ...doc.data() }))
-            .filter(alert => alert.userEmail === userEmail)
-            .sort((a, b) => {
-              const timeA = a.timestamp?.toDate?.() || new Date(a.timestamp);
-              const timeB = b.timestamp?.toDate?.() || new Date(b.timestamp);
-              return timeB - timeA;
-            })
-            .slice(0, 5);
-          snapshot.recentAlerts = userAlerts;
-        } catch (fallbackError) {
-          console.warn('⚠️ Fallback query also failed:', fallbackError.message);
-        }
       }
 
       return snapshot;

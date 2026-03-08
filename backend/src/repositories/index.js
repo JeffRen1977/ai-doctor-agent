@@ -12,5 +12,6 @@ module.exports = {
   chatSessionRepo: adapters.chatSessionRepo,
   interventionRepo: adapters.interventionRepo,
   exercisePlanRepo: adapters.exercisePlanRepo,
-  nutritionAnalysisRepo: adapters.nutritionAnalysisRepo
+  nutritionAnalysisRepo: adapters.nutritionAnalysisRepo,
+  riskAlertRepo: adapters.riskAlertRepo
 };

@@ -2,8 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('../middleware/auth');
 const riskMonitoringService = require('../services/riskMonitoringService');
-const { doc, updateDoc } = require('firebase/firestore');
-const { db } = require('../config/firebase');
+const { riskAlertRepo } = require('../repositories');
 
 /**
  * POST /api/risk-monitoring/process-stream
@@ -189,22 +188,15 @@ router.get('/alerts', authenticateToken, async (req, res) => {
  */
 router.post('/alerts/:alertId/acknowledge', authenticateToken, async (req, res) => {
   try {
-    const userEmail = req.user?.email;
-    if (!userEmail) {
+    if (!req.user?.email) {
       return res.status(401).json({ error: 'User not authenticated' });
     }
-
     const { alertId } = req.params;
-    const alertRef = doc(db, 'riskAlerts', alertId);
-    await updateDoc(alertRef, {
+    await riskAlertRepo.acknowledgeAlert(alertId, {
       acknowledged: true,
       acknowledgedAt: new Date().toISOString()
     });
-    
-    res.status(200).json({
-      success: true,
-      message: 'Alert acknowledged'
-    });
+    res.status(200).json({ success: true, message: 'Alert acknowledged' });
   } catch (error) {
     console.error('Acknowledge alert error:', error);
     res.status(500).json({

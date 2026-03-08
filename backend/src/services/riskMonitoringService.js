@@ -4,6 +4,7 @@ const aiServiceFactory = require('./aiServiceFactory');
 const userSettingsService = require('./userSettingsService');
 const openaiService = require('./openaiService');
 const contextBuilderService = require('./contextBuilderService');
+const { riskAlertRepo } = require('../repositories');
 
 /**
  * 流数据推荐字段的合理范围（用于轻量校验与质量标记，不拒绝请求）
@@ -493,17 +494,9 @@ class RiskMonitoringService {
         action: this.getAlertAction(alertType, severity)
       };
       
-      // 保存预警到 Firestore
-      const alertsRef = collection(db, 'riskAlerts');
-      const alertDoc = await addDoc(alertsRef, alert);
-      
-      // 发送通知（这里可以集成推送通知服务）
-      await this.sendNotification(userEmail, { ...alert, id: alertDoc.id });
-      
-      return {
-        id: alertDoc.id,
-        ...alert
-      };
+      const saved = await riskAlertRepo.addAlert(alert);
+      await this.sendNotification(userEmail, saved);
+      return saved;
     } catch (error) {
       console.error('❌ Error generating alert:', error);
       throw error;
@@ -540,62 +533,7 @@ class RiskMonitoringService {
    */
   async getRecentAlerts(userEmail, limitCount = 20) {
     try {
-      const alertsRef = collection(db, 'riskAlerts');
-      
-      // 先尝试使用索引查询（如果索引存在）
-      try {
-        const q = query(
-          alertsRef,
-          where('userEmail', '==', userEmail),
-          orderBy('timestamp', 'desc'),
-          limit(limitCount)
-        );
-        
-        const querySnapshot = await getDocs(q);
-        const alerts = [];
-        
-        querySnapshot.forEach((doc) => {
-          alerts.push({
-            id: doc.id,
-            ...doc.data()
-          });
-        });
-        
-        return alerts;
-      } catch (indexError) {
-        // 如果索引不存在，使用备用方案：先获取所有该用户的警报，然后在内存中排序
-        if (indexError.code === 'failed-precondition') {
-          console.warn('⚠️ Firestore index not found, using fallback query method');
-          
-          // 只使用 where 查询（不需要索引）
-          const fallbackQuery = query(
-            alertsRef,
-            where('userEmail', '==', userEmail)
-          );
-          
-          const querySnapshot = await getDocs(fallbackQuery);
-          const alerts = [];
-          
-          querySnapshot.forEach((doc) => {
-            alerts.push({
-              id: doc.id,
-              ...doc.data()
-            });
-          });
-          
-          // 在内存中按时间戳排序并限制数量
-          alerts.sort((a, b) => {
-            const timeA = new Date(a.timestamp || 0).getTime();
-            const timeB = new Date(b.timestamp || 0).getTime();
-            return timeB - timeA; // 降序
-          });
-          
-          return alerts.slice(0, limitCount);
-        } else {
-          // 其他错误，重新抛出
-          throw indexError;
-        }
-      }
+      return await riskAlertRepo.getRecentAlertsByUser(userEmail, limitCount);
     } catch (error) {
       console.error('❌ Error getting recent alerts:', error);
       return [];

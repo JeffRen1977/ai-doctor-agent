@@ -9,6 +9,7 @@ const chatSessionAdapter = require('./chatSessionAdapter');
 const interventionAdapter = require('./interventionAdapter');
 const exercisePlanAdapter = require('./exercisePlanAdapter');
 const nutritionAnalysisAdapter = require('./nutritionAnalysisAdapter');
+const riskAlertAdapter = require('./riskAlertAdapter');
 
 module.exports = {
   userBasicInfoRepo: userBasicInfoAdapter,
@@ -17,5 +18,6 @@ module.exports = {
   chatSessionRepo: chatSessionAdapter,
   interventionRepo: interventionAdapter,
   exercisePlanRepo: exercisePlanAdapter,
-  nutritionAnalysisRepo: nutritionAnalysisAdapter
+  nutritionAnalysisRepo: nutritionAnalysisAdapter,
+  riskAlertRepo: riskAlertAdapter
 };
