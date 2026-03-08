@@ -9,5 +9,6 @@ module.exports = {
   userBasicInfoRepo: adapters.userBasicInfoRepo,
   medicationRepo: adapters.medicationRepo,
   vitalsDailyRepo: adapters.vitalsDailyRepo,
-  chatSessionRepo: adapters.chatSessionRepo
+  chatSessionRepo: adapters.chatSessionRepo,
+  interventionRepo: adapters.interventionRepo
 };

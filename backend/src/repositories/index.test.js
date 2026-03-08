@@ -12,7 +12,11 @@ jest.mock('../adapters', () => ({
   },
   medicationRepo: null,
   vitalsDailyRepo: null,
-  chatSessionRepo: null
+  chatSessionRepo: null,
+  interventionRepo: {
+    getIntervention: jest.fn(),
+    setIntervention: jest.fn()
+  }
 }));
 
 describe('repositories/index.js facade', () => {
@@ -30,10 +34,17 @@ describe('repositories/index.js facade', () => {
     expect(typeof repos.userBasicInfoRepo.getFullHealthRecord).toBe('function');
   });
 
-  test('导出 medicationRepo、vitalsDailyRepo、chatSessionRepo（可为 null）', () => {
+  test('导出 medicationRepo、vitalsDailyRepo、chatSessionRepo、interventionRepo（可为 null）', () => {
     const repos = require('./index');
     expect('medicationRepo' in repos).toBe(true);
     expect('vitalsDailyRepo' in repos).toBe(true);
     expect('chatSessionRepo' in repos).toBe(true);
+    expect('interventionRepo' in repos).toBe(true);
+  });
+
+  test('interventionRepo 有 getIntervention、setIntervention 方法', () => {
+    const repos = require('./index');
+    expect(typeof repos.interventionRepo.getIntervention).toBe('function');
+    expect(typeof repos.interventionRepo.setIntervention).toBe('function');
   });
 });

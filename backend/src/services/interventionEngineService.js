@@ -5,7 +5,7 @@ const aiServiceFactory = require('./aiServiceFactory');
 const userSettingsService = require('./userSettingsService');
 const wearableService = require('./wearableService');
 const openaiService = require('./openaiService');
-const { userBasicInfoRepo, medicationRepo } = require('../repositories');
+const { userBasicInfoRepo, medicationRepo, interventionRepo } = require('../repositories');
 const contextBuilderService = require('./contextBuilderService');
 const {
   createInterventionCollection,
@@ -285,15 +285,12 @@ class InterventionEngineService {
       const { aiProvider, aiModel } = this.getAIServiceConfig(userSettings);
       
       const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
-      const interventionRef = doc(db, 'interventions', sanitizedEmail);
-      const interventionDoc = await getDoc(interventionRef);
-      
-      let currentIntervention = null;
-      if (interventionDoc.exists()) {
-        currentIntervention = this.normalizeInterventionStructure(interventionDoc.data());
-      } else {
+      let currentIntervention = await interventionRepo.getIntervention(sanitizedEmail);
+      if (!currentIntervention) {
         currentIntervention = createInterventionCollection(userEmail, {});
-        await setDoc(interventionRef, currentIntervention, { merge: true });
+        await interventionRepo.setIntervention(sanitizedEmail, currentIntervention);
+      } else {
+        currentIntervention = this.normalizeInterventionStructure(currentIntervention);
       }
       
       // 获取用户健康数据用于调整分析
@@ -365,7 +362,7 @@ class InterventionEngineService {
         console.warn('⚠️ Intervention validation warning:', validation.error);
       }
       
-      await setDoc(interventionRef, validation.value || updatedIntervention, { merge: true });
+      await interventionRepo.setIntervention(sanitizedEmail, validation.value || updatedIntervention);
       
       return {
         success: true,
@@ -1152,19 +1149,14 @@ ${JSON.stringify(healthData, null, 2)}
   async ensureInterventionStructure(userEmail) {
     try {
       const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
-      const interventionRef = doc(db, 'interventions', sanitizedEmail);
-      const interventionDoc = await getDoc(interventionRef);
-      
-      let interventionData = null;
-      
-      if (interventionDoc.exists()) {
-        interventionData = this.normalizeInterventionStructure(interventionDoc.data());
-        await setDoc(interventionRef, interventionData, { merge: true });
+      let interventionData = await interventionRepo.getIntervention(sanitizedEmail);
+      if (interventionData) {
+        interventionData = this.normalizeInterventionStructure(interventionData);
+        await interventionRepo.setIntervention(sanitizedEmail, interventionData);
       } else {
         interventionData = createInterventionCollection(userEmail, {});
-        await setDoc(interventionRef, interventionData, { merge: true });
+        await interventionRepo.setIntervention(sanitizedEmail, interventionData);
       }
-      
       return { success: true, intervention: interventionData };
     } catch (error) {
       console.error('❌ Error ensuring intervention structure:', error);
