@@ -15,8 +15,8 @@ const DEFAULT_MODEL_BY_PROVIDER = {
 
 /** 中国区默认 provider（当 DEPLOYMENT_REGION=cn 且未设置 DEFAULT_AI_PROVIDER 时） */
 const CN_DEFAULT_PROVIDER = 'qwen';
-/** 海外/未指定地域时的默认 provider */
-const OVERSEAS_DEFAULT_PROVIDER = 'gemini';
+/** 海外/美国等未指定地域时的默认 provider（美国优先 OpenAI） */
+const OVERSEAS_DEFAULT_PROVIDER = 'openai';
 
 /**
  * 根据 DEPLOYMENT_REGION 与 DEFAULT_AI_PROVIDER 返回默认 provider。
