@@ -1240,7 +1240,7 @@ const InterventionEnginePage: React.FC = () => {
                       </Card>
                     )}
 
-                    {/* Weekly Plan */}
+                    {/* Weekly Plan - support both formats: day.exercises[] or day.activity/time/details */}
                     {exercisePlan.weeklyPlan && exercisePlan.weeklyPlan.length > 0 && (
                       <Card title={language === 'zh' ? '每周运动计划' : 'Weekly Exercise Plan'}>
                         <List
@@ -1251,21 +1251,29 @@ const InterventionEnginePage: React.FC = () => {
                                 title={<Text strong>{day.day}</Text>}
                                 description={
                                   <div>
-                                    {day.exercises && day.exercises.map((ex: any, idx: number) => (
-                                      <div key={idx} style={{ marginTop: idx > 0 ? '8px' : 0 }}>
-                                        <Space>
-                                          <Text strong>{ex.type}</Text>
-                                          <Text type="secondary">{ex.duration} {language === 'zh' ? '分钟' : 'min'}</Text>
-                                          <Tag color="orange">{ex.intensity}</Tag>
-                                          {ex.time && <Text type="secondary">{ex.time}</Text>}
-                                        </Space>
-                                        {ex.notes && (
-                                          <div style={{ marginTop: '4px' }}>
-                                            <Text type="secondary" style={{ fontSize: '12px' }}>{ex.notes}</Text>
-                                          </div>
-                                        )}
+                                    {day.exercises && day.exercises.length > 0 ? (
+                                      day.exercises.map((ex: any, idx: number) => (
+                                        <div key={idx} style={{ marginTop: idx > 0 ? '8px' : 0 }}>
+                                          <Space>
+                                            <Text strong>{ex.type}</Text>
+                                            <Text type="secondary">{ex.duration} {language === 'zh' ? '分钟' : 'min'}</Text>
+                                            <Tag color="orange">{ex.intensity}</Tag>
+                                            {ex.time && <Text type="secondary">{ex.time}</Text>}
+                                          </Space>
+                                          {ex.notes && (
+                                            <div style={{ marginTop: '4px' }}>
+                                              <Text type="secondary" style={{ fontSize: '12px' }}>{ex.notes}</Text>
+                                            </div>
+                                          )}
+                                        </div>
+                                      ))
+                                    ) : (
+                                      <div>
+                                        {day.activity && <Text strong>{day.activity}</Text>}
+                                        {day.time && <Tag style={{ marginLeft: '8px' }}>{day.time}</Tag>}
+                                        {day.details && <div style={{ marginTop: '4px' }}><Text type="secondary">{day.details}</Text></div>}
                                       </div>
-                                    ))}
+                                    )}
                                     {day.totalDuration && (
                                       <div style={{ marginTop: '8px' }}>
                                         <Text type="secondary">
@@ -1607,14 +1615,180 @@ const InterventionEnginePage: React.FC = () => {
                       </>
                     )}
 
-                    {/* Updated Intervention */}
-                    {adjustmentResult.intervention && (
-                      <Card title={language === 'zh' ? '更新后的干预方案' : 'Updated Intervention Plan'}>
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {JSON.stringify(adjustmentResult.intervention, null, 2)}
-                        </ReactMarkdown>
-                      </Card>
-                    )}
+                    {/* Updated Intervention - structured display */}
+                    {adjustmentResult.intervention && (() => {
+                      const intv = adjustmentResult.intervention as any;
+                      const med = intv.medication;
+                      const nut = intv.nutrition;
+                      const ex = intv.exercise;
+                      const fb = intv.feedback;
+                      return (
+                        <Card title={language === 'zh' ? '更新后的干预方案' : 'Updated Intervention Plan'}>
+                          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                            {intv.lastAdjusted && (
+                              <Text type="secondary">
+                                {language === 'zh' ? '上次调整：' : 'Last adjusted: '}
+                                {dayjs(intv.lastAdjusted).format('YYYY-MM-DD HH:mm')}
+                                {intv.version != null && ` · v${intv.version}`}
+                              </Text>
+                            )}
+
+                            {/* Medication */}
+                            {med && (med.adjustments?.length > 0 || med.currentPlan) && (
+                              <Card type="inner" title={language === 'zh' ? '用药' : 'Medication'} size="small">
+                                {med.adjustments?.length > 0 && (
+                                  <List
+                                    size="small"
+                                    dataSource={med.adjustments}
+                                    renderItem={(item: any) => (
+                                      <List.Item>
+                                        <Text>{typeof item === 'string' ? item : item.text || JSON.stringify(item)}</Text>
+                                      </List.Item>
+                                    )}
+                                  />
+                                )}
+                                {med.currentPlan?.medications?.length > 0 && (
+                                  <>
+                                    <Divider orientation="left" plain>{language === 'zh' ? '当前用药' : 'Current medications'}</Divider>
+                                    <List
+                                      size="small"
+                                      dataSource={med.currentPlan.medications}
+                                      renderItem={(m: any) => (
+                                        <List.Item>
+                                          <Text strong>{m.name || m}</Text>
+                                          {m.dosage && <Text type="secondary"> {m.dosage}</Text>}
+                                        </List.Item>
+                                      )}
+                                    />
+                                  </>
+                                )}
+                              </Card>
+                            )}
+
+                            {/* Nutrition */}
+                            {nut && (nut.adjustments?.length > 0 || nut.mealPlan || nut.dailyTargets) && (
+                              <Card type="inner" title={language === 'zh' ? '营养' : 'Nutrition'} size="small">
+                                {nut.adjustments?.length > 0 && (
+                                  <List
+                                    size="small"
+                                    dataSource={nut.adjustments}
+                                    renderItem={(item: any) => (
+                                      <List.Item>
+                                        <Text>{typeof item === 'string' ? item : item.text || JSON.stringify(item)}</Text>
+                                      </List.Item>
+                                    )}
+                                  />
+                                )}
+                                {nut.mealPlan && typeof nut.mealPlan === 'object' && Object.keys(nut.mealPlan).length > 0 && (
+                                  <>
+                                    <Divider orientation="left" plain>{language === 'zh' ? '膳食计划' : 'Meal plan'}</Divider>
+                                    <Descriptions size="small" column={1} bordered>
+                                      {['breakfast', 'lunch', 'dinner'].map((key) => {
+                                        const val = nut.mealPlan[key];
+                                        if (val == null || (typeof val === 'object' && Object.keys(val).length === 0)) return null;
+                                        return (
+                                          <Descriptions.Item key={key} label={key === 'breakfast' ? (language === 'zh' ? '早餐' : 'Breakfast') : key === 'lunch' ? (language === 'zh' ? '午餐' : 'Lunch') : (language === 'zh' ? '晚餐' : 'Dinner')}>
+                                            {typeof val === 'string' ? val : JSON.stringify(val)}
+                                          </Descriptions.Item>
+                                        );
+                                      })}
+                                    </Descriptions>
+                                  </>
+                                )}
+                                {nut.dailyTargets && typeof nut.dailyTargets === 'object' && Object.values(nut.dailyTargets).some((v: any) => v != null && v !== 0 && v !== '') && (
+                                  <>
+                                    <Divider orientation="left" plain>{language === 'zh' ? '每日目标' : 'Daily targets'}</Divider>
+                                    <Text type="secondary">
+                                      {['calories', 'carbs', 'protein', 'fat', 'fiber', 'sugar']
+                                        .filter((k) => nut.dailyTargets[k] != null && nut.dailyTargets[k] !== 0)
+                                        .map((k) => `${k}: ${nut.dailyTargets[k]}`)
+                                        .join(' · ')}
+                                    </Text>
+                                  </>
+                                )}
+                              </Card>
+                            )}
+
+                            {/* Exercise */}
+                            {ex && (ex.adjustments?.length > 0 || (ex.weeklyPlan?.length > 0) || (ex.progression && Object.keys(ex.progression).length > 0)) && (
+                              <Card type="inner" title={language === 'zh' ? '运动' : 'Exercise'} size="small">
+                                {ex.adjustments?.length > 0 && (
+                                  <List
+                                    size="small"
+                                    dataSource={ex.adjustments}
+                                    renderItem={(item: any) => (
+                                      <List.Item>
+                                        <Text>{typeof item === 'string' ? item : item.text || JSON.stringify(item)}</Text>
+                                      </List.Item>
+                                    )}
+                                  />
+                                )}
+                                {ex.weeklyPlan && ex.weeklyPlan.length > 0 && (
+                                  <>
+                                    <Divider orientation="left" plain>{language === 'zh' ? '每周运动计划' : 'Weekly plan'}</Divider>
+                                    <List
+                                      size="small"
+                                      dataSource={ex.weeklyPlan}
+                                      renderItem={(day: any) => (
+                                        <List.Item>
+                                          <Space direction="vertical" size={0}>
+                                            <Text strong>{day.day}</Text>
+                                            {day.exercises && day.exercises.length > 0 ? (
+                                              day.exercises.map((exItem: any, idx: number) => (
+                                                <div key={idx}>
+                                                  <Text>{exItem.type}</Text>
+                                                  {exItem.duration != null && <Text type="secondary"> {exItem.duration} {language === 'zh' ? '分钟' : 'min'}</Text>}
+                                                  {exItem.intensity && <Tag color="orange">{exItem.intensity}</Tag>}
+                                                  {exItem.time && <Text type="secondary"> {exItem.time}</Text>}
+                                                  {exItem.notes && <div><Text type="secondary" style={{ fontSize: '12px' }}>{exItem.notes}</Text></div>}
+                                                </div>
+                                              ))
+                                            ) : (
+                                              <div>
+                                                {day.activity && <Text strong>{day.activity}</Text>}
+                                                {day.time && <Tag>{day.time}</Tag>}
+                                                {day.details && <div><Text type="secondary">{day.details}</Text></div>}
+                                              </div>
+                                            )}
+                                          </Space>
+                                        </List.Item>
+                                      )}
+                                    />
+                                  </>
+                                )}
+                                {ex.progression && Object.keys(ex.progression).length > 0 && (
+                                  <>
+                                    <Divider orientation="left" plain>{language === 'zh' ? '进阶计划' : 'Progression'}</Divider>
+                                    <Descriptions size="small" column={1} bordered>
+                                      {Object.entries(ex.progression).map(([period, plan]: [string, any]) => (
+                                        <Descriptions.Item key={period} label={period}>
+                                          {plan?.description && <Text strong>{plan.description}</Text>}
+                                          {plan?.details && <div><Text type="secondary">{plan.details}</Text></div>}
+                                          {plan?.intensity != null && <Text type="secondary"> {language === 'zh' ? '强度' : 'Intensity'}: {plan.intensity}</Text>}
+                                          {plan?.duration != null && <Text type="secondary"> {plan.duration} {language === 'zh' ? '分钟' : 'min'}</Text>}
+                                          {plan?.frequency != null && <Text type="secondary"> {plan.frequency} {language === 'zh' ? '次/周' : '/week'}</Text>}
+                                        </Descriptions.Item>
+                                      ))}
+                                    </Descriptions>
+                                  </>
+                                )}
+                              </Card>
+                            )}
+
+                            {/* Feedback */}
+                            {fb && (fb.content || fb.type) && (
+                              <Card type="inner" title={language === 'zh' ? '本次反馈' : 'Your feedback'} size="small">
+                                {fb.type && <Tag>{fb.type}</Tag>}
+                                {fb.effectiveness && <Tag color={fb.effectiveness === 'good' ? 'green' : fb.effectiveness === 'poor' ? 'red' : 'orange'}>{fb.effectiveness}</Tag>}
+                                {fb.content && <Paragraph style={{ marginTop: '8px', marginBottom: 0 }}>{fb.content}</Paragraph>}
+                                {fb.issues?.length > 0 && <Text type="secondary">{language === 'zh' ? '问题：' : 'Issues: '}{fb.issues.join(', ')}</Text>}
+                                {fb.suggestions?.length > 0 && <div><Text type="secondary">{language === 'zh' ? '建议：' : 'Suggestions: '}{fb.suggestions.join(', ')}</Text></div>}
+                              </Card>
+                            )}
+                          </Space>
+                        </Card>
+                      );
+                    })()}
                   </Space>
                 </Card>
               )}
