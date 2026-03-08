@@ -47,6 +47,10 @@ jest.mock('../adapters', () => ({
     saveReport: jest.fn(),
     getReport: jest.fn(),
     listReportsByUser: jest.fn()
+  },
+  riskMonitoringStateRepo: {
+    getRiskMonitoringState: jest.fn(),
+    setRiskMonitoringState: jest.fn()
   }
 }));
 
@@ -65,7 +69,7 @@ describe('repositories/index.js facade', () => {
     expect(typeof repos.userBasicInfoRepo.getFullHealthRecord).toBe('function');
   });
 
-  test('导出 medicationRepo、vitalsDailyRepo、chatSessionRepo、interventionRepo、exercisePlanRepo、nutritionAnalysisRepo、riskAlertRepo、notificationRepo、rehabilitationRecordRepo、rehabilitationFeedbackRepo、conversationRepo、reportRepo', () => {
+  test('导出 medicationRepo、vitalsDailyRepo、chatSessionRepo、interventionRepo、exercisePlanRepo、nutritionAnalysisRepo、riskAlertRepo、notificationRepo、rehabilitationRecordRepo、rehabilitationFeedbackRepo、conversationRepo、reportRepo、riskMonitoringStateRepo', () => {
     const repos = require('./index');
     expect('medicationRepo' in repos).toBe(true);
     expect('vitalsDailyRepo' in repos).toBe(true);
@@ -79,6 +83,7 @@ describe('repositories/index.js facade', () => {
     expect('rehabilitationFeedbackRepo' in repos).toBe(true);
     expect('conversationRepo' in repos).toBe(true);
     expect('reportRepo' in repos).toBe(true);
+    expect('riskMonitoringStateRepo' in repos).toBe(true);
   });
 
   test('interventionRepo 有 getIntervention、setIntervention 方法', () => {
@@ -132,5 +137,11 @@ describe('repositories/index.js facade', () => {
     expect(typeof repos.reportRepo.saveReport).toBe('function');
     expect(typeof repos.reportRepo.getReport).toBe('function');
     expect(typeof repos.reportRepo.listReportsByUser).toBe('function');
+  });
+
+  test('riskMonitoringStateRepo 有 getRiskMonitoringState、setRiskMonitoringState 方法', () => {
+    const repos = require('./index');
+    expect(typeof repos.riskMonitoringStateRepo.getRiskMonitoringState).toBe('function');
+    expect(typeof repos.riskMonitoringStateRepo.setRiskMonitoringState).toBe('function');
   });
 });

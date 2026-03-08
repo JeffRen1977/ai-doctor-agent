@@ -1,10 +1,11 @@
 const { db } = require('../config/firebase');
-const { doc, getDoc, setDoc, collection, query, where, orderBy, limit, addDoc, getDocs } = require('firebase/firestore');
+const { collection, query, where, orderBy, limit, addDoc, getDocs } = require('firebase/firestore');
 const aiServiceFactory = require('./aiServiceFactory');
 const userSettingsService = require('./userSettingsService');
 const openaiService = require('./openaiService');
 const contextBuilderService = require('./contextBuilderService');
-const { riskAlertRepo, notificationRepo } = require('../repositories');
+const { riskAlertRepo, notificationRepo, riskMonitoringStateRepo } = require('../repositories');
+const { userIdFromEmail } = require('../models/riskMonitoringState');
 
 /**
  * 流数据推荐字段的合理范围（用于轻量校验与质量标记，不拒绝请求）
@@ -29,7 +30,6 @@ const DEFAULT_FETCH_LIMIT_FOR_TIME_RANGE = 500;
 const MAX_DATA_POINTS_FOR_PROMPT = 200;
 /** 自动异常检测节流间隔（毫秒） */
 const AUTO_DETECT_THROTTLE_MS = 5 * 60 * 1000;
-const RISK_MONITORING_STATE_COLLECTION = 'riskMonitoringState';
 /** getRecentDataPoints 单次查询条数上限，防止误传过大值 */
 const MAX_RECENT_DATA_POINTS_LIMIT = 500;
 /** 异常置信度低于此值不生成预警，仅保留在 analysis 中（待复核） */
@@ -194,13 +194,13 @@ class RiskMonitoringService {
    */
   async maybeTriggerAutoDetect(userEmail) {
     if (process.env.RISK_AUTO_DETECT_ENABLED !== 'true') return;
-    const stateRef = doc(db, RISK_MONITORING_STATE_COLLECTION, (userEmail || '').replace(/\./g, '_'));
-    const stateSnap = await getDoc(stateRef);
+    const userId = userIdFromEmail(userEmail);
+    const state = await riskMonitoringStateRepo.getRiskMonitoringState(userId);
     const now = Date.now();
-    const lastAt = stateSnap.exists() ? stateSnap.data().lastAutoDetectAt : null;
+    const lastAt = state?.lastAutoDetectAt ?? null;
     const lastMs = lastAt ? new Date(lastAt).getTime() : 0;
     if (now - lastMs < AUTO_DETECT_THROTTLE_MS) return;
-    await setDoc(stateRef, { lastAutoDetectAt: new Date().toISOString(), userEmail }, { merge: true });
+    await riskMonitoringStateRepo.setRiskMonitoringState(userId, { lastAutoDetectAt: new Date().toISOString(), userEmail });
     setImmediate(() => {
       this.detectAnomalies(userEmail, [], {}).catch((err) => {
         console.error('❌ Auto detectAnomalies error:', err.message);

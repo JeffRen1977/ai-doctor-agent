@@ -18,5 +18,6 @@ module.exports = {
   rehabilitationRecordRepo: adapters.rehabilitationRecordRepo,
   rehabilitationFeedbackRepo: adapters.rehabilitationFeedbackRepo,
   conversationRepo: adapters.conversationRepo,
-  reportRepo: adapters.reportRepo
+  reportRepo: adapters.reportRepo,
+  riskMonitoringStateRepo: adapters.riskMonitoringStateRepo
 };
