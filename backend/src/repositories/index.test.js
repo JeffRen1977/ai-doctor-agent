@@ -101,6 +101,26 @@ jest.mock('../adapters', () => ({
     listAll: jest.fn(),
     getByUser: jest.fn(),
     setByUser: jest.fn()
+  },
+  healthRecordRepo: {
+    getByUser: jest.fn(),
+    setByUser: jest.fn(),
+    listByUser: jest.fn()
+  },
+  personalHealthRecordRepo: {
+    get: jest.fn(),
+    set: jest.fn(),
+    update: jest.fn()
+  },
+  userRepo: {
+    getByEmail: jest.fn(),
+    setByEmail: jest.fn(),
+    updateByEmail: jest.fn()
+  },
+  userProfileRepo: {
+    getByEmail: jest.fn(),
+    setByEmail: jest.fn(),
+    updateByEmail: jest.fn()
   }
 }));
 
@@ -142,6 +162,10 @@ describe('repositories/index.js facade', () => {
     expect('digitalTwinRepo' in repos).toBe(true);
     expect('wearableStreamDataRepo' in repos).toBe(true);
     expect('chatHistoryRepo' in repos).toBe(true);
+    expect('healthRecordRepo' in repos).toBe(true);
+    expect('personalHealthRecordRepo' in repos).toBe(true);
+    expect('userRepo' in repos).toBe(true);
+    expect('userProfileRepo' in repos).toBe(true);
   });
 
   test('interventionRepo 有 getIntervention、setIntervention 方法', () => {
@@ -267,5 +291,33 @@ describe('repositories/index.js facade', () => {
     expect(typeof repos.chatHistoryRepo.listAll).toBe('function');
     expect(typeof repos.chatHistoryRepo.getByUser).toBe('function');
     expect(typeof repos.chatHistoryRepo.setByUser).toBe('function');
+  });
+
+  test('healthRecordRepo 有 getByUser、setByUser、listByUser 方法', () => {
+    const repos = require('./index');
+    expect(typeof repos.healthRecordRepo.getByUser).toBe('function');
+    expect(typeof repos.healthRecordRepo.setByUser).toBe('function');
+    expect(typeof repos.healthRecordRepo.listByUser).toBe('function');
+  });
+
+  test('personalHealthRecordRepo 有 get、set、update 方法', () => {
+    const repos = require('./index');
+    expect(typeof repos.personalHealthRecordRepo.get).toBe('function');
+    expect(typeof repos.personalHealthRecordRepo.set).toBe('function');
+    expect(typeof repos.personalHealthRecordRepo.update).toBe('function');
+  });
+
+  test('userRepo 有 getByEmail、setByEmail、updateByEmail 方法', () => {
+    const repos = require('./index');
+    expect(typeof repos.userRepo.getByEmail).toBe('function');
+    expect(typeof repos.userRepo.setByEmail).toBe('function');
+    expect(typeof repos.userRepo.updateByEmail).toBe('function');
+  });
+
+  test('userProfileRepo 有 getByEmail、setByEmail、updateByEmail 方法', () => {
+    const repos = require('./index');
+    expect(typeof repos.userProfileRepo.getByEmail).toBe('function');
+    expect(typeof repos.userProfileRepo.setByEmail).toBe('function');
+    expect(typeof repos.userProfileRepo.updateByEmail).toBe('function');
   });
 });

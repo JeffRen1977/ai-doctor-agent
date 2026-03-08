@@ -1,9 +1,7 @@
 const express = require('express');
-const { db } = require('../config/firebase');
-const { doc, getDoc } = require('firebase/firestore');
 const { authenticateToken } = require('../middleware/auth');
 const firebaseService = require('../services/firebaseService');
-const { medicationRepo } = require('../repositories');
+const { medicationRepo, personalHealthRecordRepo } = require('../repositories');
 const pdfCaseExtractionService = require('../services/pdfCaseExtractionService');
 const fhirService = require('../services/fhirService');
 const multer = require('multer');
@@ -43,21 +41,18 @@ router.get('/personal-health-record', authenticateToken, async (req, res) => {
     }
 
     console.log(`🔍 Fetching personal health record for: ${userEmail}`);
-    
+
     const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
-    const recordDocRef = doc(db, 'personalHealthRecords', sanitizedEmail);
-    const recordDoc = await getDoc(recordDocRef);
-    
-    if (!recordDoc.exists()) {
+    const data = await personalHealthRecordRepo.get(sanitizedEmail);
+
+    if (!data) {
       console.log(`⚠️ Personal health record not found for: ${userEmail}`);
-      return res.json({ 
+      return res.json({
         success: true,
         data: null,
         message: 'Personal health record not found'
       });
     }
-
-    const data = recordDoc.data();
     const medications = await medicationRepo.listActive(sanitizedEmail);
     const dataWithMedications = { ...data, medications };
     console.log(`✅ Personal health record found for: ${userEmail}`);
@@ -392,23 +387,21 @@ router.get('/documents', authenticateToken, async (req, res) => {
     if (!userEmail) {
       return res.status(401).json({ error: 'User not authenticated' });
     }
-    
+
     const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
-    const recordDocRef = doc(db, 'personalHealthRecords', sanitizedEmail);
-    const recordDoc = await getDoc(recordDocRef);
-    
-    if (!recordDoc.exists()) {
+    const data = await personalHealthRecordRepo.get(sanitizedEmail);
+
+    if (!data) {
       return res.json({ success: true, documents: [] });
     }
-    
-    const data = recordDoc.data();
+
     const documents = data.medicalDocuments || [];
-    
+
     res.json({
       success: true,
       documents: documents
     });
-    
+
   } catch (error) {
     console.error('❌ Get documents error:', error);
     res.status(500).json({ 
@@ -428,18 +421,16 @@ router.get('/documents/:documentId', authenticateToken, async (req, res) => {
     if (!userEmail) {
       return res.status(401).json({ error: 'User not authenticated' });
     }
-    
+
     const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
-    const recordDocRef = doc(db, 'personalHealthRecords', sanitizedEmail);
-    const recordDoc = await getDoc(recordDocRef);
-    
-    if (!recordDoc.exists()) {
+    const data = await personalHealthRecordRepo.get(sanitizedEmail);
+
+    if (!data) {
       return res.status(404).json({ error: 'Personal health record not found' });
     }
-    
-    const data = recordDoc.data();
+
     const documents = data.medicalDocuments || [];
-    const document = documents.find(doc => doc.documentId === documentId);
+    const document = documents.find(d => d.documentId === documentId);
     
     if (!document) {
       return res.status(404).json({ error: 'Document not found' });
@@ -501,23 +492,21 @@ router.get('/analyses', authenticateToken, async (req, res) => {
     if (!userEmail) {
       return res.status(401).json({ error: 'User not authenticated' });
     }
-    
+
     const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
-    const recordDocRef = doc(db, 'personalHealthRecords', sanitizedEmail);
-    const recordDoc = await getDoc(recordDocRef);
-    
-    if (!recordDoc.exists()) {
+    const data = await personalHealthRecordRepo.get(sanitizedEmail);
+
+    if (!data) {
       return res.json({ success: true, analyses: [] });
     }
-    
-    const data = recordDoc.data();
+
     const analyses = data.aiAnalyses || [];
-    
+
     res.json({
       success: true,
       analyses: analyses
     });
-    
+
   } catch (error) {
     console.error('❌ Get analyses error:', error);
     res.status(500).json({ 

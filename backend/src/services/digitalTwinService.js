@@ -4,7 +4,7 @@ const aiServiceFactory = require('./aiServiceFactory');
 const wearableService = require('./wearableService');
 const userSettingsService = require('./userSettingsService');
 const openaiService = require('./openaiService');
-const { userBasicInfoRepo, digitalTwinRepo, userWearablesRepo } = require('../repositories');
+const { userBasicInfoRepo, digitalTwinRepo, userWearablesRepo, healthRecordRepo } = require('../repositories');
 
 /**
  * 数字孪生服务
@@ -203,20 +203,8 @@ class DigitalTwinService {
 
       // ========== 3. 获取健康记录历史 ==========
       try {
-        const healthRecordsRef = collection(db, 'healthRecords');
-        const q = query(
-          healthRecordsRef,
-          where('userEmail', '==', userEmail),
-          orderBy('createdAt', 'desc'),
-          limit(20)
-        );
-        const querySnapshot = await getDocs(q);
-        aggregatedData.historicalData.healthRecords = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
+        aggregatedData.historicalData.healthRecords = await healthRecordRepo.listByUser(userEmail, { limit: 20 });
       } catch (error) {
-        // 如果查询失败（可能是缺少索引），静默失败
         if (error.code !== 'failed-precondition') {
           console.error('❌ Error fetching health records:', error);
         }

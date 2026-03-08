@@ -27,5 +27,9 @@ module.exports = {
   userWearablesRepo: adapters.userWearablesRepo,
   digitalTwinRepo: adapters.digitalTwinRepo,
   wearableStreamDataRepo: adapters.wearableStreamDataRepo,
-  chatHistoryRepo: adapters.chatHistoryRepo
+  chatHistoryRepo: adapters.chatHistoryRepo,
+  healthRecordRepo: adapters.healthRecordRepo,
+  personalHealthRecordRepo: adapters.personalHealthRecordRepo,
+  userRepo: adapters.userRepo,
+  userProfileRepo: adapters.userProfileRepo
 };

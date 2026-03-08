@@ -24,6 +24,10 @@ const userWearablesAdapter = require('./userWearablesAdapter');
 const digitalTwinAdapter = require('./digitalTwinAdapter');
 const wearableStreamDataAdapter = require('./wearableStreamDataAdapter');
 const chatHistoryAdapter = require('./chatHistoryAdapter');
+const healthRecordAdapter = require('./healthRecordAdapter');
+const personalHealthRecordAdapter = require('./personalHealthRecordAdapter');
+const userAdapter = require('./userAdapter');
+const userProfileAdapter = require('./userProfileAdapter');
 
 module.exports = {
   userBasicInfoRepo: userBasicInfoAdapter,
@@ -47,5 +51,9 @@ module.exports = {
   userWearablesRepo: userWearablesAdapter,
   digitalTwinRepo: digitalTwinAdapter,
   wearableStreamDataRepo: wearableStreamDataAdapter,
-  chatHistoryRepo: chatHistoryAdapter
+  chatHistoryRepo: chatHistoryAdapter,
+  healthRecordRepo: healthRecordAdapter,
+  personalHealthRecordRepo: personalHealthRecordAdapter,
+  userRepo: userAdapter,
+  userProfileRepo: userProfileAdapter
 };

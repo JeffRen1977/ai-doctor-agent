@@ -1,7 +1,7 @@
 const aiServiceFactory = require('./aiServiceFactory');
 const userSettingsService = require('./userSettingsService');
-const { db, storage } = require('../config/firebase');
-const { collection, addDoc, getDocs, query, where, orderBy, limit, doc, getDoc, setDoc } = require('firebase/firestore');
+const { storage } = require('../config/firebase');
+const { healthRecordRepo } = require('../repositories');
 const { ref, uploadBytes, getDownloadURL } = require('firebase/storage');
 const fs = require('fs').promises;
 const path = require('path');
@@ -488,22 +488,15 @@ const saveHealthAnalysisToRecords = async (analysisData) => {
     console.log('💾 Saving health analysis to HealthRecords...');
     
     // 创建健康记录条目，包含分析结果
-    // 使用用户电子邮件作为document ID（不添加时间戳）
+    // 使用用户电子邮件作为 document ID（不添加时间戳）
     const sanitizedEmail = analysisData.userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
     const documentId = sanitizedEmail;
-    
-    const healthRecordsRef = collection(db, 'healthRecords');
-    const recordDocRef = doc(healthRecordsRef, documentId);
-    
-    // 首先尝试获取现有文档
-    let existingData = {};
-    try {
-      const existingDoc = await getDoc(recordDocRef);
-      if (existingDoc.exists()) {
-        existingData = existingDoc.data();
-        console.log('📄 Found existing health record for user:', analysisData.userEmail);
-      }
-    } catch (error) {
+
+    const existing = await healthRecordRepo.getByUser(sanitizedEmail);
+    const existingData = existing ? { ...existing } : {};
+    if (existing) {
+      console.log('📄 Found existing health record for user:', analysisData.userEmail);
+    } else {
       console.log('📄 No existing health record found, creating new one');
     }
 
@@ -546,8 +539,7 @@ const saveHealthAnalysisToRecords = async (analysisData) => {
       updatedAt: new Date()
     };
     
-    // 使用setDoc合并数据，这样每次分析都会更新同一个文档
-    await setDoc(recordDocRef, healthRecordData, { merge: true });
+    await healthRecordRepo.setByUser(sanitizedEmail, healthRecordData, true);
 
     console.log('✅ Health analysis saved to HealthRecords with ID:', documentId);
     console.log('📧 User email used as document ID:', analysisData.userEmail);
@@ -570,13 +562,11 @@ const saveHealthAnalysisToRecords = async (analysisData) => {
 const getHealthAnalysisHistory = async (userEmail, options = {}) => {
   try {
     const { page = 1, limit = 10 } = options;
-    
-    // 使用用户电子邮件作为文档ID
-    const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
-    const healthRecordRef = doc(db, 'healthRecords', sanitizedEmail);
-    const healthRecordDoc = await getDoc(healthRecordRef);
 
-    if (!healthRecordDoc.exists()) {
+    const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
+    const healthRecordData = await healthRecordRepo.getByUser(sanitizedEmail);
+
+    if (!healthRecordData) {
       return {
         analyses: [],
         total: 0,
@@ -585,8 +575,6 @@ const getHealthAnalysisHistory = async (userEmail, options = {}) => {
         hasMore: false
       };
     }
-
-    const healthRecordData = healthRecordDoc.data();
     const analysisHistory = healthRecordData.analysisHistory || [];
     
     // 按分析日期排序（最新的在前）
@@ -619,16 +607,12 @@ const getHealthAnalysisHistory = async (userEmail, options = {}) => {
  */
 const getHealthAnalysisById = async (analysisId, userEmail) => {
   try {
-    // 使用用户电子邮件作为文档ID
     const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
-    const healthRecordRef = doc(db, 'healthRecords', sanitizedEmail);
-    const healthRecordDoc = await getDoc(healthRecordRef);
+    const healthRecordData = await healthRecordRepo.getByUser(sanitizedEmail);
 
-    if (!healthRecordDoc.exists()) {
+    if (!healthRecordData) {
       return null;
     }
-
-    const healthRecordData = healthRecordDoc.data();
     const analysisHistory = healthRecordData.analysisHistory || [];
     
     // 查找特定的分析记录

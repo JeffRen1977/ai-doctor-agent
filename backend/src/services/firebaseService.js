@@ -11,18 +11,16 @@ const {
   signOut,
   updateProfile
 } = require('firebase/auth');
-const { 
-  doc, 
-  setDoc, 
-  getDoc, 
-  updateDoc, 
-  collection, 
-  addDoc, 
-  query, 
-  where, 
-  getDocs 
+const {
+  doc,
+  updateDoc,
+  collection,
+  query,
+  where,
+  getDocs
 } = require('firebase/firestore');
 const { auth, db, storage } = require('../config/firebase');
+const { userRepo, userProfileRepo, personalHealthRecordRepo } = require('../repositories');
 
 class FirebaseService {
   constructor() {
@@ -41,9 +39,7 @@ class FirebaseService {
         displayName: name
       });
 
-      // 在Firestore中创建用户文档，使用电子邮件作为文档ID
-      const userDocRef = doc(db, 'users', email);
-      await setDoc(userDocRef, {
+      await userRepo.setByEmail(email, {
         uid: user.uid,
         email: user.email,
         name: name,
@@ -76,13 +72,9 @@ class FirebaseService {
     try {
       // 临时解决方案：检查是否是测试用户
       if (email === 'jianfengren.sd@gmail.com' && password === '123456') {
-        // 创建或获取测试用户文档
-        const userDocRef = doc(db, 'users', email);
-        const userDoc = await getDoc(userDocRef);
-        
-        if (!userDoc.exists()) {
-          // 创建测试用户文档
-          await setDoc(userDocRef, {
+        let userData = await userRepo.getByEmail(email);
+        if (!userData) {
+          await userRepo.setByEmail(email, {
             uid: 'test-user-' + Date.now(),
             email: email,
             name: 'Jianfeng Ren',
@@ -91,9 +83,10 @@ class FirebaseService {
             avatar: null,
             role: 'user'
           });
+          userData = await userRepo.getByEmail(email);
         }
 
-        const userData = userDoc.exists() ? userDoc.data() : {
+        const fallbackData = userData || {
           uid: 'test-user-' + Date.now(),
           email: email,
           name: 'Jianfeng Ren',
@@ -115,14 +108,10 @@ class FirebaseService {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // 获取用户文档，使用电子邮件作为文档ID
-      const userDoc = await getDoc(doc(db, 'users', email));
-      
-      if (!userDoc.exists()) {
-          throw new Error('用户文档不存在');
+      const userData = await userRepo.getByEmail(email);
+      if (!userData) {
+        throw new Error('用户文档不存在');
       }
-
-      const userData = userDoc.data();
 
       return {
         success: true,
@@ -180,16 +169,13 @@ class FirebaseService {
   // 通过电子邮件获取用户信息
   async getUserByEmail(email) {
     try {
-      const userDoc = await getDoc(doc(db, 'users', email));
-      
-      if (!userDoc.exists()) {
+      const userData = await userRepo.getByEmail(email);
+      if (!userData) {
         return {
           success: false,
           error: '用户不存在'
         };
       }
-
-      const userData = userDoc.data();
       return {
         success: true,
         user: {
@@ -225,8 +211,7 @@ class FirebaseService {
       }
 
       const userEmail = querySnapshot.docs[0].data().email;
-      const userRef = doc(db, 'users', userEmail);
-      await updateDoc(userRef, {
+      await userRepo.updateByEmail(userEmail, {
         ...updates,
         updatedAt: new Date()
       });
@@ -247,8 +232,8 @@ class FirebaseService {
   // 检查用户是否存在
   async checkUserExists(email) {
     try {
-      const userDoc = await getDoc(doc(db, 'users', email));
-      return userDoc.exists();
+      const userData = await userRepo.getByEmail(email);
+      return !!userData;
     } catch (error) {
       console.error('检查用户存在错误:', error);
       return false;
@@ -277,18 +262,16 @@ class FirebaseService {
   // 获取用户详细资料
   async getUserProfile(email) {
     try {
-      const profileDoc = await getDoc(doc(db, 'userProfile', email));
-      
-      if (!profileDoc.exists()) {
+      const profile = await userProfileRepo.getByEmail(email);
+      if (!profile) {
         return {
           success: false,
           error: '用户资料不存在'
         };
       }
-
       return {
         success: true,
-        profile: profileDoc.data()
+        profile
       };
     } catch (error) {
       console.error('获取用户资料错误:', error);
@@ -302,32 +285,24 @@ class FirebaseService {
   // 更新用户详细资料
   async updateUserProfile(email, profileData) {
     try {
-      const profileRef = doc(db, 'userProfile', email);
-      
-      // 检查用户资料是否存在，如果不存在则创建
-      const profileDoc = await getDoc(profileRef);
-      
+      const existing = await userProfileRepo.getByEmail(email);
       const updateData = {
         ...profileData,
         email: email,
         updatedAt: new Date()
       };
 
-      if (!profileDoc.exists()) {
-        // 创建新的用户资料文档
+      if (!existing) {
         updateData.createdAt = new Date();
-        await setDoc(profileRef, updateData);
+        await userProfileRepo.setByEmail(email, updateData);
       } else {
-        // 更新现有用户资料
-        await updateDoc(profileRef, updateData);
+        await userProfileRepo.updateByEmail(email, updateData);
       }
 
-      // 返回更新后的资料
-      const updatedDoc = await getDoc(profileRef);
-      
+      const profile = await userProfileRepo.getByEmail(email);
       return {
         success: true,
-        profile: updatedDoc.data()
+        profile: profile || updateData
       };
     } catch (error) {
       console.error('更新用户资料错误:', error);
@@ -477,59 +452,47 @@ class FirebaseService {
   async savePersonalHealthRecord(userEmail, healthRecordData) {
     try {
       const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
-      const recordDocRef = doc(db, 'personalHealthRecords', sanitizedEmail);
-      
-      // 递归函数：移除所有 undefined 值（Firestore 不支持 undefined）
+
       const removeUndefined = (obj) => {
-        if (obj === null || obj === undefined) {
-          return null;
-        }
-        if (Array.isArray(obj)) {
-          return obj.map(removeUndefined).filter(item => item !== undefined);
-        }
+        if (obj === null || obj === undefined) return null;
+        if (Array.isArray(obj)) return obj.map(removeUndefined).filter(item => item !== undefined);
         if (typeof obj === 'object') {
           const cleaned = {};
           for (const [key, value] of Object.entries(obj)) {
-            if (value !== undefined) {
-              cleaned[key] = removeUndefined(value);
-            }
+            if (value !== undefined) cleaned[key] = removeUndefined(value);
           }
           return cleaned;
         }
         return obj;
       };
-      
-      // 检查文档是否存在
-      const existingDoc = await getDoc(recordDocRef);
+
+      const existing = await personalHealthRecordRepo.get(sanitizedEmail);
       const now = new Date();
-      
-      // 准备新格式数据
+
       const recordData = removeUndefined({
         userEmail: userEmail,
         ...healthRecordData,
-        // 确保必要字段存在
         medicalDocuments: healthRecordData.medicalDocuments || [],
         wearableDataRefs: healthRecordData.wearableDataRefs || {},
         aiAnalyses: healthRecordData.aiAnalyses || [],
-        // 新增字段
         timeSeriesData: healthRecordData.timeSeriesData || {},
         interventionHistory: healthRecordData.interventionHistory || [],
         updatedAt: now,
-        createdAt: existingDoc.exists() ? existingDoc.data().createdAt || now : now
+        createdAt: (existing && existing.createdAt) ? existing.createdAt : now
       });
 
-      await setDoc(recordDocRef, recordData, { merge: true });
-      
-      return { 
-        success: true, 
-        id: recordDocRef.id,
+      await personalHealthRecordRepo.set(sanitizedEmail, recordData, true);
+
+      return {
+        success: true,
+        id: sanitizedEmail,
         data: recordData
       };
     } catch (error) {
       console.error('保存个人健康档案错误:', error);
-      return { 
-        success: false, 
-        error: error.message 
+      return {
+        success: false,
+        error: error.message
       };
     }
   }
@@ -538,24 +501,16 @@ class FirebaseService {
   async addMedicalDocument(userEmail, documentData) {
     try {
       const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
-      const recordDocRef = doc(db, 'personalHealthRecords', sanitizedEmail);
-      const existingDoc = await getDoc(recordDocRef);
-      
-      if (!existingDoc.exists()) {
+      const existingData = await personalHealthRecordRepo.get(sanitizedEmail);
+      if (!existingData) {
         return { success: false, error: 'Personal health record not found' };
       }
-      
-      const existingData = existingDoc.data();
       const medicalDocuments = existingData.medicalDocuments || [];
-      
-      // 添加新文档
       medicalDocuments.push(documentData);
-      
-      await updateDoc(recordDocRef, {
-        medicalDocuments: medicalDocuments,
+      await personalHealthRecordRepo.update(sanitizedEmail, {
+        medicalDocuments,
         updatedAt: new Date()
       });
-      
       return { success: true, documentId: documentData.documentId };
     } catch (error) {
       console.error('添加医疗文档错误:', error);
@@ -567,23 +522,17 @@ class FirebaseService {
   async deleteMedicalDocument(userEmail, documentId) {
     try {
       const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
-      const recordDocRef = doc(db, 'personalHealthRecords', sanitizedEmail);
-      const existingDoc = await getDoc(recordDocRef);
-      
-      if (!existingDoc.exists()) {
+      const existingData = await personalHealthRecordRepo.get(sanitizedEmail);
+      if (!existingData) {
         return { success: false, error: 'Personal health record not found' };
       }
-      
-      const existingData = existingDoc.data();
       const medicalDocuments = (existingData.medicalDocuments || []).filter(
-        doc => doc.documentId !== documentId
+        d => d.documentId !== documentId
       );
-      
-      await updateDoc(recordDocRef, {
-        medicalDocuments: medicalDocuments,
+      await personalHealthRecordRepo.update(sanitizedEmail, {
+        medicalDocuments,
         updatedAt: new Date()
       });
-      
       return { success: true };
     } catch (error) {
       console.error('删除医疗文档错误:', error);
@@ -595,27 +544,17 @@ class FirebaseService {
   async addAIAnalysis(userEmail, analysisData) {
     try {
       const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
-      const recordDocRef = doc(db, 'personalHealthRecords', sanitizedEmail);
-      const existingDoc = await getDoc(recordDocRef);
-      
-      if (!existingDoc.exists()) {
+      const existingData = await personalHealthRecordRepo.get(sanitizedEmail);
+      if (!existingData) {
         return { success: false, error: 'Personal health record not found' };
       }
-      
-      const existingData = existingDoc.data();
       const aiAnalyses = existingData.aiAnalyses || [];
-      
-      // 添加新分析
       aiAnalyses.push(analysisData);
-      
-      // 只保留最近50条分析记录
       const trimmedAnalyses = aiAnalyses.slice(-50);
-      
-      await updateDoc(recordDocRef, {
+      await personalHealthRecordRepo.update(sanitizedEmail, {
         aiAnalyses: trimmedAnalyses,
         updatedAt: new Date()
       });
-      
       return { success: true, analysisId: analysisData.analysisId };
     } catch (error) {
       console.error('添加AI分析错误:', error);
@@ -629,14 +568,10 @@ class FirebaseService {
   async addTimeSeriesDataPoint(userEmail, metric, unit, dataPoint) {
     try {
       const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
-      const recordDocRef = doc(db, 'personalHealthRecords', sanitizedEmail);
-      const existingDoc = await getDoc(recordDocRef);
-      
-      if (!existingDoc.exists()) {
+      const existingData = await personalHealthRecordRepo.get(sanitizedEmail);
+      if (!existingData) {
         return { success: false, error: 'Personal health record not found' };
       }
-      
-      const existingData = existingDoc.data();
       const timeSeriesData = existingData.timeSeriesData || {};
       
       // 获取或创建该指标的时间序列数据
@@ -696,12 +631,12 @@ class FirebaseService {
         trend: trend
       };
       timeSeriesData[metric].lastUpdated = new Date().toISOString();
-      
-      await updateDoc(recordDocRef, {
-        timeSeriesData: timeSeriesData,
+
+      await personalHealthRecordRepo.update(sanitizedEmail, {
+        timeSeriesData,
         updatedAt: new Date()
       });
-      
+
       return { success: true, metric: metric };
     } catch (error) {
       console.error('添加时间序列数据点错误:', error);
@@ -713,14 +648,10 @@ class FirebaseService {
   async getTimeSeriesData(userEmail, metric = null, startDate = null, endDate = null) {
     try {
       const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
-      const recordDocRef = doc(db, 'personalHealthRecords', sanitizedEmail);
-      const existingDoc = await getDoc(recordDocRef);
-      
-      if (!existingDoc.exists()) {
+      const existingData = await personalHealthRecordRepo.get(sanitizedEmail);
+      if (!existingData) {
         return { success: false, error: 'Personal health record not found' };
       }
-      
-      const existingData = existingDoc.data();
       const timeSeriesData = existingData.timeSeriesData || {};
       
       if (metric) {
@@ -764,27 +695,17 @@ class FirebaseService {
   async addInterventionHistory(userEmail, interventionData) {
     try {
       const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
-      const recordDocRef = doc(db, 'personalHealthRecords', sanitizedEmail);
-      const existingDoc = await getDoc(recordDocRef);
-      
-      if (!existingDoc.exists()) {
+      const existingData = await personalHealthRecordRepo.get(sanitizedEmail);
+      if (!existingData) {
         return { success: false, error: 'Personal health record not found' };
       }
-      
-      const existingData = existingDoc.data();
       const interventionHistory = existingData.interventionHistory || [];
-      
-      // 添加新干预记录
       interventionHistory.push(interventionData);
-      
-      // 只保留最近100条干预记录
       const trimmedHistory = interventionHistory.slice(-100);
-      
-      await updateDoc(recordDocRef, {
+      await personalHealthRecordRepo.update(sanitizedEmail, {
         interventionHistory: trimmedHistory,
         updatedAt: new Date()
       });
-      
       return { success: true, interventionId: interventionData.interventionId };
     } catch (error) {
       console.error('添加干预历史错误:', error);
@@ -796,36 +717,26 @@ class FirebaseService {
   async updateInterventionHistory(userEmail, interventionId, updates) {
     try {
       const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
-      const recordDocRef = doc(db, 'personalHealthRecords', sanitizedEmail);
-      const existingDoc = await getDoc(recordDocRef);
-      
-      if (!existingDoc.exists()) {
+      const existingData = await personalHealthRecordRepo.get(sanitizedEmail);
+      if (!existingData) {
         return { success: false, error: 'Personal health record not found' };
       }
-      
-      const existingData = existingDoc.data();
       const interventionHistory = existingData.interventionHistory || [];
-      
-      // 查找并更新干预记录
       const index = interventionHistory.findIndex(
         item => item.interventionId === interventionId
       );
-      
       if (index === -1) {
         return { success: false, error: 'Intervention not found' };
       }
-      
       interventionHistory[index] = {
         ...interventionHistory[index],
         ...updates,
         updatedAt: new Date().toISOString()
       };
-      
-      await updateDoc(recordDocRef, {
-        interventionHistory: interventionHistory,
+      await personalHealthRecordRepo.update(sanitizedEmail, {
+        interventionHistory,
         updatedAt: new Date()
       });
-      
       return { success: true, interventionId: interventionId };
     } catch (error) {
       console.error('更新干预历史错误:', error);
@@ -837,14 +748,10 @@ class FirebaseService {
   async getInterventionHistory(userEmail, status = null) {
     try {
       const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
-      const recordDocRef = doc(db, 'personalHealthRecords', sanitizedEmail);
-      const existingDoc = await getDoc(recordDocRef);
-      
-      if (!existingDoc.exists()) {
+      const existingData = await personalHealthRecordRepo.get(sanitizedEmail);
+      if (!existingData) {
         return { success: false, error: 'Personal health record not found' };
       }
-      
-      const existingData = existingDoc.data();
       let interventionHistory = existingData.interventionHistory || [];
       
       // 按状态过滤
