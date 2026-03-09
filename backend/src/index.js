@@ -126,34 +126,6 @@ app.get('/health', (req, res) => {
   });
 });
 
-// 线上调试：查看各 AI 提供方是否可用及 OpenAI 不可用原因（不暴露密钥）
-app.get('/api/ai-status', (req, res) => {
-  try {
-    const aiServiceFactory = require('./services/aiServiceFactory');
-    const openaiRaw = process.env.OPENAI_API_KEY;
-    const openaiKeyPresent = typeof openaiRaw === 'string' && openaiRaw.trim().length > 0;
-    const providers = {};
-    ['gemini', 'openai', 'qwen', 'ernie'].forEach((name) => {
-      const available = !!aiServiceFactory.availableServices[name];
-      providers[name] = { available };
-      if (name === 'openai' && !available) {
-        if (!openaiKeyPresent) {
-          providers[name].hint = 'OPENAI_API_KEY not set or empty. In Railway use exact variable name: OPENAI_API_KEY (not OPEN_API_KEY).';
-        } else {
-          providers[name].hint = 'OPENAI_API_KEY is set (length ' + (openaiRaw.trim().length) + ') but OpenAI adapter failed to initialize. Check server startup logs.';
-        }
-      }
-    });
-    res.json({
-      ok: true,
-      providers,
-      env: process.env.NODE_ENV || 'development'
-    });
-  } catch (err) {
-    res.status(500).json({ ok: false, error: err.message });
-  }
-});
-
 // Cache busting endpoint
 app.get('/cache-bust', (req, res) => {
   res.json({
@@ -553,15 +525,10 @@ app.get('*', (req, res) => {
   }
 });
 
-// 错误处理中间件（500 时返回 details 便于线上排查，不暴露 stack）
+// 错误处理中间件
 app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err.message || err);
   console.error(err.stack);
-  const message = err.message || '服务器内部错误';
-  res.status(500).json({
-    error: '服务器内部错误',
-    details: message
-  });
+  res.status(500).json({ error: '服务器内部错误' });
 });
 
 const server = app.listen(PORT, '0.0.0.0', () => {
