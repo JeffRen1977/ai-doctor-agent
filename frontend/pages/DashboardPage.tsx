@@ -40,7 +40,7 @@ import {
 import { useLanguageStore } from '@/stores/languageStore';
 import { getTranslation } from '@/locales';
 import { useNavigate } from 'react-router-dom';
-import { interventionEngineAPI, collaborationAPI, riskMonitoringAPI } from '@/services/api';
+import { interventionEngineAPI, collaborationAPI, riskMonitoringAPI, digitalTwinAPI } from '@/services/api';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -87,6 +87,8 @@ const DashboardPage: React.FC = () => {
   const [riskAlerts, setRiskAlerts] = useState<any[]>([]);
   const [healthScore, setHealthScore] = useState<number>(75);
   const [riskLevel, setRiskLevel] = useState<'low' | 'medium' | 'high'>('medium');
+  const [healthSummary, setHealthSummary] = useState<string>('');
+  const [healthSummaryLoading, setHealthSummaryLoading] = useState<boolean>(false);
 
   useEffect(() => {
     loadDashboardData();
@@ -180,6 +182,9 @@ const DashboardPage: React.FC = () => {
       // 生成最近活动（需要预约数据，所以在这里调用）
       generateRecentActivities(medResponse, appointments);
 
+      // 加载健康总结（AI 生成，用于总览展示）
+      loadHealthSummary();
+
       // 计算健康评分（基于用药依从性和指标状态）
       if (medResponse.adherence) {
         const adherence = medResponse.adherence.overall || 0;
@@ -193,6 +198,20 @@ const DashboardPage: React.FC = () => {
       message.error(language === 'zh' ? '加载数据失败' : 'Failed to load data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadHealthSummary = async () => {
+    setHealthSummaryLoading(true);
+    try {
+      const res = await digitalTwinAPI.getHealthSummary();
+      if (res.success && res.data?.summary) {
+        setHealthSummary(res.data.summary);
+      }
+    } catch (e) {
+      console.error('Failed to load health summary', e);
+    } finally {
+      setHealthSummaryLoading(false);
     }
   };
 
@@ -311,6 +330,41 @@ const DashboardPage: React.FC = () => {
         <Title level={screens.xs ? 3 : 2} style={{ marginBottom: '24px', textAlign: screens.xs ? 'center' : 'left' }}>
           {t('dashboard.title')}
         </Title>
+
+        {/* 健康总结（AI 生成） */}
+        <Card
+          title={language === 'zh' ? '健康总结' : 'Health Summary'}
+          loading={healthSummaryLoading}
+          style={{ marginBottom: '24px' }}
+          extra={
+            healthSummary ? (
+              <Button type="link" size="small" icon={<SyncOutlined />} onClick={loadHealthSummary}>
+                {language === 'zh' ? '刷新' : 'Refresh'}
+              </Button>
+            ) : null
+          }
+        >
+          {healthSummary ? (
+            <div
+              style={{
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+                maxHeight: '400px',
+                overflowY: 'auto',
+                lineHeight: 1.6
+              }}
+            >
+              {healthSummary}
+            </div>
+          ) : (
+            !healthSummaryLoading && (
+              <Empty
+                description={language === 'zh' ? '暂无健康总结，请先构建数字孪生' : 'No health summary yet. Build your digital twin first.'}
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+              />
+            )
+          )}
+        </Card>
 
         {/* 关键指标卡片 */}
         <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>

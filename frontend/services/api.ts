@@ -195,6 +195,14 @@ export const riskMonitoringAPI = {
   }
 };
 
+// Digital Twin API（数字孪生 / 健康总结）
+export const digitalTwinAPI = {
+  getHealthSummary: async () => {
+    const response = await api.get('/digital-twin/health-summary');
+    return response.data;
+  }
+};
+
 // Intervention Engine API
 export const interventionEngineAPI = {
   // Get medication management

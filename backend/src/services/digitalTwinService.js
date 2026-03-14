@@ -329,6 +329,32 @@ class DigitalTwinService {
   }
 
   /**
+   * 获取健康总结（用于「我的健康总览」展示）
+   * 使用 AI 的「健康总结」模板对数字孪生数据进行分析，返回结构化健康总结文本。
+   * @param {string} userEmail 用户邮箱
+   * @returns {Promise<{ success: boolean, summary?: string, error?: string }>}
+   */
+  async getHealthSummary(userEmail) {
+    try {
+      let digitalTwin = await digitalTwinRepo.getDigitalTwin(userEmail);
+      if (!digitalTwin) {
+        const buildResult = await this.buildDigitalTwin(userEmail);
+        if (!buildResult.success) return { success: false, error: buildResult.error || 'Failed to build digital twin' };
+        digitalTwin = buildResult.digitalTwin;
+      }
+      const userSettings = await userSettingsService.getUserAISettings(userEmail);
+      const { aiProvider, aiModel } = aiProviderConfig.getAIServiceConfig(userSettings);
+      const healthData = { digitalTwin };
+      const aiResult = await aiServiceFactory.analyzeHealthRecords(healthData, { provider: aiProvider, model: aiModel });
+      if (!aiResult.success) return { success: false, error: aiResult.error || 'AI analysis failed' };
+      return { success: true, summary: aiResult.analysis || '' };
+    } catch (error) {
+      console.error('❌ getHealthSummary error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * 运行"What-if"模拟
    * 基于数字孪生模型，模拟不同场景对用户健康的影响
    * 

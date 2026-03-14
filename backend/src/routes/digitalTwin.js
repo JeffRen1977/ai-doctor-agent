@@ -109,6 +109,22 @@ router.post('/project', authenticateToken, async (req, res) => {
 });
 
 /**
+ * 获取健康总结（用于「我的健康总览」）
+ * GET /api/digital-twin/health-summary
+ */
+router.get('/health-summary', authenticateToken, async (req, res) => {
+  try {
+    const userEmail = req.user?.email;
+    if (!userEmail) return res.status(401).json({ success: false, error: 'User not authenticated' });
+    const result = await digitalTwinService.getHealthSummary(userEmail);
+    if (!result.success) return res.status(500).json({ success: false, error: result.error || 'Failed to get health summary' });
+    res.json({ success: true, data: { summary: result.summary } });
+  } catch (error) {
+    send500(res, error);
+  }
+});
+
+/**
  * 获取整合的健康数据（用于调试和查看）
  * GET /api/digital-twin/health-data
  */
