@@ -27,13 +27,27 @@ function docToRecord(docSnap) {
   };
 }
 
+/** 移除 undefined，Firestore 不接受 undefined */
+function stripUndefined(obj) {
+  if (obj === undefined) return null;
+  if (obj === null || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(stripUndefined);
+  const out = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (v !== undefined) out[k] = stripUndefined(v);
+    else out[k] = null;
+  }
+  return out;
+}
+
 /**
  * @param {Object} record - 康复记录对象（含 recordId, userEmail, type, ...）
  * @returns {Promise<{ id: string, ... }>}
  */
 async function addRehabilitationRecord(record) {
   const ref = collection(db, COLLECTION);
-  const docRef = await addDoc(ref, record);
+  const payload = stripUndefined(record);
+  const docRef = await addDoc(ref, payload);
   return { id: docRef.id, ...record };
 }
 

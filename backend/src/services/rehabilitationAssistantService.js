@@ -310,27 +310,25 @@ class RehabilitationAssistantService {
       if (!aiResult.success) {
         throw new Error(aiResult.error || 'AI analysis failed');
       }
-      
-      // 保存问答记录（使用新格式）
+
+      const answerText = (aiResult.message ?? aiResult.text ?? aiResult.analysis ?? '') || '';
       await this.saveRehabilitationRecord(
         userEmail,
         'qa',
         null,
         { question, context: userContext },
-        {
-          answer: aiResult.message
-        },
+        { answer: answerText },
         {
           aiProvider,
           aiModel: aiModel || 'default',
           language: userLanguage
         }
       );
-      
+
       return {
         success: true,
         question: question,
-        answer: aiResult.message
+        answer: answerText
       };
     } catch (error) {
       console.error('❌ Error answering health question:', error);
