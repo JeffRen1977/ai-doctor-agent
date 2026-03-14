@@ -538,26 +538,46 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: '服务器内部错误' });
 });
 
-const server = app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server listening on ${PORT} (env: ${process.env.NODE_ENV || 'development'})`);
-}).on('error', (error) => {
-  console.error('Server start failed:', error.message, error.code);
-  process.exit(1);
-});
+async function startServer() {
+  if (process.env.PERSISTENCE_ADAPTER === 'mongodb') {
+    const { getDb } = require('./adapters/mongodb/connection');
+    await getDb();
+    console.log('✅ MongoDB connected (MONGODB_URI from env or localhost)');
+  }
+  return new Promise((resolve, reject) => {
+    const server = app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Server listening on ${PORT} (env: ${process.env.NODE_ENV || 'development'})`);
+      resolve(server);
+    });
+    server.on('error', (error) => {
+      console.error('Server start failed:', error.message, error.code);
+      reject(error);
+      process.exit(1);
+    });
+  });
+}
+
+let server;
+startServer()
+  .then((s) => { server = s; })
+  .catch((err) => {
+    console.error('Startup error:', err);
+    process.exit(1);
+  });
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down gracefully');
-  server.close(() => {
-    console.log('Server closed');
-    process.exit(0);
-  });
-});
-
-process.on('SIGINT', () => {
-  console.log('SIGINT received, shutting down gracefully');
-  server.close(() => {
-    console.log('Server closed');
-    process.exit(0);
-  });
-}); 
+function shutdown(sig) {
+  return () => {
+    console.log(`${sig} received, shutting down gracefully`);
+    if (server && typeof server.close === 'function') {
+      server.close(() => {
+        console.log('Server closed');
+        process.exit(0);
+      });
+    } else {
+      process.exit(0);
+    }
+  };
+}
+process.on('SIGTERM', shutdown('SIGTERM'));
+process.on('SIGINT', shutdown('SIGINT')); 
