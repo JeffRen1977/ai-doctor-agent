@@ -28,6 +28,7 @@ const healthRecordAdapter = require('./healthRecordAdapter');
 const personalHealthRecordAdapter = require('./personalHealthRecordAdapter');
 const userAdapter = require('./userAdapter');
 const userProfileAdapter = require('./userProfileAdapter');
+const healthSummaryAdapter = require('./healthSummaryAdapter');
 
 module.exports = {
   userBasicInfoRepo: userBasicInfoAdapter,
@@ -55,5 +56,6 @@ module.exports = {
   healthRecordRepo: healthRecordAdapter,
   personalHealthRecordRepo: personalHealthRecordAdapter,
   userRepo: userAdapter,
-  userProfileRepo: userProfileAdapter
+  userProfileRepo: userProfileAdapter,
+  healthSummaryRepo: healthSummaryAdapter
 };

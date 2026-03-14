@@ -2,7 +2,7 @@ const aiServiceFactory = require('./aiServiceFactory');
 const wearableService = require('./wearableService');
 const userSettingsService = require('./userSettingsService');
 const aiProviderConfig = require('../config/aiProviderConfig');
-const { userBasicInfoRepo, digitalTwinRepo, userWearablesRepo, healthRecordRepo } = require('../repositories');
+const { userBasicInfoRepo, digitalTwinRepo, userWearablesRepo, healthRecordRepo, healthSummaryRepo } = require('../repositories');
 
 /**
  * 数字孪生服务
@@ -329,13 +329,28 @@ class DigitalTwinService {
   }
 
   /**
-   * 获取健康总结（用于「我的健康总览」展示）
-   * 使用 AI 的「健康总结」模板对数字孪生数据进行分析，返回结构化健康总结文本。
-   * @param {string} userEmail 用户邮箱
-   * @returns {Promise<{ success: boolean, summary?: string, error?: string }>}
+   * 获取健康总结（从数据库 healthSummaries 读取，不调大模型）
+   * @param {string} userId 用户 ID（Firebase uid）
    */
-  async getHealthSummary(userEmail) {
+  async getHealthSummary(userId) {
     try {
+      if (!userId) return { success: false, error: 'User ID required' };
+      const row = await healthSummaryRepo.getHealthSummary(userId);
+      return { success: true, summary: row?.summary ?? '', updatedAt: row?.updatedAt };
+    } catch (error) {
+      console.error('❌ getHealthSummary error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * 刷新健康总结：调大模型重新生成并写入数据库 healthSummaries（用户点击「刷新」时调用）
+   * @param {string} userEmail 用户邮箱
+   * @param {string} userId 用户 ID（Firebase uid）
+   */
+  async refreshHealthSummary(userEmail, userId) {
+    try {
+      if (!userId) return { success: false, error: 'User ID required' };
       let digitalTwin = await digitalTwinRepo.getDigitalTwin(userEmail);
       if (!digitalTwin) {
         const buildResult = await this.buildDigitalTwin(userEmail);
@@ -347,9 +362,12 @@ class DigitalTwinService {
       const healthData = { digitalTwin };
       const aiResult = await aiServiceFactory.analyzeHealthRecords(healthData, { provider: aiProvider, model: aiModel });
       if (!aiResult.success) return { success: false, error: aiResult.error || 'AI analysis failed' };
-      return { success: true, summary: aiResult.analysis || '' };
+      const summary = aiResult.analysis || '';
+      const updatedAt = new Date().toISOString();
+      await healthSummaryRepo.setHealthSummary(userId, { summary, updatedAt });
+      return { success: true, summary, updatedAt };
     } catch (error) {
-      console.error('❌ getHealthSummary error:', error);
+      console.error('❌ refreshHealthSummary error:', error);
       return { success: false, error: error.message };
     }
   }

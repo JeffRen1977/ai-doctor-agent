@@ -41,7 +41,10 @@ import { useLanguageStore } from '@/stores/languageStore';
 import { getTranslation } from '@/locales';
 import { useNavigate } from 'react-router-dom';
 import { interventionEngineAPI, collaborationAPI, riskMonitoringAPI, digitalTwinAPI } from '@/services/api';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import dayjs from 'dayjs';
+import './DashboardPage.css';
 
 const { Title, Text } = Typography;
 const { useBreakpoint } = Grid;
@@ -205,11 +208,27 @@ const DashboardPage: React.FC = () => {
     setHealthSummaryLoading(true);
     try {
       const res = await digitalTwinAPI.getHealthSummary();
-      if (res.success && res.data?.summary) {
-        setHealthSummary(res.data.summary);
-      }
+      if (res.success && res.data) setHealthSummary(res.data.summary ?? '');
     } catch (e) {
       console.error('Failed to load health summary', e);
+    } finally {
+      setHealthSummaryLoading(false);
+    }
+  };
+
+  const handleRefreshHealthSummary = async () => {
+    setHealthSummaryLoading(true);
+    try {
+      const res = await digitalTwinAPI.refreshHealthSummary();
+      if (res.success && res.data) {
+        setHealthSummary(res.data.summary ?? '');
+        message.success(language === 'zh' ? '健康总结已更新' : 'Health summary updated');
+      } else {
+        message.error(res?.error || (language === 'zh' ? '生成失败' : 'Failed to generate'));
+      }
+    } catch (e) {
+      console.error('Failed to refresh health summary', e);
+      message.error(language === 'zh' ? '生成失败' : 'Failed to generate');
     } finally {
       setHealthSummaryLoading(false);
     }
@@ -338,30 +357,28 @@ const DashboardPage: React.FC = () => {
           style={{ marginBottom: '24px' }}
           extra={
             healthSummary ? (
-              <Button type="link" size="small" icon={<SyncOutlined />} onClick={loadHealthSummary}>
+              <Button type="link" size="small" icon={<SyncOutlined />} onClick={handleRefreshHealthSummary}>
                 {language === 'zh' ? '刷新' : 'Refresh'}
               </Button>
             ) : null
           }
         >
           {healthSummary ? (
-            <div
-              style={{
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word',
-                maxHeight: '400px',
-                overflowY: 'auto',
-                lineHeight: 1.6
-              }}
-            >
-              {healthSummary}
+            <div className="health-summary-markdown">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {healthSummary}
+              </ReactMarkdown>
             </div>
           ) : (
             !healthSummaryLoading && (
               <Empty
-                description={language === 'zh' ? '暂无健康总结，请先构建数字孪生' : 'No health summary yet. Build your digital twin first.'}
+                description={language === 'zh' ? '暂无健康总结，点击下方按钮生成' : 'No health summary yet. Click below to generate.'}
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
-              />
+              >
+                <Button type="primary" icon={<SyncOutlined />} onClick={handleRefreshHealthSummary}>
+                  {language === 'zh' ? '生成健康总结' : 'Generate Health Summary'}
+                </Button>
+              </Empty>
             )
           )}
         </Card>

@@ -108,17 +108,28 @@ router.post('/project', authenticateToken, async (req, res) => {
   }
 });
 
-/**
- * 获取健康总结（用于「我的健康总览」）
- * GET /api/digital-twin/health-summary
- */
+/** GET /api/digital-twin/health-summary - 从数据库读取健康总结 */
 router.get('/health-summary', authenticateToken, async (req, res) => {
   try {
-    const userEmail = req.user?.email;
-    if (!userEmail) return res.status(401).json({ success: false, error: 'User not authenticated' });
-    const result = await digitalTwinService.getHealthSummary(userEmail);
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ success: false, error: 'User not authenticated' });
+    const result = await digitalTwinService.getHealthSummary(userId);
     if (!result.success) return res.status(500).json({ success: false, error: result.error || 'Failed to get health summary' });
-    res.json({ success: true, data: { summary: result.summary } });
+    res.json({ success: true, data: { summary: result.summary, updatedAt: result.updatedAt } });
+  } catch (error) {
+    send500(res, error);
+  }
+});
+
+/** POST /api/digital-twin/health-summary/refresh - 重新生成健康总结并写入数据库 */
+router.post('/health-summary/refresh', authenticateToken, async (req, res) => {
+  try {
+    const userEmail = req.user?.email;
+    const userId = req.user?.id;
+    if (!userEmail || !userId) return res.status(401).json({ success: false, error: 'User not authenticated' });
+    const result = await digitalTwinService.refreshHealthSummary(userEmail, userId);
+    if (!result.success) return res.status(500).json({ success: false, error: result.error || 'Failed to refresh health summary' });
+    res.json({ success: true, data: { summary: result.summary, updatedAt: result.updatedAt } });
   } catch (error) {
     send500(res, error);
   }
