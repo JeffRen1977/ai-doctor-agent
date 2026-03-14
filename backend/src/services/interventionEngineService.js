@@ -155,11 +155,8 @@ class InterventionEngineService {
     try {
       const userSettings = await userSettingsService.getUserAISettings(userEmail);
       const userLanguage = userSettings.success ? (userSettings.language || 'zh') : 'zh';
-      
-      // 营养分析优先使用 Gemini 图像模型（识别效果更好，与饮食分析接口一致）
-      const nutritionProvider = 'gemini';
-      const nutritionModel = 'gemini-2.5-flash';
-      
+      const { aiProvider, aiModel } = aiProviderConfig.getAIServiceConfig(userSettings);
+
       const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9@._-]/g, '_');
       // 通过 Context Builder 获取档案+用药（统一 prompt 来源）
       let healthRecord = null;
@@ -184,7 +181,7 @@ class InterventionEngineService {
       const aiResult = await aiServiceFactory.analyzeImageWithAI(
         base64Image,
         prompt,
-        { provider: nutritionProvider, model: nutritionModel, language: userLanguage }
+        { provider: aiProvider, model: aiModel, language: userLanguage }
       );
       
       if (!aiResult.success) {
