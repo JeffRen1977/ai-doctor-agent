@@ -1,0 +1,69 @@
+/* 健康总结 Markdown 展示 */
+.health-summary-markdown {
+  max-height: 480px;
+  overflow-y: auto;
+  line-height: 1.65;
+  color: rgba(0, 0, 0, 0.85);
+}
+
+.health-summary-markdown h1,
+.health-summary-markdown h2,
+.health-summary-markdown h3 {
+  margin-top: 1.25em;
+  margin-bottom: 0.5em;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.88);
+}
+.health-summary-markdown h1 { font-size: 1.25rem; }
+.health-summary-markdown h2 { font-size: 1.1rem; }
+.health-summary-markdown h3 { font-size: 1rem; }
+.health-summary-markdown h1:first-child,
+.health-summary-markdown h2:first-child,
+.health-summary-markdown h3:first-child {
+  margin-top: 0;
+}
+
+.health-summary-markdown p {
+  margin-bottom: 0.75em;
+}
+
+.health-summary-markdown ul,
+.health-summary-markdown ol {
+  margin: 0.5em 0;
+  padding-left: 1.5em;
+}
+.health-summary-markdown li {
+  margin-bottom: 0.25em;
+}
+
+.health-summary-markdown strong {
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.88);
+}
+
+.health-summary-markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.75em 0;
+  font-size: 0.9em;
+}
+.health-summary-markdown th,
+.health-summary-markdown td {
+  border: 1px solid #f0f0f0;
+  padding: 8px 12px;
+  text-align: left;
+}
+.health-summary-markdown th {
+  background: #fafafa;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.88);
+}
+.health-summary-markdown tr:nth-child(even) {
+  background: #fafafa;
+}
+
+.health-summary-markdown hr {
+  border: none;
+  border-top: 1px solid #f0f0f0;
+  margin: 1em 0;
+}
