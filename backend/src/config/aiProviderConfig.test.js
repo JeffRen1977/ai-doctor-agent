@@ -29,9 +29,9 @@ describe('aiProviderConfig', () => {
       expect(getDefaultProvider()).toBe(OVERSEAS_DEFAULT_PROVIDER);
     });
 
-    test('returns DEFAULT_AI_PROVIDER when set', () => {
-      process.env.DEFAULT_AI_PROVIDER = 'openai';
+    test('returns DEFAULT_AI_PROVIDER when set (overrides region default)', () => {
       process.env.DEPLOYMENT_REGION = 'cn';
+      process.env.DEFAULT_AI_PROVIDER = 'openai';
       expect(getDefaultProvider()).toBe('openai');
     });
 
@@ -39,6 +39,12 @@ describe('aiProviderConfig', () => {
       process.env.DEPLOYMENT_REGION = 'cn';
       delete process.env.DEFAULT_AI_PROVIDER;
       expect(getDefaultProvider()).toBe(CN_DEFAULT_PROVIDER);
+    });
+
+    test('returns qwen when DEPLOYMENT_REGION=intl (Model Studio / Singapore)', () => {
+      process.env.DEPLOYMENT_REGION = 'intl';
+      delete process.env.DEFAULT_AI_PROVIDER;
+      expect(getDefaultProvider()).toBe('qwen');
     });
   });
 
@@ -62,7 +68,7 @@ describe('aiProviderConfig', () => {
   });
 
   describe('resolveAIConfig', () => {
-    test('returns deployment default when userSettings undefined', () => {
+    test('returns deployment default from env (ignores userSettings)', () => {
       delete process.env.DEFAULT_AI_PROVIDER;
       delete process.env.DEPLOYMENT_REGION;
       const out = resolveAIConfig(undefined);
@@ -71,41 +77,33 @@ describe('aiProviderConfig', () => {
       expect(out.model).toBeTruthy();
     });
 
-    test('uses user provider and default model when userSettings.success and aiProvider set, no aiModel', () => {
-      delete process.env.DEFAULT_AI_MODEL;
-      const out = resolveAIConfig({ success: true, aiProvider: 'openai' });
-      expect(out.provider).toBe('openai');
-      expect(out.model).toBe(DEFAULT_MODEL_BY_PROVIDER.openai);
-    });
-
-    test('uses user provider and aiModel when userSettings has both', () => {
-      const out = resolveAIConfig({
-        success: true,
-        aiProvider: 'qwen',
-        aiModel: 'qwen-plus'
-      });
-      expect(out.provider).toBe('qwen');
-      expect(out.model).toBe('qwen-plus');
-    });
-
-    test('ignores userSettings when success is false', () => {
+    test('returns deployment default when DEPLOYMENT_REGION=cn even if userSettings has aiProvider', () => {
+      process.env.DEPLOYMENT_REGION = 'cn';
       delete process.env.DEFAULT_AI_PROVIDER;
-      delete process.env.DEPLOYMENT_REGION;
-      const out = resolveAIConfig({ success: false, aiProvider: 'openai', aiModel: 'gpt-4' });
-      expect(out.provider).toBe(OVERSEAS_DEFAULT_PROVIDER);
+      delete process.env.DEFAULT_AI_MODEL;
+      const out = resolveAIConfig({ success: true, aiProvider: 'openai', aiModel: 'gpt-4o' });
+      expect(out.provider).toBe(CN_DEFAULT_PROVIDER);
+      expect(out.model).toBe('qwen-turbo');
     });
 
-    test('uses default model when user aiModel is empty string', () => {
+    test('returns DEFAULT_AI_PROVIDER when set, ignores userSettings', () => {
+      process.env.DEFAULT_AI_PROVIDER = 'gemini';
+      delete process.env.DEPLOYMENT_REGION;
       delete process.env.DEFAULT_AI_MODEL;
-      const out = resolveAIConfig({ success: true, aiProvider: 'ernie', aiModel: '' });
-      expect(out.model).toBe(DEFAULT_MODEL_BY_PROVIDER.ernie);
+      const out = resolveAIConfig({ success: true, aiProvider: 'openai', aiModel: 'gpt-4o' });
+      expect(out.provider).toBe('gemini');
+      expect(out.model).toBe('gemini-2.5-flash');
     });
   });
 
   describe('getAIServiceConfig', () => {
-    test('returns aiProvider and aiModel from resolveAIConfig', () => {
-      const out = getAIServiceConfig({ success: true, aiProvider: 'qwen', aiModel: 'qwen-turbo' });
-      expect(out).toEqual({ aiProvider: 'qwen', aiModel: 'qwen-turbo' });
+    test('returns deployment default as aiProvider/aiModel (env only)', () => {
+      process.env.DEPLOYMENT_REGION = 'intl';
+      delete process.env.DEFAULT_AI_PROVIDER;
+      delete process.env.DEFAULT_AI_MODEL;
+      const out = getAIServiceConfig({ success: true, aiProvider: 'openai' });
+      expect(out.aiProvider).toBe('qwen');
+      expect(out.aiModel).toBe('qwen-turbo');
     });
 
     test('works with undefined userSettings', () => {

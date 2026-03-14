@@ -5,6 +5,13 @@ const morgan = require('morgan');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
+const aiProviderConfig = require('./config/aiProviderConfig');
+(function logDefaultAI() {
+  const provider = aiProviderConfig.getDefaultProvider();
+  const model = aiProviderConfig.getDefaultModel(provider);
+  console.log('🔧 Default AI (from .env):', provider, model, '| DEPLOYMENT_REGION=' + (process.env.DEPLOYMENT_REGION || '(unset)'));
+})();
+
 const authRoutes = require('./routes/auth');
 const chatRoutes = require('./routes/chat');
 const healthRecordsRoutes = require('./routes/healthRecords');

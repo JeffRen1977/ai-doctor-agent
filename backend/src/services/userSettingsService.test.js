@@ -14,9 +14,19 @@ jest.mock('../repositories', () => ({
 
 const userSettingsService = require('./userSettingsService');
 
+const origDEPLOYMENT_REGION = process.env.DEPLOYMENT_REGION;
+const origDEFAULT_AI_PROVIDER = process.env.DEFAULT_AI_PROVIDER;
+
 beforeEach(() => {
   mockGetUserSettings.mockReset();
   mockSetUserSettings.mockReset();
+  process.env.DEPLOYMENT_REGION = '';
+  process.env.DEFAULT_AI_PROVIDER = 'gemini';
+});
+
+afterEach(() => {
+  process.env.DEPLOYMENT_REGION = origDEPLOYMENT_REGION;
+  process.env.DEFAULT_AI_PROVIDER = origDEFAULT_AI_PROVIDER;
 });
 
 describe('UserSettingsService', () => {

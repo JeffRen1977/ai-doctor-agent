@@ -1,11 +1,54 @@
 const axios = require('axios');
 
+/** DashScope 区域与端点：API Key 与 endpoint 必须同区域，否则会 401 */
+const DASHSCOPE_HOSTS = {
+  cn: 'https://dashscope.aliyuncs.com',
+  intl: 'https://dashscope-intl.aliyuncs.com',   // Singapore / Model Studio 国际
+  us: 'https://dashscope-us.aliyuncs.com'
+};
+
+/** 解析 DashScope 区域：DASHSCOPE_REGION 优先，否则用 DEPLOYMENT_REGION（cn/intl/us），再默认 cn */
+function getDashScopeRegion() {
+  const r = (process.env.DASHSCOPE_REGION || process.env.DEPLOYMENT_REGION || 'cn').toLowerCase();
+  return DASHSCOPE_HOSTS[r] ? r : 'cn';
+}
+
+/**
+ * 从 DashScope/Model Studio API 响应中安全解析首条文本内容。
+ * 兼容 output.choices[0].message.content 的多种返回格式（字符串、数组、output.text、顶层 choices）。
+ */
+function parseDashScopeContent(response) {
+  if (!response || !response.data) return '';
+  const data = response.data;
+  const output = data.output;
+  const choices = output && output.choices;
+  const firstChoice = Array.isArray(choices) && choices.length > 0 ? choices[0] : null;
+  const msg = firstChoice && firstChoice.message;
+  let content = msg && msg.content;
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content) && content.length > 0) {
+    if (content[0] && typeof content[0].text === 'string') return content.map(c => c && c.text).filter(Boolean).join('');
+    if (typeof content[0] === 'string') return content.join('');
+  }
+  if (content && typeof content === 'object' && typeof content.text === 'string') return content.text;
+  if (output && typeof output.text === 'string') return output.text;
+  const topChoices = data.choices;
+  if (Array.isArray(topChoices) && topChoices[0] && topChoices[0].message) {
+    const c = topChoices[0].message.content;
+    if (typeof c === 'string') return c;
+  }
+  return '';
+}
+
 class QwenService {
   constructor() {
     this.isInitialized = false;
     this.apiKey = process.env.DASHSCOPE_API_KEY;
-    this.baseUrl = 'https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation';
-    
+    const region = getDashScopeRegion();
+    this.baseHost = DASHSCOPE_HOSTS[region];
+    this.baseUrl = `${this.baseHost}/api/v1/services/aigc/text-generation/generation`;
+    this.multimodalUrl = `${this.baseHost}/api/v1/services/aigc/multimodal-generation/generation`;
+
     this.initialize();
   }
 
@@ -17,7 +60,8 @@ class QwenService {
       }
 
       this.isInitialized = true;
-      console.log('✅ 通义千问服务初始化成功');
+      const region = getDashScopeRegion();
+      console.log('✅ 通义千问服务初始化成功', region !== 'cn' ? `(region: ${region})` : '');
     } catch (error) {
       console.error('❌ 通义千问服务初始化失败:', error.message);
       this.isInitialized = false;
@@ -77,9 +121,10 @@ class QwenService {
         throw new Error(`通义千问API错误: ${response.data.message}`);
       }
 
+      const text = parseDashScopeContent(response);
       return {
         success: true,
-        text: response.data.output.choices[0].message.content,
+        text: text || '',
         model: options.model || 'qwen-turbo',
         usage: response.data.usage || {}
       };
@@ -101,10 +146,8 @@ class QwenService {
         throw new Error('通义千问服务未初始化');
       }
 
-      const url = 'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation';
-      
       const response = await axios.post(
-        url,
+        this.multimodalUrl,
         {
           model: 'qwen-vl-plus',
           input: {
@@ -140,7 +183,7 @@ class QwenService {
 
       return {
         success: true,
-        text: response.data.output.choices[0].message.content,
+        text: parseDashScopeContent(response),
         model: 'qwen-vl-plus'
       };
     } catch (error) {
@@ -188,6 +231,7 @@ class QwenService {
 
   /**
    * 分析健康记录
+   * 若传入 documents[0].text（如数字孪生 simulate/project 的完整 prompt），则直接使用该内容，不套用固定模板。
    */
   async analyzeHealthRecords(healthData, options = {}) {
     try {
@@ -195,7 +239,13 @@ class QwenService {
         throw new Error('通义千问服务未初始化');
       }
 
-      const prompt = `作为专业的健康分析师，请分析以下健康数据，提供详细的健康评估和建议：
+      const documents = healthData && healthData.documents;
+      const firstDocText = Array.isArray(documents) && documents[0] && (documents[0].text || documents[0].content);
+      const useCallerPrompt = typeof firstDocText === 'string' && firstDocText.trim().length > 0;
+
+      const userContent = useCallerPrompt
+        ? firstDocText.trim()
+        : `作为专业的健康分析师，请分析以下健康数据，提供详细的健康评估和建议：
 
 健康数据：
 ${JSON.stringify(healthData, null, 2)}
@@ -210,20 +260,18 @@ ${JSON.stringify(healthData, null, 2)}
 
 请以结构化的方式返回分析结果。`;
 
+      const systemContent = useCallerPrompt
+        ? '你是一位专业的医疗AI助手。请严格按照用户要求的内容和格式回答（若要求返回 JSON 则只返回 JSON，不要额外说明）。'
+        : '你是一位专业的健康分析师，擅长分析健康数据并提供专业的医疗建议。';
+
       const response = await axios.post(
         this.baseUrl,
         {
-          model: options.model || 'qwen-plus',
+          model: options.model || 'qwen-turbo',
           input: {
             messages: [
-              {
-                role: 'system',
-                content: '你是一位专业的健康分析师，擅长分析健康数据并提供专业的医疗建议。'
-              },
-              {
-                role: 'user',
-                content: prompt
-              }
+              { role: 'system', content: systemContent },
+              { role: 'user', content: userContent }
             ]
           },
           parameters: {
@@ -245,8 +293,8 @@ ${JSON.stringify(healthData, null, 2)}
 
       return {
         success: true,
-        analysis: response.data.output.choices[0].message.content,
-        model: options.model || 'qwen-plus'
+        analysis: parseDashScopeContent(response),
+        model: options.model || 'qwen-turbo'
       };
     } catch (error) {
       console.error('❌ 通义千问健康分析错误:', error.message);
@@ -314,7 +362,7 @@ ${JSON.stringify(healthData, null, 2)}
 
       return {
         success: true,
-        analysis: response.data.output.choices[0].message.content,
+        analysis: parseDashScopeContent(response),
         model: options.model || 'qwen-turbo'
       };
     } catch (error) {
@@ -347,10 +395,8 @@ ${JSON.stringify(healthData, null, 2)}
         throw new Error('通义千问服务未初始化');
       }
 
-      const url = 'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation';
-      
       const response = await axios.post(
-        url,
+        this.multimodalUrl,
         {
           model: 'qwen-vl-plus',
           input: {
@@ -387,7 +433,7 @@ ${JSON.stringify(healthData, null, 2)}
 
       return {
         success: true,
-        result: response.data.output.choices[0].message.content,
+        result: parseDashScopeContent(response),
         model: 'qwen-vl-plus'
       };
     } catch (error) {

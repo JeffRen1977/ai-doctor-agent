@@ -361,9 +361,19 @@ class DigitalTwinService {
       if (!aiResult.success) {
         throw new Error(aiResult.error || 'AI simulation failed');
       }
-      
+
+      const analysisText = (aiResult.analysis != null && String(aiResult.analysis).trim()) ? String(aiResult.analysis).trim() : '';
+      if (!analysisText) {
+        console.warn('⚠️ Simulation: AI returned empty analysis, using fallback message');
+      } else {
+        const previewLen = 1200;
+        const preview = analysisText.length <= previewLen ? analysisText : analysisText.slice(0, previewLen) + '...';
+        console.log('📄 Simulation AI 返回内容 (长度 ' + analysisText.length + '):');
+        console.log(preview);
+      }
+
       // 5. 解析模拟结果
-      const simulationResult = this.parseSimulationResult(aiResult.analysis, scenario);
+      const simulationResult = this.parseSimulationResult(analysisText || null, scenario);
       
       console.log('✅ Simulation completed successfully');
       return {
@@ -669,27 +679,42 @@ ${digitalTwin ? JSON.stringify(digitalTwin, null, 2) : '尚未构建'}
    * @returns {Object} 解析后的模拟结果
    */
   parseSimulationResult(aiAnalysis, scenario) {
+    const emptyMessage = 'AI 未返回有效内容，请稍后重试或尝试更换模型。';
+    const text = (aiAnalysis != null && String(aiAnalysis).trim()) ? String(aiAnalysis).trim() : '';
     try {
-      const jsonMatch = aiAnalysis.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
+      if (text) {
+        let toParse = text;
+        const codeBlock = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (codeBlock && codeBlock[1]) toParse = codeBlock[1].trim();
+        const jsonMatch = toParse.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          if (parsed && typeof parsed === 'object') return parsed;
+        }
+        return {
+          shortTermImpact: { description: text, riskChanges: {}, metricChanges: {} },
+          mediumTermImpact: { description: '', riskChanges: {}, metricChanges: {} },
+          longTermImpact: { description: '', riskChanges: {}, metricChanges: {} },
+          overallRisk: { level: 'medium', factors: [] },
+          recommendations: []
+        };
       }
-      
+
       return {
-        shortTermImpact: { description: aiAnalysis, riskChanges: {}, metricChanges: {} },
-        mediumTermImpact: { description: '', riskChanges: {}, metricChanges: {} },
+        shortTermImpact: { description: text || emptyMessage, riskChanges: {}, metricChanges: {} },
+        mediumTermImpact: { description: text ? '' : emptyMessage, riskChanges: {}, metricChanges: {} },
         longTermImpact: { description: '', riskChanges: {}, metricChanges: {} },
         overallRisk: { level: 'medium', factors: [] },
-        recommendations: []
+        recommendations: text ? [] : [emptyMessage]
       };
     } catch (error) {
       console.error('❌ Error parsing simulation result:', error);
       return {
-        shortTermImpact: { description: aiAnalysis, riskChanges: {}, metricChanges: {} },
+        shortTermImpact: { description: text || emptyMessage, riskChanges: {}, metricChanges: {} },
         mediumTermImpact: { description: '', riskChanges: {}, metricChanges: {} },
         longTermImpact: { description: '', riskChanges: {}, metricChanges: {} },
         overallRisk: { level: 'medium', factors: [] },
-        recommendations: []
+        recommendations: [emptyMessage]
       };
     }
   }
