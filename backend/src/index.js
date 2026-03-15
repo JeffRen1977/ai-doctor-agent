@@ -3,7 +3,10 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const path = require('path');
+// 加载 .env：根目录、backend/.env（按 __dirname）、backend/.env（按 cwd），后者覆盖前者
+require('dotenv').config();
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
+require('dotenv').config({ path: path.join(process.cwd(), 'backend', '.env') });
 
 const aiProviderConfig = require('./config/aiProviderConfig');
 (function logDefaultAI() {
@@ -539,10 +542,17 @@ app.use((err, req, res, next) => {
 });
 
 async function startServer() {
+  const useMongo = /^mongo(db)?$/i.test(String(process.env.PERSISTENCE_ADAPTER || '').trim()) ||
+    /^mongo(db)?$/i.test(String(process.env.AUTH_PROVIDER || '').trim());
   if (process.env.PERSISTENCE_ADAPTER === 'mongodb') {
     const { getDb } = require('./adapters/mongodb/connection');
     await getDb();
     console.log('✅ MongoDB connected (MONGODB_URI from env or localhost)');
+  }
+  if (useMongo) {
+    console.log('🔐 Auth: mongodb (本地注册/登录，不经过 Firebase Auth)');
+  } else {
+    console.log('🔐 Auth: firebase (Firebase Auth)');
   }
   return new Promise((resolve, reject) => {
     const server = app.listen(PORT, '0.0.0.0', () => {

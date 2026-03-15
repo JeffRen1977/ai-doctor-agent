@@ -3,8 +3,14 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const Joi = require('joi');
 const firebaseService = require('../services/firebaseService');
+const adapters = require('../adapters');
+const { userRepo } = require('../repositories');
 
 const router = express.Router();
+// 由「当前加载的 adapter」决定认证方式，不读 env，避免 .env 未生效仍走 Firebase
+function useMongoAuth() {
+  return !!adapters.__useMongoAuth;
+}
 
 // 登录验证schema
 const loginSchema = Joi.object({
@@ -22,7 +28,6 @@ const registerSchema = Joi.object({
 // 用户注册
 router.post('/register', async (req, res) => {
   try {
-    // 验证输入
     const { error, value } = registerSchema.validate(req.body);
     if (error) {
       return res.status(400).json({ error: error.details[0].message });
@@ -30,19 +35,48 @@ router.post('/register', async (req, res) => {
 
     const { email, password, name } = value;
 
-    // 检查用户是否已存在
+    const mongoAuth = useMongoAuth();
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[auth/register] useMongoAuth=' + mongoAuth + ' (由当前 adapter 决定)');
+    }
+    if (mongoAuth) {
+      // MongoDB：本地认证，不经过 Firebase Auth
+      const existing = await userRepo.getByEmail(email);
+      if (existing) {
+        return res.status(400).json({ error: '该邮箱已被注册' });
+      }
+      const passwordHash = await bcrypt.hash(password, 10);
+      const uid = 'local-' + Date.now() + '-' + Math.random().toString(36).slice(2, 11);
+      await userRepo.setByEmail(email, {
+        uid,
+        email,
+        name,
+        passwordHash,
+        avatar: null,
+        role: 'user',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+      const token = jwt.sign(
+        { userId: uid, email },
+        process.env.JWT_SECRET || 'your-secret-key',
+        { expiresIn: '7d' }
+      );
+      return res.status(201).json({
+        user: { id: uid, email, name, avatar: null },
+        token
+      });
+    }
+
+    // Firebase：检查并注册
     const userExists = await firebaseService.checkUserExists(email);
     if (userExists) {
       return res.status(400).json({ error: '该邮箱已被注册' });
     }
-
-    // 注册用户
     const result = await firebaseService.registerUser(email, password, name);
-    
     if (!result.success) {
       return res.status(400).json({ error: result.error });
     }
-
     const token = jwt.sign(
       { userId: result.user.id, email: result.user.email },
       process.env.JWT_SECRET || 'your-secret-key',
@@ -61,7 +95,6 @@ router.post('/register', async (req, res) => {
 // 用户登录
 router.post('/login', async (req, res) => {
   try {
-    // 验证输入
     const { error, value } = loginSchema.validate(req.body);
     if (error) {
       return res.status(400).json({ error: error.details[0].message });
@@ -69,13 +102,37 @@ router.post('/login', async (req, res) => {
 
     const { email, password } = value;
 
-    // 使用Firebase认证
+    if (useMongoAuth()) {
+      // MongoDB：本地认证，校验密码哈希
+      const userData = await userRepo.getByEmail(email);
+      if (!userData || !userData.passwordHash) {
+        return res.status(401).json({ error: '邮箱或密码错误' });
+      }
+      const match = await bcrypt.compare(password, userData.passwordHash);
+      if (!match) {
+        return res.status(401).json({ error: '邮箱或密码错误' });
+      }
+      const token = jwt.sign(
+        { userId: userData.uid, email: userData.email },
+        process.env.JWT_SECRET || 'your-secret-key',
+        { expiresIn: '7d' }
+      );
+      return res.json({
+        user: {
+          id: userData.uid,
+          email: userData.email,
+          name: userData.name,
+          avatar: userData.avatar
+        },
+        token
+      });
+    }
+
+    // Firebase 认证
     const result = await firebaseService.loginUser(email, password);
-    
     if (!result.success) {
       return res.status(401).json({ error: result.error });
     }
-
     const token = jwt.sign(
       { userId: result.user.id, email: result.user.email },
       process.env.JWT_SECRET || 'your-secret-key',

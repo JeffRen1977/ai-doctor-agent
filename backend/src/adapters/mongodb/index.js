@@ -30,7 +30,11 @@ const medicationAdapter = require('./medicationAdapter');
 const vitalsDailyAdapter = require('./vitalsDailyAdapter');
 const chatSessionAdapter = require('./chatSessionAdapter');
 
+/** 供 auth 路由判断：当前为 MongoDB 时使用本地认证（不经过 Firebase Auth） */
+const __useMongoAuth = true;
+
 module.exports = {
+  __useMongoAuth,
   userBasicInfoRepo: userBasicInfoAdapter,
   medicationRepo: medicationAdapter,
   vitalsDailyRepo: vitalsDailyAdapter,
