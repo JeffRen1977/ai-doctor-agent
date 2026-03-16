@@ -225,8 +225,47 @@ ${pdfText.substring(0, 15000)}` // 限制长度以适应 token 限制
     }
   }
 
+  /**
+   * 将数字孪生对象转为可读文本，供健康总结 prompt 使用（与 refreshHealthSummary 传入的 healthData.digitalTwin 对应）
+   */
+  _digitalTwinToPromptText(digitalTwin) {
+    if (!digitalTwin || typeof digitalTwin !== 'object') return '';
+    const lines = [];
+    const p = digitalTwin.profile || {};
+    const c = digitalTwin.currentState || {};
+    if (p.demographics && Object.keys(p.demographics).length > 0) {
+      lines.push('【基本信息】' + JSON.stringify(p.demographics, null, 2));
+    }
+    if (p.medicalHistory) lines.push('【既往病史】' + String(p.medicalHistory));
+    if (p.lifestyle && typeof p.lifestyle === 'object') {
+      const med = p.lifestyle.medications;
+      const fam = p.lifestyle.familyHistory;
+      const all = p.lifestyle.allergies;
+      if (med) lines.push('【用药/生活方式】' + med);
+      if (fam) lines.push('【家族史】' + fam);
+      if (all) lines.push('【过敏史】' + all);
+    }
+    if (p.geneticInfo && typeof p.geneticInfo === 'object' && Object.keys(p.geneticInfo).length > 0) {
+      lines.push('【遗传/家族风险】' + JSON.stringify(p.geneticInfo, null, 2));
+    }
+    if (c.medications && Array.isArray(c.medications) && c.medications.length > 0) {
+      lines.push('【当前用药明细】' + JSON.stringify(c.medications, null, 2));
+    }
+    if (c.vitalSigns && Object.keys(c.vitalSigns).length > 0) {
+      lines.push('【生命体征】' + JSON.stringify(c.vitalSigns, null, 2));
+    }
+    if (c.labResults && Array.isArray(c.labResults) && c.labResults.length > 0) {
+      lines.push('【检验结果】' + JSON.stringify(c.labResults, null, 2));
+    }
+    if (c.riskFactors && Array.isArray(c.riskFactors) && c.riskFactors.length > 0) {
+      lines.push('【风险因素】' + JSON.stringify(c.riskFactors, null, 2));
+    }
+    if (digitalTwin.userId) lines.push('【用户标识】' + digitalTwin.userId);
+    return lines.join('\n\n');
+  }
+
   buildHealthAnalysisPrompt(healthData) {
-    const { documents, userProfile } = healthData || {};
+    const { documents, userProfile, digitalTwin } = healthData || {};
     
     let prompt = `请分析以下健康文档并提供专业的健康建议：
 
@@ -244,25 +283,36 @@ ${pdfText.substring(0, 15000)}` // 限制长度以适应 token 限制
     prompt += `文档内容：
             `;
 
+    // 优先使用数字孪生（健康总结刷新时传入的是 { digitalTwin }）
+    const digitalTwinText = this._digitalTwinToPromptText(digitalTwin);
+    if (digitalTwinText.trim()) {
+      prompt += `
+            ${digitalTwinText}
+            `;
+    }
+
     // 处理文档数组
-    if (Array.isArray(documents)) {
+    if (Array.isArray(documents) && documents.length > 0) {
       documents.forEach((doc, index) => {
-        // 支持不同的文档格式
         const docText = doc.text || doc.content || '';
         const docFilename = doc.filename || doc.name || `文档 ${index + 1}`;
         const docType = doc.type || 'text';
-        
         prompt += `
             文档 ${index + 1}: ${docFilename}
             类型: ${docType}
             内容: ${docText}
             `;
       });
-    } else if (documents && typeof documents === 'object') {
-      // 处理单个文档对象
+    } else if (documents && typeof documents === 'object' && (documents.text || documents.content)) {
       const docText = documents.text || documents.content || '';
       prompt += `
             内容: ${docText}
+            `;
+    }
+
+    if (!digitalTwinText.trim() && !(Array.isArray(documents) && documents.length > 0) && !(documents && (documents.text || documents.content))) {
+      prompt += `
+            （当前未提供个人健康档案或文档，请提示用户先在「个人健康档案」中填写并保存基本信息、既往病史、用药记录等后再生成健康总结。）
             `;
     }
 

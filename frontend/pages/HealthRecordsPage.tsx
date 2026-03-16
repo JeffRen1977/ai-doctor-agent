@@ -136,14 +136,14 @@ const HealthRecordsPage: React.FC = () => {
               }
               extra={
                 <Space>
-                  <Button 
+          <Button 
                     icon={<ReloadOutlined />}
                     onClick={loadPersonalHealthRecord}
                     loading={isLoadingRecord}
                   >
                     {language === 'zh' ? '刷新' : 'Refresh'}
-                  </Button>
-                  <Button 
+          </Button>
+          <Button 
                     type="primary" 
                     icon={<EditOutlined />}
                     onClick={() => {
@@ -369,19 +369,19 @@ const HealthRecordsPage: React.FC = () => {
                                   
                                   // 发送请求
                                   const response = await api.post('/health-records/personal-health-record', formData, {
-                                    headers: {
-                                      'Content-Type': 'multipart/form-data',
-                                    },
-                                  });
-                                  
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
                                   message.destroy();
                                   setIsExtractingPDF(false);
-                                  
+      
                                   if (response.data.success) {
                                     // 如果PDF提取成功，显示提取的信息
                                     if (response.data.pdfExtraction && response.data.pdfExtraction.success) {
-                                      message.success(
-                                        language === 'zh' 
+      message.success(
+        language === 'zh' 
                                           ? '健康档案已保存，已从PDF提取医疗信息' 
                                           : 'Health record saved, medical information extracted from PDF',
                                         5
@@ -409,7 +409,7 @@ const HealthRecordsPage: React.FC = () => {
                                     
                                     personalInfoModal.destroy();
                                     form.resetFields();
-                                  } else {
+      } else {
                                     message.error(response.data.error || (language === 'zh' ? '保存失败' : 'Save failed'));
                                   }
                                 } catch (error: any) {
@@ -421,7 +421,7 @@ const HealthRecordsPage: React.FC = () => {
                                     error.message || 
                                     (language === 'zh' ? '保存失败，请重试' : 'Save failed, please try again')
                                   );
-                                } finally {
+    } finally {
                                   setIsSubmitting(false);
                                 }
                               }}
@@ -873,7 +873,7 @@ const HealthRecordsPage: React.FC = () => {
                                   ? (language === 'zh' ? '正在提取PDF信息...' : 'Extracting PDF...')
                                   : (language === 'zh' ? '保存' : 'Save')
                                 }
-                              </Button>
+            </Button>
                             </Space>
                           </Form.Item>
                         </Form>
@@ -882,7 +882,7 @@ const HealthRecordsPage: React.FC = () => {
                   }}
                 >
                   {language === 'zh' ? '添加档案' : 'Add Record'}
-                </Button>
+            </Button>
               }
             >
               <Alert
@@ -910,16 +910,16 @@ const HealthRecordsPage: React.FC = () => {
             showIcon
             style={{ marginBottom: '16px' }}
           />
-          <Card
+            <Card 
             title={
-              <Space>
+                <Space>
                 <MobileOutlined />
                 <span>{language === 'zh' ? '设备管理' : 'Device Management'}</span>
               </Space>
             }
             extra={
-              <Button 
-                type="primary" 
+                  <Button 
+                    type="primary" 
                 icon={<SyncOutlined />}
                 onClick={async () => {
                   try {
@@ -934,11 +934,11 @@ const HealthRecordsPage: React.FC = () => {
                 }}
               >
                 {language === 'zh' ? '同步所有设备' : 'Sync All Devices'}
-              </Button>
+                  </Button>
             }
           >
-    <List
-              size="small"
+              <List
+                size="small"
               dataSource={[
                 { 
                   name: 'Fitbit', 
@@ -970,16 +970,16 @@ const HealthRecordsPage: React.FC = () => {
                 },
               ]}
               renderItem={(item) => (
-        <List.Item
-          actions={[
+                  <List.Item
+                    actions={[
                     <Tag color={item.status === 'connected' ? 'success' : 'default'}>
                       {item.status === 'connected' 
                         ? (language === 'zh' ? '已连接' : 'Connected')
                         : (language === 'zh' ? '未连接' : 'Disconnected')}
                     </Tag>,
-            <Button 
-              type="link" 
-              size="small"
+                      <Button 
+                        type="link" 
+                        size="small"
                       onClick={() => {
                         if (item.name === 'Fitbit') {
                           window.open('/api/wearables/fitbit/auth', '_blank');
@@ -991,18 +991,18 @@ const HealthRecordsPage: React.FC = () => {
                       {item.status === 'connected' 
                         ? (language === 'zh' ? '管理' : 'Manage')
                         : (language === 'zh' ? '连接' : 'Connect')}
-            </Button>
-          ]}
-        >
-          <List.Item.Meta
+                      </Button>
+                    ]}
+                  >
+                    <List.Item.Meta
                     avatar={item.icon}
                     title={item.name}
                     description={item.description}
-          />
-        </List.Item>
-      )}
-    />
-          </Card>
+                    />
+                  </List.Item>
+                )}
+              />
+            </Card>
         </div>
       ),
     },
@@ -1037,7 +1037,7 @@ const HealthRecordsPage: React.FC = () => {
                 {language === 'zh' ? '导入FHIR' : 'Import FHIR'}
                   </Button>
             }
-          >
+            >
               <List
                 size="small"
               dataSource={[
@@ -1066,7 +1066,7 @@ const HealthRecordsPage: React.FC = () => {
                       <Button 
                         type="link" 
                         size="small"
-                      onClick={() => {
+                        onClick={() => {
                         if (item.name === 'FHIR') {
                           fetchFhirRecords();
                         } else {
