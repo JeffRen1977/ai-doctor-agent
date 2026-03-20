@@ -356,7 +356,7 @@ const DeviceSyncPage: React.FC = () => {
   ];
 
   return (
-    <div className="device-sync-page" style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
+    <div className="device-sync-page app-page-shell">
       <div style={{ marginBottom: '24px' }}>
         <h1 style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '8px' }}>
           {language === 'zh' ? '实时风险监测' : 'Real-time Risk Monitoring'}

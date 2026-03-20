@@ -734,8 +734,9 @@ const DigitalTwinPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: screens.xs ? '8px' : '24px' }}>
+    <div className="app-page-shell">
       <Card
+        className="app-surface-card"
         title={
           <Space>
             <BuildOutlined />

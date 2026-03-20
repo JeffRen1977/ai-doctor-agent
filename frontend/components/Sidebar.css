@@ -1,5 +1,5 @@
 .sidebar {
-  background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+  background: linear-gradient(180deg, #152535 0%, #1a3d5c 100%);
   color: white;
   display: flex;
   flex-direction: column;
@@ -40,7 +40,7 @@
   margin: 0;
   font-size: 20px;
   font-weight: 600;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #5a8ab8 0%, #7eb8d9 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -85,7 +85,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #2f5f8f 0%, #5a8ab8 100%);
   opacity: 0;
   transition: opacity 0.3s ease;
   border-radius: 12px;
@@ -104,8 +104,8 @@
 
 .sidebar-menu .ant-menu-item-selected {
   color: white;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  background: linear-gradient(135deg, #2f5f8f 0%, #4682b4 100%);
+  box-shadow: 0 4px 15px rgba(47, 95, 143, 0.35);
   transform: translateX(4px);
 }
 

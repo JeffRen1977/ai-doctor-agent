@@ -439,10 +439,10 @@ const RehabilitationAssistantPage: React.FC = () => {
   };
 
   return (
-    <div style={{ width: '100%', height: '100%', padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
+    <div className="app-page-shell" style={{ width: '100%', minHeight: '100%' }}>
       <div style={{ marginBottom: '24px' }}>
         <Title level={2} style={{ marginBottom: '8px' }}>
-          <MessageOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
+          <MessageOutlined style={{ marginRight: '8px', color: 'var(--app-color-primary)' }} />
           {language === 'zh' ? '生成式AI康复助理' : 'Generative AI Rehabilitation Assistant'}
         </Title>
         <Paragraph style={{ marginBottom: 0, fontSize: '16px', color: '#666' }}>

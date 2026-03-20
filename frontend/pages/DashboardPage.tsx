@@ -344,16 +344,22 @@ const DashboardPage: React.FC = () => {
   const medicationAdherence = medicationData?.adherence?.overall || 0;
 
   return (
-    <div style={{ padding: screens.xs ? '12px' : '24px' }}>
+    <div className="app-page-shell">
       <Spin spinning={loading}>
-        <Title level={screens.xs ? 3 : 2} style={{ marginBottom: '24px', textAlign: screens.xs ? 'center' : 'left' }}>
-          {t('dashboard.title')}
-        </Title>
+        <div style={{ marginBottom: 24, textAlign: screens.xs ? 'center' : 'left' }}>
+          <Title level={screens.xs ? 3 : 2} style={{ marginBottom: 4 }}>
+            {t('dashboard.title')}
+          </Title>
+          <Text type="secondary" style={{ fontSize: 14 }}>
+            {language === 'zh' ? '个人健康总览与智能建议' : 'Personal health overview and AI-assisted insights'}
+          </Text>
+        </div>
 
         {/* 健康总结（AI 生成） */}
         <Card
           title={language === 'zh' ? '健康总结' : 'Health Summary'}
           loading={healthSummaryLoading}
+          className="app-surface-card"
           style={{ marginBottom: '24px' }}
           extra={
             healthSummary ? (

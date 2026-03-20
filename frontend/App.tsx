@@ -79,7 +79,7 @@ function App() {
     <Layout style={{ height: '100vh' }}>
       <Sidebar />
       <Layout>
-        <Content style={{ padding: '24px', overflow: 'auto' }}>
+        <Content className="app-main-content">
           <Routes>
             <Route path="/" element={<DashboardPage />} />
             <Route path="/dashboard" element={<DashboardPage />} />

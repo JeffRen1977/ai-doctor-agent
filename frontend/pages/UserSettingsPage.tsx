@@ -121,15 +121,15 @@ const UserSettingsPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div style={{ padding: '24px', textAlign: 'center' }}>
+      <div className="app-page-shell" style={{ textAlign: 'center' }}>
         <Text>{language === 'zh' ? '加载中...' : 'Loading...'}</Text>
       </div>
     );
   }
 
   return (
-    <div style={{ padding: '24px', maxWidth: '800px', margin: '0 auto' }}>
-      <Card>
+    <div className="app-page-shell" style={{ maxWidth: '800px' }}>
+      <Card className="app-surface-card">
         <div style={{ marginBottom: '24px' }}>
           <Title level={2} style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
             <SettingOutlined />

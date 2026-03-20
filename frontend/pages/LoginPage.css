@@ -1,6 +1,6 @@
 .login-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #2f5f8f 0%, #1a3d5c 55%, #243d56 100%);
   padding: 20px;
   position: relative;
 }
@@ -96,7 +96,7 @@
   width: 48px;
   height: 48px;
   border-radius: 12px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #2f5f8f 0%, #5a8ab8 100%);
   color: white;
   font-size: 20px;
   flex-shrink: 0;

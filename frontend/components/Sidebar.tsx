@@ -237,7 +237,7 @@ const Sidebar: React.FC = () => {
                   size={40} 
                   icon={<UserOutlined />} 
                   style={{ 
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    background: 'linear-gradient(135deg, #2f5f8f 0%, #5a8ab8 100%)',
                     border: '2px solid rgba(255, 255, 255, 0.2)'
                   }} 
                 />

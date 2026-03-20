@@ -1093,8 +1093,9 @@ const HealthRecordsPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: screens.xs ? '8px' : '24px' }}>
+    <div className="app-page-shell">
       <Card 
+        className="app-surface-card"
         title={t('healthRecords.title')} 
         size={screens.xs ? 'small' : 'default'}
         style={{ marginBottom: '16px' }}

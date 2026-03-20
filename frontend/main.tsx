@@ -5,6 +5,7 @@ import { ConfigProvider } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import enUS from 'antd/locale/en_US'
 import App from './App'
+import { appTheme } from './theme/designTokens'
 import './index.css'
 
 // 创建一个包装组件来处理动态语言切换
@@ -38,7 +39,7 @@ const AppWithLocale: React.FC = () => {
   }, [])
   
   return (
-    <ConfigProvider locale={locale}>
+    <ConfigProvider locale={locale} theme={appTheme}>
       <App />
     </ConfigProvider>
   )

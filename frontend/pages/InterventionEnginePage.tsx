@@ -460,9 +460,9 @@ const InterventionEnginePage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: '24px', background: '#f0f2f5', minHeight: '100vh' }}>
+    <div className="app-page-shell" style={{ minHeight: '100vh' }}>
       <Title level={2} style={{ marginBottom: '24px' }}>
-        <ThunderboltOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
+        <ThunderboltOutlined style={{ marginRight: '8px', color: 'var(--app-color-primary)' }} />
         {language === 'zh' ? '精准干预引擎' : 'Precision Intervention Engine'}
       </Title>
       
