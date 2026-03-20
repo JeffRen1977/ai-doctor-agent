@@ -105,7 +105,7 @@ backend/src/config/firebase-service-account.json
 # Data folder (user uploaded files and sensitive data)
 data/
 
-# Documentation folder (not to be committed)
+# Documentation folder (not to be committed for now)
 docs/
 
 # Scripts folder (not to be committed)

@@ -44,10 +44,24 @@ import { interventionEngineAPI, collaborationAPI, riskMonitoringAPI, digitalTwin
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import dayjs from 'dayjs';
+import type { AxiosError } from 'axios';
 import './DashboardPage.css';
 
 const { Title, Text } = Typography;
 const { useBreakpoint } = Grid;
+
+/** 阶段 2：从 API 失败响应或 Axios 错误中提取可读说明 */
+function getHealthSummaryErrorMessage(err: unknown, fallback: string): string {
+  if (err && typeof err === 'object' && 'response' in err) {
+    const data = (err as AxiosError<{ error?: string; details?: string; message?: string }>).response?.data;
+    if (data && typeof data === 'object') {
+      const msg = data.error || data.details || data.message;
+      if (typeof msg === 'string' && msg.trim()) return msg.trim();
+    }
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return fallback;
+}
 
 interface HealthMetric {
   name: string;
@@ -208,9 +222,22 @@ const DashboardPage: React.FC = () => {
     setHealthSummaryLoading(true);
     try {
       const res = await digitalTwinAPI.getHealthSummary();
-      if (res.success && res.data) setHealthSummary(res.data.summary ?? '');
+      if (res.success && res.data) {
+        setHealthSummary(res.data.summary ?? '');
+      } else if (res && typeof res === 'object' && 'success' in res && (res as { success?: boolean }).success === false) {
+        const bodyErr = (res as { error?: string }).error;
+        if (bodyErr) {
+          message.warning(bodyErr);
+        }
+      }
     } catch (e) {
       console.error('Failed to load health summary', e);
+      message.warning(
+        getHealthSummaryErrorMessage(
+          e,
+          language === 'zh' ? '加载健康总结失败' : 'Failed to load health summary'
+        )
+      );
     } finally {
       setHealthSummaryLoading(false);
     }
@@ -228,7 +255,12 @@ const DashboardPage: React.FC = () => {
       }
     } catch (e) {
       console.error('Failed to refresh health summary', e);
-      message.error(language === 'zh' ? '生成失败' : 'Failed to generate');
+      message.error(
+        getHealthSummaryErrorMessage(
+          e,
+          language === 'zh' ? '生成失败，请检查网络或稍后重试' : 'Failed to generate; check network or try again'
+        )
+      );
     } finally {
       setHealthSummaryLoading(false);
     }
