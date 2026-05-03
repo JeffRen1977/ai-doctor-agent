@@ -21,6 +21,7 @@ router.post('/bind-code', authenticateToken, async (req, res) => {
     if (!result.success) {
       return res.status(400).json(result);
     }
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     res.status(200).json(result);
   } catch (error) {
     console.error('telegram bind-code:', error);

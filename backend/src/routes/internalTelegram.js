@@ -24,9 +24,10 @@ function pickTelegramMessage(body) {
 }
 
 router.post('/webhook', verifyTelegramWebhook, async (req, res) => {
+  let chatId = null;
   try {
     const msg = pickTelegramMessage(req.body);
-    const chatId = msg?.chat?.id;
+    chatId = msg?.chat?.id ?? null;
     const text = msg?.text || msg?.caption || '';
 
     if (chatId == null) {
@@ -56,7 +57,15 @@ router.post('/webhook', verifyTelegramWebhook, async (req, res) => {
 
     return res.sendStatus(200);
   } catch (error) {
-    console.error('telegram webhook:', error.message);
+    console.error('telegram webhook:', error.message, error.stack);
+    if (chatId != null) {
+      await telegramIntegrationService
+        .sendTelegramText(
+          chatId,
+          '绑定处理出错，请稍后重试；若持续失败请查看服务端日志（Firestore / TELEGRAM_BOT_TOKEN）。'
+        )
+        .catch((sendErr) => console.error('telegram webhook send (error path):', sendErr.message));
+    }
     return res.sendStatus(200);
   }
 });
