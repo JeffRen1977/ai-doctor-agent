@@ -35,8 +35,22 @@ async function setUserSettings(userId, data) {
   await col.updateOne({ _id: userId }, { $set: data }, { upsert: true });
 }
 
+/**
+ * @param {string|number} telegramChatId
+ * @returns {Promise<string|null>} userId = document _id
+ */
+async function findUserIdByTelegramChatId(telegramChatId) {
+  if (telegramChatId == null || telegramChatId === '') return null;
+  const sid = String(telegramChatId);
+  const col = getCollection(COLLECTION);
+  const doc = await col.findOne({ 'integrations.telegramChatId': sid });
+  if (!doc || !doc._id) return null;
+  return String(doc._id);
+}
+
 module.exports = {
   getUserSettings,
   setUserSettings,
+  findUserIdByTelegramChatId,
   sanitize
 };

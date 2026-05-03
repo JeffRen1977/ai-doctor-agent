@@ -42,6 +42,9 @@ class UserSettingsService {
       language: 'zh',
       theme: 'light',
       notifications: { email: true, push: true, analysisComplete: true },
+      integrations: {
+        telegramChatId: null
+      },
       privacy: { dataSharing: false, analytics: true },
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()

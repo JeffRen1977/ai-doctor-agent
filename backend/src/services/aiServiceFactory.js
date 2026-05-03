@@ -60,7 +60,7 @@ class AIServiceFactory {
         provider: 'qwen'
       };
     }
-    
+
     return available;
   }
 

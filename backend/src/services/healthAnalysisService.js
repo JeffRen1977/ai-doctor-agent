@@ -380,9 +380,9 @@ const analyzeHealthDocuments = async (files, userId, userEmail, options = {}) =>
     };
 
     // Use single provider
-    const result = await aiServiceFactory.analyzeHealthRecords(healthData, { 
-      provider: finalProvider, 
-      model: finalModel 
+    const result = await aiServiceFactory.analyzeHealthRecords(healthData, {
+      provider: finalProvider,
+      model: finalModel
     });
     
     if (!result.success) {

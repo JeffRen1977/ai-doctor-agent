@@ -31,6 +31,9 @@ const conversationsRoutes = require('./routes/conversations');
 const appointmentsRoutes = require('./routes/appointments');
 const reportsRoutes = require('./routes/reports');
 const emergencyRoutes = require('./routes/emergency');
+const internalCronRoutes = require('./routes/internalCron');
+const telegramIntegrationRoutes = require('./routes/telegramIntegration');
+const internalTelegramRoutes = require('./routes/internalTelegram');
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -126,6 +129,9 @@ app.use('/api/conversations', conversationsRoutes);
 app.use('/api/appointments', appointmentsRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/emergency', emergencyRoutes);
+app.use('/api/integrations/telegram', telegramIntegrationRoutes);
+app.use('/internal/cron', internalCronRoutes);
+app.use('/internal/telegram', internalTelegramRoutes);
 
 app.get('/health', (req, res) => {
   res.json({

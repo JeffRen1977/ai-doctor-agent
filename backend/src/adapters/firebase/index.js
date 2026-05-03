@@ -29,6 +29,7 @@ const personalHealthRecordAdapter = require('./personalHealthRecordAdapter');
 const userAdapter = require('./userAdapter');
 const userProfileAdapter = require('./userProfileAdapter');
 const healthSummaryAdapter = require('./healthSummaryAdapter');
+const telegramBindingAdapter = require('./telegramBindingAdapter');
 
 module.exports = {
   userBasicInfoRepo: userBasicInfoAdapter,
@@ -57,5 +58,6 @@ module.exports = {
   personalHealthRecordRepo: personalHealthRecordAdapter,
   userRepo: userAdapter,
   userProfileRepo: userProfileAdapter,
-  healthSummaryRepo: healthSummaryAdapter
+  healthSummaryRepo: healthSummaryAdapter,
+  telegramBindingRepo: telegramBindingAdapter
 };
