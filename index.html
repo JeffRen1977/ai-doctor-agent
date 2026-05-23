@@ -48,12 +48,12 @@
       }
     </script>
 
-    <!-- Mobile Debug Console -->
+    <!-- Mobile Debug Console (development / localhost only) -->
     <script>
-      // 检测移动设备
       const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-      
-      if (isMobile) {
+      const isDevHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+      if (isMobile && isDevHost) {
         // 创建移动端调试面板
         const debugPanel = document.createElement('div');
         debugPanel.id = 'mobile-debug-panel';

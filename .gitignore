@@ -120,3 +120,12 @@ Medical/
 medical/
 **/Medical/
 **/medical/
+
+# Capacitor Android (commit project; ignore secrets and build outputs)
+android/keystore.properties
+android/*.keystore
+android/.gradle/
+android/local.properties
+android/app/build/
+android/app/release/
+android/build/
