@@ -66,6 +66,20 @@ async function sendWeChatIfConfigured() {
   return { sent: false, reason: 'wechat_disabled' };
 }
 
+async function resolveReportLanguage(userId) {
+  const fromEnv = process.env.CRON_DAILY_REPORT_LANGUAGE;
+  if (fromEnv === 'en' || fromEnv === 'zh') return fromEnv;
+
+  try {
+    const settings = await userSettingsRepo.getUserSettings(userId);
+    const fromSettings = settings?.language;
+    if (fromSettings === 'en' || fromSettings === 'zh') return fromSettings;
+  } catch {
+    /* ignore */
+  }
+  return 'en';
+}
+
 /**
  * @param {{ userEmails?: string[], dryRun?: boolean }} opts
  */
@@ -90,11 +104,13 @@ async function runDailyReportBatch(opts = {}) {
     const row = { userEmail, userId };
 
     try {
+      const language = await resolveReportLanguage(userId);
+      row.language = language;
       const payload = await contextBuilderService.buildAIContext(userId, {
         medications: true,
         vitalsRecent: true,
         chatRecent: true,
-        language: 'zh'
+        language
       });
 
       if (!payload.basicInfo || payload.basicInfo === '暂无基础档案信息。') {
@@ -112,7 +128,11 @@ async function runDailyReportBatch(opts = {}) {
       }
 
       const reportResult = await reportService.generateHealthAssessmentReport(userEmail, {
-        title: `每日健康摘要 - ${new Date().toLocaleDateString('zh-CN')}`
+        language,
+        title:
+          language === 'en'
+            ? `Daily health summary - ${new Date().toLocaleDateString('en-US')}`
+            : `每日健康摘要 - ${new Date().toLocaleDateString('zh-CN')}`
       });
 
       if (!reportResult.success) {
@@ -125,7 +145,9 @@ async function runDailyReportBatch(opts = {}) {
 
       const execSummary =
         (reportResult.report?.sections && reportResult.report.sections.executiveSummary) ||
-        '您的健康日报已生成，请打开应用查看全文。';
+        (language === 'en'
+          ? 'Your daily health report was generated. Open the app for the full text.'
+          : '您的健康日报已生成，请打开应用查看全文。');
 
       const chatId = await getTelegramChatId(userId);
       if (chatId) {

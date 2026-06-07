@@ -38,23 +38,40 @@ class OpenAIService {
         temperature = 0.7,
         maxTokens = 2000
       } = options;
+      const language = options.language === 'en' ? 'en' : 'zh';
+      const directText = healthData?.documents?.[0]?.text;
 
       console.log('🤖 OpenAI analyzing health records with model:', model);
       console.log('📊 Documents to analyze:', healthData.documents?.length || 0);
 
-      // Prepare the prompt for health analysis
-      const prompt = this.buildHealthAnalysisPrompt(healthData);
+      const prompt =
+        options.promptMode === 'direct' && directText
+          ? directText
+          : this.buildHealthAnalysisPrompt(healthData);
+
+      const systemContent =
+        language === 'en'
+          ? 'You are a professional medical AI assistant. Analyze the provided health information and provide comprehensive health insights, risk assessments, and recommendations. Respond in English only.'
+          : 'You are a professional medical AI assistant. Analyze the provided health documents and provide comprehensive health insights, risk assessments, and recommendations. Respond in Chinese.';
+
+      const userContent =
+        options.promptMode === 'direct' && directText
+          ? prompt +
+            (language === 'en'
+              ? '\n\nIMPORTANT: Write the entire report in English only.'
+              : '\n\n请用中文回答，保持专业和详细。')
+          : prompt;
 
       const response = await this.client.chat.completions.create({
         model: model,
         messages: [
           {
             role: 'system',
-            content: 'You are a professional medical AI assistant. Analyze the provided health documents and provide comprehensive health insights, risk assessments, and recommendations. Respond in Chinese.'
+            content: systemContent
           },
           {
             role: 'user',
-            content: prompt
+            content: userContent
           }
         ],
         temperature: temperature,

@@ -108,30 +108,35 @@ async function getMostRecentVitals(userId) {
  */
 function formatContextForSystemPrompt(payload, opts = {}) {
   const maxChars = opts.maxChars ?? DEFAULT_MAX_CONTEXT_CHARS;
+  const en = payload.language === 'en';
   const parts = [];
 
   if (payload.basicInfo) {
-    parts.push('[基础档案]\n' + String(payload.basicInfo));
+    parts.push((en ? '[Basic profile]\n' : '[基础档案]\n') + String(payload.basicInfo));
   }
   if (payload.medications != null && payload.medications !== '') {
-    parts.push('[当前用药]\n' + String(payload.medications));
+    parts.push((en ? '[Current medications]\n' : '[当前用药]\n') + String(payload.medications));
   }
   if (payload.vitalsRecent && (payload.vitalsRecent.summary || (payload.vitalsRecent.anomalies && payload.vitalsRecent.anomalies.length))) {
     const v = payload.vitalsRecent;
     const lines = [];
-    if (v.date) lines.push('日期：' + v.date);
-    if (v.summary && Object.keys(v.summary).length) lines.push('摘要：' + JSON.stringify(v.summary));
-    if (v.anomalies && v.anomalies.length) lines.push('异常：' + JSON.stringify(v.anomalies));
-    if (v.trend) lines.push('趋势：' + v.trend);
-    if (lines.length) parts.push('[近期体征]\n' + lines.join('\n'));
+    if (v.date) lines.push((en ? 'Date: ' : '日期：') + v.date);
+    if (v.summary && Object.keys(v.summary).length) {
+      lines.push((en ? 'Summary: ' : '摘要：') + JSON.stringify(v.summary));
+    }
+    if (v.anomalies && v.anomalies.length) {
+      lines.push((en ? 'Anomalies: ' : '异常：') + JSON.stringify(v.anomalies));
+    }
+    if (v.trend) lines.push((en ? 'Trend: ' : '趋势：') + v.trend);
+    if (lines.length) parts.push((en ? '[Recent vitals]\n' : '[近期体征]\n') + lines.join('\n'));
   }
   if (payload.chatRecent != null && payload.chatRecent !== '') {
-    parts.push('[最近对话]\n' + String(payload.chatRecent));
+    parts.push((en ? '[Recent chat]\n' : '[最近对话]\n') + String(payload.chatRecent));
   }
 
   let text = parts.join('\n\n');
   if (maxChars > 0 && text.length > maxChars) {
-    text = text.slice(0, maxChars) + '\n...(已截断)';
+    text = text.slice(0, maxChars) + (en ? '\n...(truncated)' : '\n...(已截断)');
   }
   return text;
 }

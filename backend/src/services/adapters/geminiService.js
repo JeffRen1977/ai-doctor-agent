@@ -327,7 +327,18 @@ class GeminiService {
     try {
       const modelName = options.model || this.defaultModel || 'gemini-2.5-flash';
       const model = this.genAI.getGenerativeModel({ model: modelName });
-      const prompt = `
+      const language = options.language === 'en' ? 'en' : 'zh';
+      const directText = healthData?.documents?.[0]?.text;
+
+      let prompt;
+      if (options.promptMode === 'direct' && directText) {
+        prompt =
+          directText +
+          (language === 'en'
+            ? '\n\nIMPORTANT: Write the entire report in English only.'
+            : '\n\n请用中文回答，保持专业和详细。');
+      } else {
+        prompt = `
             你是一个专业的AI医生助理，请分析以下健康记录数据。
 
             健康数据: ${JSON.stringify(healthData)}
@@ -339,8 +350,9 @@ class GeminiService {
             4. 需要关注的指标
             5. 预防措施建议
 
-            请用中文回答，保持专业和详细。
+            ${language === 'en' ? 'Respond in English. Be professional and detailed.' : '请用中文回答，保持专业和详细。'}
             `;
+      }
 
       const result = await model.generateContent(prompt);
       const response = await result.response;

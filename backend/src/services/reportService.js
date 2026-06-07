@@ -29,14 +29,20 @@ class ReportService {
       // 获取用户AI设置
       const userSettings = await userSettingsService.getUserAISettings(userEmail);
       const { aiProvider, aiModel } = aiProviderConfig.getAIServiceConfig(userSettings);
+      const language =
+        options.language === 'en' || options.language === 'zh'
+          ? options.language
+          : userSettings.language === 'en'
+            ? 'en'
+            : 'zh';
 
       // 构建报告生成提示
-      const prompt = this.buildHealthAssessmentPrompt(healthRecord, options);
+      const prompt = this.buildHealthAssessmentPrompt(healthRecord, { ...options, language });
 
       // 使用LLM生成报告内容
       const aiResult = await aiServiceFactory.analyzeHealthRecords(
         { documents: [{ text: prompt }] },
-        { provider: aiProvider, model: aiModel }
+        { provider: aiProvider, model: aiModel, language, promptMode: 'direct' }
       );
 
       if (!aiResult.success) {
@@ -51,7 +57,11 @@ class ReportService {
         userEmail: userEmail,
         reportType: 'health-assessment',
         status: 'completed',
-        title: options.title || `健康评估报告 - ${new Date().toLocaleDateString('zh-CN')}`,
+        title:
+          options.title ||
+          (language === 'en'
+            ? `Health assessment report - ${new Date().toLocaleDateString('en-US')}`
+            : `健康评估报告 - ${new Date().toLocaleDateString('zh-CN')}`),
         period: options.period || {
           start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), // 最近30天
           end: new Date().toISOString()
@@ -99,14 +109,20 @@ class ReportService {
       // 获取用户AI设置
       const userSettings = await userSettingsService.getUserAISettings(userEmail);
       const { aiProvider, aiModel } = aiProviderConfig.getAIServiceConfig(userSettings);
+      const language =
+        options.language === 'en' || options.language === 'zh'
+          ? options.language
+          : userSettings.language === 'en'
+            ? 'en'
+            : 'zh';
 
       // 构建综合报告生成提示
-      const prompt = this.buildComprehensiveReportPrompt(healthRecord, options);
+      const prompt = this.buildComprehensiveReportPrompt(healthRecord, { ...options, language });
 
       // 使用LLM生成报告内容
       const aiResult = await aiServiceFactory.analyzeHealthRecords(
         { documents: [{ text: prompt }] },
-        { provider: aiProvider, model: aiModel }
+        { provider: aiProvider, model: aiModel, language, promptMode: 'direct' }
       );
 
       if (!aiResult.success) {
@@ -121,7 +137,11 @@ class ReportService {
         userEmail: userEmail,
         reportType: 'comprehensive-report',
         status: 'completed',
-        title: options.title || `综合健康报告 - ${new Date().toLocaleDateString('zh-CN')}`,
+        title:
+          options.title ||
+          (language === 'en'
+            ? `Comprehensive health report - ${new Date().toLocaleDateString('en-US')}`
+            : `综合健康报告 - ${new Date().toLocaleDateString('zh-CN')}`),
         period: options.period || {
           start: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(), // 最近90天
           end: new Date().toISOString()
@@ -209,7 +229,35 @@ class ReportService {
   /**
    * 构建健康评估报告提示
    */
-  buildHealthAssessmentPrompt(healthRecord, options) {
+  buildHealthAssessmentPrompt(healthRecord, options = {}) {
+    const en = options.language === 'en';
+    if (en) {
+      return `Generate a professional health assessment report based on the following data:
+
+Basic information:
+${JSON.stringify(healthRecord.basicInfo || {}, null, 2)}
+
+Medical history:
+${JSON.stringify(healthRecord.medicalHistory || {}, null, 2)}
+
+Medications:
+${JSON.stringify(healthRecord.medications || {}, null, 2)}
+
+Recent AI analyses:
+${JSON.stringify(healthRecord.aiAnalyses?.slice(-5) || [], null, 2)}
+
+Time-series summary:
+${JSON.stringify(healthRecord.timeSeriesData || {}, null, 2)}
+
+Include these sections:
+1. Executive Summary
+2. Health Metrics
+3. Risk Assessment
+4. Recommendations and Action Items
+
+Respond in English. Be professional, concise, and suitable for a Telegram daily summary.`;
+    }
+
     return `请基于以下健康数据生成一份专业的健康评估报告：
 
 用户基本信息：
@@ -239,7 +287,27 @@ ${JSON.stringify(healthRecord.timeSeriesData || {}, null, 2)}
   /**
    * 构建综合报告提示
    */
-  buildComprehensiveReportPrompt(healthRecord, options) {
+  buildComprehensiveReportPrompt(healthRecord, options = {}) {
+    const en = options.language === 'en';
+    if (en) {
+      return `Generate a comprehensive health report based on the following data:
+
+${this.buildHealthAssessmentPrompt(healthRecord, options)}
+
+Intervention history:
+${JSON.stringify(healthRecord.interventionHistory || [], null, 2)}
+
+Include:
+1. Executive Summary
+2. Health metric trends
+3. Risk assessment and outlook
+4. Intervention effectiveness
+5. Future health recommendations
+6. Action plan
+
+Respond in English. Be professional and detailed.`;
+    }
+
     return `请基于以下完整健康数据生成一份综合健康报告：
 
 ${this.buildHealthAssessmentPrompt(healthRecord, options)}
