@@ -104,7 +104,7 @@ function checkJWTConfig() {
     console.log('   ✅ JWT_SECRET 已配置');
     return true;
   } else {
-    console.log('   ⚠️  JWT_SECRET 未配置（将使用默认值）');
+    console.log('   ❌ JWT_SECRET 未配置（后端将拒绝启动，无默认值）');
     console.log('   💡 建议: 在 backend/.env 中设置 JWT_SECRET');
     return false;
   }

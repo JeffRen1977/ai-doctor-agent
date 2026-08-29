@@ -1,4 +1,4 @@
-const jwt = require('jsonwebtoken');
+const { verifyAuthToken } = require('../config/jwtConfig');
 const firebaseService = require('../services/firebaseService');
 
 // JWT认证中间件
@@ -11,7 +11,7 @@ const authenticateToken = async (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    const decoded = verifyAuthToken(token);
     const userResult = await firebaseService.getUserById(decoded.userId);
     if (!userResult.success) {
       return res.status(401).json({ error: '用户不存在' });
@@ -34,7 +34,7 @@ const optionalAuth = async (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    const decoded = verifyAuthToken(token);
     const userResult = await firebaseService.getUserById(decoded.userId);
     
     if (userResult.success) {

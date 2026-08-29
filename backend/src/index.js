@@ -8,6 +8,16 @@ require('dotenv').config();
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 require('dotenv').config({ path: path.join(process.cwd(), 'backend', '.env') });
 
+// 密钥自检：JWT_SECRET 缺失或过弱时直接终止进程。
+// 绝不允许带着可伪造的 token 对外提供病历接口。
+const { assertJwtSecretConfigured } = require('./config/jwtConfig');
+try {
+  assertJwtSecretConfigured();
+} catch (error) {
+  console.error('❌ 启动中止：' + error.message);
+  process.exit(1);
+}
+
 const aiProviderConfig = require('./config/aiProviderConfig');
 (function logDefaultAI() {
   const provider = aiProviderConfig.getDefaultProvider();

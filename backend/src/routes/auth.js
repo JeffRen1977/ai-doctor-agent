@@ -1,6 +1,6 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
+const { signAuthToken, verifyAuthToken } = require('../config/jwtConfig');
 const Joi = require('joi');
 const firebaseService = require('../services/firebaseService');
 const adapters = require('../adapters');
@@ -57,11 +57,7 @@ router.post('/register', async (req, res) => {
         createdAt: new Date(),
         updatedAt: new Date()
       });
-      const token = jwt.sign(
-        { userId: uid, email },
-        process.env.JWT_SECRET || 'your-secret-key',
-        { expiresIn: '7d' }
-      );
+      const token = signAuthToken({ userId: uid, email });
       return res.status(201).json({
         user: { id: uid, email, name, avatar: null },
         token
@@ -77,11 +73,7 @@ router.post('/register', async (req, res) => {
     if (!result.success) {
       return res.status(400).json({ error: result.error });
     }
-    const token = jwt.sign(
-      { userId: result.user.id, email: result.user.email },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '7d' }
-    );
+    const token = signAuthToken({ userId: result.user.id, email: result.user.email });
     res.status(201).json({
       user: result.user,
       token
@@ -112,11 +104,7 @@ router.post('/login', async (req, res) => {
       if (!match) {
         return res.status(401).json({ error: '邮箱或密码错误' });
       }
-      const token = jwt.sign(
-        { userId: userData.uid, email: userData.email },
-        process.env.JWT_SECRET || 'your-secret-key',
-        { expiresIn: '7d' }
-      );
+      const token = signAuthToken({ userId: userData.uid, email: userData.email });
       return res.json({
         user: {
           id: userData.uid,
@@ -133,11 +121,7 @@ router.post('/login', async (req, res) => {
     if (!result.success) {
       return res.status(401).json({ error: result.error });
     }
-    const token = jwt.sign(
-      { userId: result.user.id, email: result.user.email },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '7d' }
-    );
+    const token = signAuthToken({ userId: result.user.id, email: result.user.email });
     res.json({
       user: result.user,
       token
@@ -164,11 +148,7 @@ router.post('/refresh-token', async (req, res) => {
     }
 
     // 生成新的JWT token
-    const newToken = jwt.sign(
-      { userId, email },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '7d' }
-    );
+    const newToken = signAuthToken({ userId, email });
 
     console.log('🔐 Token refreshed successfully for user:', email);
 
@@ -229,7 +209,7 @@ router.get('/me', async (req, res) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    const decoded = verifyAuthToken(token);
     const result = await firebaseService.getUserById(decoded.userId);
     
     if (!result.success) {
@@ -252,7 +232,7 @@ router.put('/profile', async (req, res) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    const decoded = verifyAuthToken(token);
     const { name, avatar } = req.body;
 
     const updates = {};
