@@ -73,6 +73,19 @@ api.interceptors.response.use(
       }
     }
     
+    // 429：后端限流。把 Retry-After 换算成用户看得懂的提示，
+    // 不要让它掉进通用的「网络错误」里，否则用户会不停重试、把额度耗得更快。
+    if (error.response?.status === 429) {
+      const retryAfterSec = Number(
+        error.response.data?.retryAfter ?? error.response.headers?.['retry-after']
+      )
+      const wait = Number.isFinite(retryAfterSec) && retryAfterSec > 0
+        ? `请在 ${Math.ceil(retryAfterSec / 60)} 分钟后重试。`
+        : '请稍后重试。'
+      error.friendlyMessage = `${error.response.data?.error || '请求过于频繁。'}${wait}`
+      return Promise.reject(error)
+    }
+
     if (error.response?.status === 403) {
       // Token无效，清除认证信息并重定向
       localStorage.removeItem('token')

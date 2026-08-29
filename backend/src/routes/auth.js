@@ -5,6 +5,7 @@ const Joi = require('joi');
 const firebaseService = require('../services/firebaseService');
 const adapters = require('../adapters');
 const { userRepo } = require('../repositories');
+const { loginLimiter, registerLimiter } = require('../middleware/rateLimit');
 
 const router = express.Router();
 // 由「当前加载的 adapter」决定认证方式，不读 env，避免 .env 未生效仍走 Firebase
@@ -26,7 +27,7 @@ const registerSchema = Joi.object({
 });
 
 // 用户注册
-router.post('/register', async (req, res) => {
+router.post('/register', registerLimiter, async (req, res) => {
   try {
     const { error, value } = registerSchema.validate(req.body);
     if (error) {
@@ -85,7 +86,7 @@ router.post('/register', async (req, res) => {
 });
 
 // 用户登录
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
   try {
     const { error, value } = loginSchema.validate(req.body);
     if (error) {

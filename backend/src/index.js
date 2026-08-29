@@ -44,9 +44,24 @@ const emergencyRoutes = require('./routes/emergency');
 const internalCronRoutes = require('./routes/internalCron');
 const telegramIntegrationRoutes = require('./routes/telegramIntegration');
 const internalTelegramRoutes = require('./routes/internalTelegram');
+const {
+  generalApiLimiter,
+  authLimiter,
+  aiLimiter,
+  aiHeavyLimiter
+} = require('./middleware/rateLimit');
 
 const app = express();
 const PORT = process.env.PORT || 8000;
+
+// Railway / Vercel 在应用前有一层反向代理，不声明信任跳数的话 req.ip 恒为代理 IP，
+// 按 IP 计数的限流会把全体用户算成同一个人。跳数用具体数字而非 true：
+// 设成 true 等于无条件相信客户端伪造的 X-Forwarded-For，限流会被一个请求头绕过。
+const TRUST_PROXY_HOPS = Number(process.env.TRUST_PROXY_HOPS);
+app.set(
+  'trust proxy',
+  Number.isFinite(TRUST_PROXY_HOPS) ? TRUST_PROXY_HOPS : (process.env.NODE_ENV === 'production' ? 1 : false)
+);
 
 if (process.env.NODE_ENV !== 'production') {
   app.use((req, res, next) => { console.log(`${req.method} ${req.path}`); next(); });
@@ -122,22 +137,25 @@ app.use(morgan('combined'));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
+// 限流：/api 兜底闸门，须在具体路由之前
+app.use('/api', generalApiLimiter);
+
 // API routes
-app.use('/api/auth', authRoutes);
-app.use('/api/chat', chatRoutes);
-app.use('/api/health-records', healthRecordsRoutes);
+app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/chat', aiLimiter, chatRoutes);
+app.use('/api/health-records', aiHeavyLimiter, healthRecordsRoutes);
 app.use('/api/wearables', wearableRoutes);
-app.use('/api/health-analysis', healthAnalysisRoutes);
+app.use('/api/health-analysis', aiHeavyLimiter, healthAnalysisRoutes);
 app.use('/api/user-settings', userSettingsRoutes);
-app.use('/api/digital-twin', digitalTwinRoutes);
-app.use('/api/risk-monitoring', riskMonitoringRoutes);
-app.use('/api/intervention', interventionEngineRoutes);
-app.use('/api/rehabilitation', rehabilitationAssistantRoutes);
+app.use('/api/digital-twin', aiLimiter, digitalTwinRoutes);
+app.use('/api/risk-monitoring', aiLimiter, riskMonitoringRoutes);
+app.use('/api/intervention', aiLimiter, interventionEngineRoutes);
+app.use('/api/rehabilitation', aiLimiter, rehabilitationAssistantRoutes);
 app.use('/api/time-series', timeSeriesRoutes);
 app.use('/api/interventions', interventionsRoutes);
 app.use('/api/conversations', conversationsRoutes);
 app.use('/api/appointments', appointmentsRoutes);
-app.use('/api/reports', reportsRoutes);
+app.use('/api/reports', aiLimiter, reportsRoutes);
 app.use('/api/emergency', emergencyRoutes);
 app.use('/api/integrations/telegram', telegramIntegrationRoutes);
 app.use('/internal/cron', internalCronRoutes);
