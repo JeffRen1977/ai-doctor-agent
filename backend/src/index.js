@@ -1,12 +1,16 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const morgan = require('morgan');
 const path = require('path');
 // 加载 .env：根目录、backend/.env（按 __dirname）、backend/.env（按 cwd），后者覆盖前者
 require('dotenv').config();
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 require('dotenv').config({ path: path.join(process.cwd(), 'backend', '.env') });
+
+// 可观测性最先初始化：后面任何一处抛错都要能被记录下来
+const logger = require('./observability/logger');
+const { installProcessHandlers } = require('./observability/errorReporter');
+installProcessHandlers();
 
 // 密钥自检：JWT_SECRET 缺失或过弱时直接终止进程。
 // 绝不允许带着可伪造的 token 对外提供病历接口。
@@ -14,7 +18,7 @@ const { assertJwtSecretConfigured } = require('./config/jwtConfig');
 try {
   assertJwtSecretConfigured();
 } catch (error) {
-  console.error('❌ 启动中止：' + error.message);
+  logger.fatal({ err: { message: error.message } }, '启动中止：JWT 密钥配置不合格');
   process.exit(1);
 }
 
@@ -44,6 +48,8 @@ const emergencyRoutes = require('./routes/emergency');
 const internalCronRoutes = require('./routes/internalCron');
 const telegramIntegrationRoutes = require('./routes/telegramIntegration');
 const internalTelegramRoutes = require('./routes/internalTelegram');
+const { requestLogger } = require('./middleware/requestLogger');
+const { errorHandler, apiNotFound } = require('./middleware/errorHandler');
 const {
   generalApiLimiter,
   authLimiter,
@@ -132,7 +138,9 @@ app.use(cors({
 app.use(helmet({
   contentSecurityPolicy: false, // Disable CSP for development
 }));
-app.use(morgan('combined'));
+// 结构化请求日志（取代 morgan）：为每个请求分配 requestId 并写入 AsyncLocalStorage，
+// 之后同一请求内的所有日志与审计记录都会自动携带该 ID。
+app.use(requestLogger);
 // Increase body size limit for file uploads (50MB)
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
@@ -537,6 +545,11 @@ app.get('/', (req, res) => {
   }
 });
 
+// 未匹配任何路由的 /api 请求：返回 JSON 404。
+// 必须放在 SPA 兜底之前，否则前端拿到的是 index.html 而不是错误响应，
+// 排查时会表现为「接口返回了一堆 HTML」这种极难定位的症状。
+app.use('/api', apiNotFound);
+
 // IMPORTANT: Handle React routing AFTER static files - return all requests to React app
 // This route should only handle non-static file requests
 app.get('*', (req, res) => {
@@ -569,11 +582,8 @@ app.get('*', (req, res) => {
   }
 });
 
-// 错误处理中间件
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: '服务器内部错误' });
-});
+// 集中错误处理：结构化上报 + 回传 requestId，替代原先只打印堆栈的实现
+app.use(errorHandler);
 
 async function startServer() {
   const useMongo = /^mongo(db)?$/i.test(String(process.env.PERSISTENCE_ADAPTER || '').trim()) ||
@@ -590,11 +600,12 @@ async function startServer() {
   }
   return new Promise((resolve, reject) => {
     const server = app.listen(PORT, '0.0.0.0', () => {
-      console.log(`Server listening on ${PORT} (env: ${process.env.NODE_ENV || 'development'})`);
+      // env 已由 logger 的 base 字段提供，此处不再重复传，避免 JSON 出现重复 key
+      logger.info({ port: PORT }, 'server listening');
       resolve(server);
     });
     server.on('error', (error) => {
-      console.error('Server start failed:', error.message, error.code);
+      logger.fatal({ err: { message: error.message, code: error.code } }, 'server start failed');
       reject(error);
       process.exit(1);
     });
@@ -605,7 +616,7 @@ let server;
 startServer()
   .then((s) => { server = s; })
   .catch((err) => {
-    console.error('Startup error:', err);
+    logger.fatal({ err: { message: err?.message, stack: err?.stack } }, 'startup error');
     process.exit(1);
   });
 

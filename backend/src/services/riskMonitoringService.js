@@ -3,6 +3,7 @@ const userSettingsService = require('./userSettingsService');
 const aiProviderConfig = require('../config/aiProviderConfig');
 const contextBuilderService = require('./contextBuilderService');
 const { riskAlertRepo, notificationRepo, riskMonitoringStateRepo, wearableStreamDataRepo } = require('../repositories');
+const auditService = require('./auditService');
 const { userIdFromEmail } = require('../models/riskMonitoringState');
 
 /**
@@ -277,8 +278,28 @@ class RiskMonitoringService {
 
       const llmAlerts = [];
       for (const anomaly of anomalyAnalysis.anomalies || []) {
-        if (anomaly._skipAlert) continue;
-        if (typesFromRules.has(anomaly.type)) continue;
+        // 被丢弃的异常必须留痕：否则「模型发现了异常但用户没收到告警」在系统里
+        // 不留任何证据，事故复盘时无法区分「没检测到」和「检测到但被抑制」。
+        if (anomaly._skipAlert) {
+          await auditService.recordAlert('suppressed', {
+            operation: 'riskMonitoring.detectAnomalies',
+            subjectEmail: userEmail,
+            alert: anomaly,
+            severity: anomaly.severity,
+            reason: `confidence_below_threshold(${ANOMALY_CONFIDENCE_THRESHOLD})`
+          });
+          continue;
+        }
+        if (typesFromRules.has(anomaly.type)) {
+          await auditService.recordAlert('suppressed', {
+            operation: 'riskMonitoring.detectAnomalies',
+            subjectEmail: userEmail,
+            alert: anomaly,
+            severity: anomaly.severity,
+            reason: 'deduplicated_by_rule_engine'
+          });
+          continue;
+        }
         const alert = await this.generateAlert(userEmail, anomaly.type, anomaly.severity, anomaly);
         llmAlerts.push(alert);
       }
@@ -452,6 +473,13 @@ class RiskMonitoringService {
       };
       
       const saved = await riskAlertRepo.addAlert(alert);
+      await auditService.recordAlert('generated', {
+        operation: 'riskMonitoring.generateAlert',
+        subjectEmail: userEmail,
+        alert: saved,
+        severity,
+        metadata: { alertId: saved?.id, alertType }
+      });
       await this.sendNotification(userEmail, saved);
       return saved;
     } catch (error) {
@@ -476,8 +504,25 @@ class RiskMonitoringService {
         timestamp: new Date().toISOString(),
         read: false
       });
+      await auditService.recordAlert('delivered', {
+        operation: 'riskMonitoring.sendNotification',
+        subjectEmail: userEmail,
+        alert,
+        severity: alert.severity,
+        metadata: { alertId: alert.id, channel: 'in_app' }
+      });
     } catch (error) {
       console.error('❌ Error sending notification:', error);
+      // 送达失败同样要留痕 —— 「告警生成了但没送到」是最需要被追责的一类故障
+      await auditService.recordAlert('delivered', {
+        operation: 'riskMonitoring.sendNotification',
+        subjectEmail: userEmail,
+        alert,
+        severity: alert.severity,
+        success: false,
+        errorMessage: error.message,
+        metadata: { alertId: alert.id, channel: 'in_app' }
+      });
     }
   }
 

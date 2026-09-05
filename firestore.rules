@@ -7,6 +7,14 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    // 审计事件：对客户端完全关闭。
+    // 只有服务端 Admin SDK 能写入，且任何人都不能改或删 ——
+    // 一份能被当事人修改的审计日志在法律上没有任何证明力。
+    // 需要向用户导出其审计轨迹时，走后端接口做鉴权与脱敏，不要放开这条规则。
+    match /auditEvents/{eventId} {
+      allow read, write: if false;
+    }
+
     // 根文档：仅允许对应用户读写自己的档案
     match /personalHealthRecords/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;

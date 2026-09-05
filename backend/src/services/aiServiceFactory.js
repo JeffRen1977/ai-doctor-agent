@@ -208,5 +208,81 @@ class AIServiceFactory {
 
 }
 
+/**
+ * 审计装饰器 —— 所有 LLM 调用都经过 AIServiceFactory，所以在这一处包一层，
+ * 就等于给 digitalTwin / riskMonitoring / intervention / rehabilitation / reports
+ * 全部 AI 路径加上了「谁在什么时候得到了什么结论」的留痕，无需改动各业务服务。
+ */
+const auditService = require('./auditService');
+const logger = require('../observability/logger');
+
+/** 需要审计的方法 → 第一个参数在业务上的含义 */
+const AUDITED_METHODS = {
+  analyzeHealthRecords: 'healthData',
+  extractTextFromImage: 'image',
+  analyzePDFDocument: 'pdf',
+  healthChat: 'message',
+  analyzeDiet: 'foodItems',
+  analyzeImageWithAI: 'image',
+  analyzeSymptoms: 'symptoms',
+  checkDrugInteractions: 'medications'
+};
+
+/** base64 图片/PDF 这类大字符串不进审计摘要，只留类型与体积描述符 */
+const LARGE_INPUT_CHARS = 4096;
+function summaryValueFor(kind, value) {
+  if (typeof value === 'string' && value.length > LARGE_INPUT_CHARS) {
+    return `[${kind}: ${value.length} chars, content hashed in inputDigest]`;
+  }
+  return value;
+}
+
+function withAudit(factory) {
+  Object.entries(AUDITED_METHODS).forEach(([method, inputKind]) => {
+    if (typeof factory[method] !== 'function') return;
+    const original = factory[method].bind(factory);
+
+    factory[method] = async function auditedAiCall(...args) {
+      const options = args[args.length - 1];
+      const opts = options && typeof options === 'object' && !Array.isArray(options) ? options : {};
+      const provider = opts.provider || 'gemini';
+      const model = opts.model || 'default';
+      const startedAt = Date.now();
+
+      let result;
+      let failure = null;
+      try {
+        result = await original(...args);
+        return result;
+      } catch (error) {
+        failure = error;
+        throw error;
+      } finally {
+        // 审计写入 await 而不 fire-and-forget：LLM 调用本就是秒级，
+        // 多等一次数据库写入换取「结论产生了就一定有记录」的确定性是划算的。
+        // recordAiDecision 内部永不抛错，不会影响主流程。
+        try {
+          await auditService.recordAiDecision({
+            operation: method,
+            provider,
+            model,
+            input: args[0],
+            inputSummaryValue: summaryValueFor(inputKind, args[0]),
+            output: failure ? null : result,
+            latencyMs: Date.now() - startedAt,
+            success: !failure,
+            errorMessage: failure?.message ?? null,
+            subjectEmail: opts.userEmail || opts.subjectEmail || null,
+            metadata: { inputKind }
+          });
+        } catch (auditError) {
+          logger.error({ err: { message: auditError?.message } }, '审计装饰器异常');
+        }
+      }
+    };
+  });
+  return factory;
+}
+
 // Export singleton instance
-module.exports = new AIServiceFactory();
+module.exports = withAudit(new AIServiceFactory());

@@ -33,5 +33,6 @@ module.exports = {
   userRepo: adapters.userRepo,
   userProfileRepo: adapters.userProfileRepo,
   healthSummaryRepo: adapters.healthSummaryRepo,
-  telegramBindingRepo: adapters.telegramBindingRepo
+  telegramBindingRepo: adapters.telegramBindingRepo,
+  auditEventRepo: adapters.auditEventRepo
 };
