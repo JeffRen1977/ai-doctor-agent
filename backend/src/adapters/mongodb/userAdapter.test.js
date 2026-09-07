@@ -4,7 +4,7 @@ jest.mock('./connection', () => ({
   getCollection: jest.fn(() => ({ findOne: mockFindOne, updateOne: mockUpdateOne }))
 }));
 
-const { getByEmail, setByEmail, updateByEmail, getByUid } = require('./userAdapter');
+const { getByEmail, setByEmail, updateByEmail, getByUid, findByPasswordResetHash } = require('./userAdapter');
 
 beforeEach(() => {
   mockFindOne.mockReset();
@@ -51,5 +51,18 @@ describe('getByUid', () => {
     mockFindOne.mockResolvedValue({ _id: 'a@b.com', uid: 'uid1', name: 'Test' });
     const out = await getByUid('uid1');
     expect(out).toEqual({ uid: 'uid1', name: 'Test' });
+  });
+});
+
+describe('findByPasswordResetHash', () => {
+  it('returns null when hash is empty', async () => {
+    expect(await findByPasswordResetHash('')).toBeNull();
+  });
+
+  it('returns email from _id when the field is missing', async () => {
+    mockFindOne.mockResolvedValue({ _id: 'a@b.com', uid: 'uid1', passwordResetTokenHash: 'abc' });
+    const out = await findByPasswordResetHash('abc');
+    expect(out.email).toBe('a@b.com');
+    expect(out.uid).toBe('uid1');
   });
 });

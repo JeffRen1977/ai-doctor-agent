@@ -36,9 +36,24 @@ async function getByUid(uid) {
   return rest;
 }
 
+/**
+ * 按重置令牌哈希查找用户。明文令牌只出现在邮件里，库里只有 SHA-256。
+ * @param {string} hash
+ * @returns {Promise<Object | null>}
+ */
+async function findByPasswordResetHash(hash) {
+  if (!hash) return null;
+  const col = getCollection(COLLECTION);
+  const doc = await col.findOne({ passwordResetTokenHash: hash });
+  if (!doc) return null;
+  const { _id, ...rest } = doc;
+  return { email: rest.email || _id, ...rest };
+}
+
 module.exports = {
   getByEmail,
   setByEmail,
   updateByEmail,
-  getByUid
+  getByUid,
+  findByPasswordResetHash
 };

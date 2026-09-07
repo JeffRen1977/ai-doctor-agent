@@ -1,11 +1,14 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const { signAuthToken, verifyAuthToken } = require('../config/jwtConfig');
+const { signAuthToken, verifyAuthTokenAllowExpired } = require('../config/jwtConfig');
 const Joi = require('joi');
 const firebaseService = require('../services/firebaseService');
 const adapters = require('../adapters');
 const { userRepo } = require('../repositories');
-const { loginLimiter, registerLimiter } = require('../middleware/rateLimit');
+const { loginLimiter, registerLimiter, forgotPasswordLimiter } = require('../middleware/rateLimit');
+const { authenticateToken } = require('../middleware/auth');
+const passwordResetService = require('../services/passwordResetService');
+const logger = require('../observability/logger');
 
 const router = express.Router();
 // 由「当前加载的 adapter」决定认证方式，不读 env，避免 .env 未生效仍走 Firebase
@@ -22,9 +25,30 @@ const loginSchema = Joi.object({
 // 注册验证schema
 const registerSchema = Joi.object({
   email: Joi.string().email().required(),
-  password: Joi.string().min(6).required(),
+  password: Joi.string().min(8).required(),
   name: Joi.string().min(2).max(50).required()
 });
+
+const forgotPasswordSchema = Joi.object({
+  email: Joi.string().email().required()
+});
+
+const resetPasswordSchema = Joi.object({
+  token: Joi.string().min(16).required(),
+  password: Joi.string().min(8).required()
+});
+
+function emailsEqual(a, b) {
+  return String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
+}
+
+function assertOwnEmail(req, res, emailParam) {
+  if (!emailsEqual(req.user?.email, emailParam)) {
+    res.status(403).json({ error: '只能访问自己的资料' });
+    return false;
+  }
+  return true;
+}
 
 // 用户注册
 router.post('/register', registerLimiter, async (req, res) => {
@@ -133,55 +157,74 @@ router.post('/login', loginLimiter, async (req, res) => {
   }
 });
 
-// Token刷新端点
+// Token刷新：必须出示现有 JWT（允许在宽限内过期），不能只用 userId+email 换票
 router.post('/refresh-token', async (req, res) => {
-  try {
-    const { userId, email } = req.body;
-    
-    if (!userId || !email) {
-      return res.status(400).json({ error: '缺少用户ID或邮箱' });
-    }
+  const header = req.headers.authorization || '';
+  const token = header.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
+  if (!token) {
+    return res.status(401).json({ error: '未提供认证token' });
+  }
 
-    // 验证用户是否存在
-    const userResult = await firebaseService.getUserById(userId);
+  try {
+    const decoded = verifyAuthTokenAllowExpired(token);
+    const userResult = await firebaseService.getUserById(decoded.userId);
     if (!userResult.success) {
       return res.status(401).json({ error: '用户不存在' });
     }
+    if (decoded.email && !emailsEqual(decoded.email, userResult.user.email)) {
+      return res.status(401).json({ error: '无效的token' });
+    }
 
-    // 生成新的JWT token
-    const newToken = signAuthToken({ userId, email });
-
-    console.log('🔐 Token refreshed successfully for user:', email);
-
-    res.json({
+    const newToken = signAuthToken({
+      userId: userResult.user.id,
+      email: userResult.user.email
+    });
+    return res.json({
       token: newToken,
       message: 'Token refreshed successfully'
     });
   } catch (error) {
-    console.error('Token刷新错误:', error);
-    res.status(500).json({ error: '服务器内部错误' });
+    logger.warn({ err: { message: error?.message } }, 'token refresh rejected');
+    return res.status(401).json({ error: '无效的token' });
   }
 });
 
-// 为现有Firebase Auth用户创建用户文档
-router.post('/create-document', async (req, res) => {
-  try {
-    const { email, uid, name } = req.body;
-    
-    if (!email || !uid) {
-      return res.status(400).json({ error: '邮箱和用户ID是必需的' });
-    }
+router.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {
+  const genericMessage = '如果该邮箱已注册，您将收到重置邮件';
+  const { error, value } = forgotPasswordSchema.validate(req.body);
+  if (error) {
+    return res.status(400).json({ error: error.details[0].message });
+  }
 
-    const result = await firebaseService.createUserDocumentForExistingUser(email, uid, name || 'User');
-    
+  try {
+    if (useMongoAuth()) {
+      await passwordResetService.requestMongoReset(value.email);
+    } else {
+      await passwordResetService.requestFirebaseReset(value.email);
+    }
+  } catch (err) {
+    logger.error({ err: { message: err?.message } }, 'forgot-password failed');
+  }
+  return res.json({ message: genericMessage });
+});
+
+router.post('/reset-password', async (req, res) => {
+  const { error, value } = resetPasswordSchema.validate(req.body);
+  if (error) {
+    return res.status(400).json({ error: error.details[0].message });
+  }
+  if (!useMongoAuth()) {
+    return res.status(400).json({ error: '请使用邮件中的链接重置密码' });
+  }
+  try {
+    const result = await passwordResetService.confirmMongoReset(value.token, value.password);
     if (!result.success) {
       return res.status(400).json({ error: result.error });
     }
-
-    res.json({ message: result.message });
-  } catch (error) {
-    console.error('创建用户文档错误:', error);
-    res.status(500).json({ error: '服务器内部错误' });
+    return res.json({ message: '密码已重置，请使用新密码登录' });
+  } catch (err) {
+    logger.error({ err: { message: err?.message } }, 'reset-password failed');
+    return res.status(500).json({ error: '服务器内部错误' });
   }
 });
 
@@ -201,101 +244,62 @@ router.post('/logout', async (req, res) => {
   }
 });
 
-// 获取当前用户信息
-router.get('/me', async (req, res) => {
-  const token = req.headers.authorization?.replace('Bearer ', '');
-  
-  if (!token) {
-    return res.status(401).json({ error: '未提供认证token' });
-  }
-
-  try {
-    const decoded = verifyAuthToken(token);
-    const result = await firebaseService.getUserById(decoded.userId);
-    
-    if (!result.success) {
-      return res.status(404).json({ error: result.error });
-    }
-
-    res.json(result.user);
-  } catch (error) {
-    console.error('获取用户信息错误:', error);
-    res.status(401).json({ error: '无效的token' });
-  }
+router.get('/me', authenticateToken, async (req, res) => {
+  return res.json(req.user);
 });
 
-// 更新用户信息
-router.put('/profile', async (req, res) => {
-  const token = req.headers.authorization?.replace('Bearer ', '');
-  
-  if (!token) {
-    return res.status(401).json({ error: '未提供认证token' });
-  }
-
+async function readOwnProfile(req, res) {
   try {
-    const decoded = verifyAuthToken(token);
-    const { name, avatar } = req.body;
+    const result = await firebaseService.getUserProfile(req.user.email);
+    if (!result.success) {
+      return res.json({
+        profile: { email: req.user.email, name: req.user.name || '' }
+      });
+    }
+    return res.json({ profile: result.profile });
+  } catch (error) {
+    logger.error({ err: { message: error?.message } }, 'get profile failed');
+    return res.status(500).json({ error: '服务器内部错误' });
+  }
+}
 
-    const updates = {};
-    if (name) updates.name = name;
-    if (avatar !== undefined) updates.avatar = avatar;
+async function writeOwnProfile(req, res) {
+  try {
+    const { name, avatar, email: _ignoredEmail, ...profileFields } = req.body || {};
+    const userUpdates = {};
+    if (name) userUpdates.name = name;
+    if (avatar !== undefined) userUpdates.avatar = avatar;
+    if (Object.keys(userUpdates).length > 0) {
+      const userResult = await firebaseService.updateUser(req.user.id, userUpdates);
+      if (!userResult.success) {
+        return res.status(400).json({ error: userResult.error });
+      }
+    }
 
-    const result = await firebaseService.updateUser(decoded.userId, updates);
-    
+    const profileData = { ...profileFields };
+    if (name) profileData.name = name;
+    const result = await firebaseService.updateUserProfile(req.user.email, profileData);
     if (!result.success) {
       return res.status(400).json({ error: result.error });
     }
-
-    res.json({ message: '用户信息更新成功' });
+    return res.json({ message: '用户资料更新成功', profile: result.profile });
   } catch (error) {
-    console.error('更新用户信息错误:', error);
-    res.status(500).json({ error: '服务器内部错误' });
+    logger.error({ err: { message: error?.message } }, 'update profile failed');
+    return res.status(500).json({ error: '服务器内部错误' });
   }
+}
+
+router.get('/profile', authenticateToken, readOwnProfile);
+router.put('/profile', authenticateToken, writeOwnProfile);
+
+router.get('/profile/:email', authenticateToken, async (req, res) => {
+  if (!assertOwnEmail(req, res, req.params.email)) return;
+  return readOwnProfile(req, res);
 });
 
-// 获取用户详细资料
-router.get('/profile/:email', async (req, res) => {
-  try {
-    const { email } = req.params;
-    
-    if (!email) {
-      return res.status(400).json({ error: '邮箱是必需的' });
-    }
-
-    const result = await firebaseService.getUserProfile(email);
-    
-    if (!result.success) {
-      return res.status(404).json({ error: result.error });
-    }
-
-    res.json({ profile: result.profile });
-  } catch (error) {
-    console.error('获取用户资料错误:', error);
-    res.status(500).json({ error: '服务器内部错误' });
-  }
-});
-
-// 更新用户详细资料
-router.put('/profile/:email', async (req, res) => {
-  try {
-    const { email } = req.params;
-    const profileData = req.body;
-    
-    if (!email) {
-      return res.status(400).json({ error: '邮箱是必需的' });
-    }
-
-    const result = await firebaseService.updateUserProfile(email, profileData);
-    
-    if (!result.success) {
-      return res.status(400).json({ error: result.error });
-    }
-
-    res.json({ message: '用户资料更新成功', profile: result.profile });
-  } catch (error) {
-    console.error('更新用户资料错误:', error);
-    res.status(500).json({ error: '服务器内部错误' });
-  }
+router.put('/profile/:email', authenticateToken, async (req, res) => {
+  if (!assertOwnEmail(req, res, req.params.email)) return;
+  return writeOwnProfile(req, res);
 });
 
 module.exports = router; 

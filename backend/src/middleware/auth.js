@@ -50,4 +50,12 @@ const optionalAuth = async (req, res, next) => {
   }
 };
 
-module.exports = { authenticateToken, optionalAuth }; 
+/** 管理接口：必须已经过 authenticateToken，且 role 为 admin */
+function requireAdmin(req, res, next) {
+  if (req.user?.role !== 'admin') {
+    return res.status(403).json({ error: '需要管理员权限' });
+  }
+  return next();
+}
+
+module.exports = { authenticateToken, optionalAuth, requireAdmin }; 

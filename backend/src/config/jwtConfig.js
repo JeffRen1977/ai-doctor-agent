@@ -86,6 +86,42 @@ function verifyAuthToken(token) {
   return jwt.verify(token, getJwtSecret());
 }
 
+const UNIT_SECONDS = { s: 1, m: 60, h: 3600, d: 86400 };
+const DEFAULT_TTL_SECONDS = 7 * 24 * 3600;
+
+/**
+ * 把 JWT_EXPIRES_IN 这类值（7d / 15m / 3600）转成秒。无法解析时用 7 天。
+ * @param {string|undefined} value
+ * @param {number} [fallbackSeconds]
+ * @returns {number}
+ */
+function durationToSeconds(value, fallbackSeconds = DEFAULT_TTL_SECONDS) {
+  if (value == null || String(value).trim() === '') return fallbackSeconds;
+  const raw = String(value).trim();
+  if (/^\d+$/.test(raw)) return Number(raw);
+  const match = raw.match(/^(\d+)\s*([smhd])$/i);
+  if (!match) return fallbackSeconds;
+  return Number(match[1]) * UNIT_SECONDS[match[2].toLowerCase()];
+}
+
+/**
+ * 刷新专用：签名必须合法，允许已过期，但过期超过 JWT 有效期（默认 7 天）则拒绝。
+ * 这样「手里有旧票」才能换新票，光知道 userId+email 不行。
+ * @param {string} token
+ * @returns {object}
+ */
+function verifyAuthTokenAllowExpired(token) {
+  const decoded = jwt.verify(token, getJwtSecret(), { ignoreExpiration: true });
+  const graceSec = durationToSeconds(process.env.JWT_EXPIRES_IN, DEFAULT_TTL_SECONDS);
+  const now = Math.floor(Date.now() / 1000);
+  if (typeof decoded.exp === 'number' && now - decoded.exp > graceSec) {
+    const error = new Error('Token refresh window exceeded');
+    error.name = 'TokenExpiredError';
+    throw error;
+  }
+  return decoded;
+}
+
 module.exports = {
   MIN_SECRET_LENGTH,
   BANNED_SECRETS,
@@ -93,5 +129,7 @@ module.exports = {
   getJwtSecret,
   assertJwtSecretConfigured,
   signAuthToken,
-  verifyAuthToken
+  verifyAuthToken,
+  verifyAuthTokenAllowExpired,
+  durationToSeconds
 };

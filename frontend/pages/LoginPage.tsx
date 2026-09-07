@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react'
-import { Form, Input, Button, Card, message, Row, Col, Typography, Space } from 'antd'
+import { Form, Input, Button, Card, message, Row, Col, Typography } from 'antd'
 import { UserOutlined, LockOutlined, GlobalOutlined, MessageOutlined, FileTextOutlined, CameraOutlined, BarChartOutlined, CalendarOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
 import { useAuthStore } from '@/stores/authStore'
 import { useLanguageStore } from '@/stores/languageStore'
 import { getTranslation } from '../locales'
 import { getApiBaseUrl } from '../utils/apiConfig'
+import { useSearchParams } from 'react-router-dom'
 import './LoginPage.css'
 
 const { Title, Paragraph } = Typography
@@ -24,6 +25,9 @@ interface RegisterForm {
 const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [isLoginMode, setIsLoginMode] = useState(true)
+  const [authView, setAuthView] = useState<'login' | 'register' | 'forgot' | 'reset'>('login')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const resetToken = searchParams.get('resetToken') || ''
   const { language, setLanguage, initLanguage } = useLanguageStore()
   const { login } = useAuthStore()
 
@@ -31,6 +35,10 @@ const LoginPage: React.FC = () => {
   useEffect(() => {
     initLanguage()
   }, [initLanguage])
+
+  useEffect(() => {
+    if (resetToken) setAuthView('reset')
+  }, [resetToken])
 
   const t = (key: string) => getTranslation(language, key)
 
@@ -45,6 +53,16 @@ const LoginPage: React.FC = () => {
 
   const toggleMode = () => {
     setIsLoginMode(!isLoginMode)
+    setAuthView(!isLoginMode ? 'login' : 'register')
+  }
+
+  const goToLogin = () => {
+    setIsLoginMode(true)
+    setAuthView('login')
+    if (resetToken) {
+      searchParams.delete('resetToken')
+      setSearchParams(searchParams, { replace: true })
+    }
   }
 
   const onFinish = async (values: LoginForm | RegisterForm) => {
@@ -153,6 +171,54 @@ const LoginPage: React.FC = () => {
     }
   }
 
+  const onForgotFinish = async (values: { email: string }) => {
+    setLoading(true)
+    try {
+      const response = await fetch(`${getApiBaseUrl()}/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: values.email })
+      })
+      const data = await response.json()
+      if (response.ok) {
+        message.success(data.message || t('login.resetEmailSent'))
+        goToLogin()
+      } else {
+        message.error(data.error || (language === 'zh' ? '发送失败，请稍后重试' : 'Failed to send, please try again'))
+      }
+    } catch (error) {
+      message.error(language === 'zh' ? '网络错误，请稍后重试' : 'Network error, please try again')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const onResetFinish = async (values: { password: string; confirmPassword: string }) => {
+    if (values.password !== values.confirmPassword) {
+      message.error(language === 'zh' ? '密码确认不匹配！' : 'Password confirmation does not match!')
+      return
+    }
+    setLoading(true)
+    try {
+      const response = await fetch(`${getApiBaseUrl()}/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: resetToken, password: values.password })
+      })
+      const data = await response.json()
+      if (response.ok) {
+        message.success(data.message || t('login.resetSuccess'))
+        goToLogin()
+      } else {
+        message.error(data.error || (language === 'zh' ? '重置失败' : 'Reset failed'))
+      }
+    } catch (error) {
+      message.error(language === 'zh' ? '网络错误，请稍后重试' : 'Network error, please try again')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="login-container">
       <div className="language-switch">
@@ -168,12 +234,77 @@ const LoginPage: React.FC = () => {
       <div className="login-content">
         <Card className="login-card">
           <div className="login-header">
-            <Title level={2}>{isLoginMode ? t('login.title') : (language === 'zh' ? '用户注册' : 'User Registration')}</Title>
+            <Title level={2}>
+              {authView === 'forgot'
+                ? t('login.forgotPassword')
+                : authView === 'reset'
+                  ? t('login.resetPassword')
+                  : isLoginMode ? t('login.title') : (language === 'zh' ? '用户注册' : 'User Registration')}
+            </Title>
             <Paragraph type="secondary">
               {isLoginMode ? t('login.subtitle') : (language === 'zh' ? '创建新账户以开始使用AI医生服务' : 'Create a new account to start using AI Doctor services')}
             </Paragraph>
           </div>
           
+          {authView === 'forgot' ? (
+            <Form name="forgot" onFinish={onForgotFinish} autoComplete="off" size="large">
+              <Form.Item
+                name="email"
+                rules={[
+                  { required: true, message: language === 'zh' ? '请输入邮箱!' : 'Please enter your email!' },
+                  { type: 'email', message: language === 'zh' ? '请输入有效的邮箱地址!' : 'Please enter a valid email address!' }
+                ]}
+              >
+                <Input prefix={<UserOutlined />} placeholder={t('login.email')} />
+              </Form.Item>
+              <Form.Item>
+                <Button type="primary" htmlType="submit" loading={loading} block size="large">
+                  {t('login.sendResetLink')}
+                </Button>
+              </Form.Item>
+              <Form.Item>
+                <Button type="link" onClick={goToLogin} block>
+                  {t('login.backToLogin')}
+                </Button>
+              </Form.Item>
+            </Form>
+          ) : authView === 'reset' ? (
+            <Form name="reset" onFinish={onResetFinish} autoComplete="off" size="large">
+              <Form.Item
+                name="password"
+                rules={[
+                  { required: true, message: language === 'zh' ? '请输入新密码!' : 'Please enter a new password!' },
+                  { min: 8, message: language === 'zh' ? '密码至少 8 位' : 'Password must be at least 8 characters' }
+                ]}
+              >
+                <Input.Password prefix={<LockOutlined />} placeholder={t('login.newPassword')} />
+              </Form.Item>
+              <Form.Item
+                name="confirmPassword"
+                rules={[
+                  { required: true, message: language === 'zh' ? '请确认密码!' : 'Please confirm your password!' },
+                  ({ getFieldValue }) => ({
+                    validator(_, value) {
+                      if (!value || getFieldValue('password') === value) return Promise.resolve()
+                      return Promise.reject(new Error(language === 'zh' ? '密码确认不匹配！' : 'Password confirmation does not match!'))
+                    }
+                  })
+                ]}
+              >
+                <Input.Password prefix={<LockOutlined />} placeholder={t('login.confirmNewPassword')} />
+              </Form.Item>
+              <Form.Item>
+                <Button type="primary" htmlType="submit" loading={loading} block size="large">
+                  {t('login.resetPassword')}
+                </Button>
+              </Form.Item>
+              <Form.Item>
+                <Button type="link" onClick={goToLogin} block>
+                  {t('login.backToLogin')}
+                </Button>
+              </Form.Item>
+            </Form>
+          ) : (
           <Form
             name={isLoginMode ? "login" : "register"}
             onFinish={onFinish}
@@ -207,7 +338,10 @@ const LoginPage: React.FC = () => {
 
             <Form.Item
               name="password"
-              rules={[{ required: true, message: language === 'zh' ? '请输入密码!' : 'Please enter your password!' }]}
+              rules={[
+                { required: true, message: language === 'zh' ? '请输入密码!' : 'Please enter your password!' },
+                ...(!isLoginMode ? [{ min: 8, message: language === 'zh' ? '密码至少 8 位' : 'Password must be at least 8 characters' }] : [])
+              ]}
             >
               <Input.Password
                 prefix={<LockOutlined />}
@@ -237,6 +371,14 @@ const LoginPage: React.FC = () => {
               </Form.Item>
             )}
 
+            {isLoginMode && (
+              <Form.Item style={{ marginBottom: 8 }}>
+                <Button type="link" onClick={() => setAuthView('forgot')} style={{ padding: 0 }}>
+                  {t('login.forgotPassword')}
+                </Button>
+              </Form.Item>
+            )}
+
             <Form.Item>
               <Button
                 type="primary"
@@ -262,6 +404,7 @@ const LoginPage: React.FC = () => {
               </Button>
             </Form.Item>
           </Form>
+          )}
 
           <div className="login-footer">
             <Paragraph type="secondary">

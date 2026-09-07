@@ -92,4 +92,39 @@ describe('jwtConfig', () => {
       expect(decoded.exp - decoded.iat).toBe(15 * 60);
     });
   });
+
+  describe('verifyAuthTokenAllowExpired', () => {
+    it('accepts a token that expired inside the grace window', () => {
+      process.env.JWT_SECRET = STRONG_SECRET;
+      process.env.JWT_EXPIRES_IN = '7d';
+      const jwt = require('jsonwebtoken');
+      const now = Math.floor(Date.now() / 1000);
+      const token = jwt.sign(
+        { userId: 'u1', email: 'a@b.com', iat: now - 120, exp: now - 60 },
+        STRONG_SECRET
+      );
+      const decoded = jwtConfig.verifyAuthTokenAllowExpired(token);
+      expect(decoded.userId).toBe('u1');
+    });
+
+    it('rejects a token expired beyond the grace window', () => {
+      process.env.JWT_SECRET = STRONG_SECRET;
+      process.env.JWT_EXPIRES_IN = '7d';
+      const jwt = require('jsonwebtoken');
+      const now = Math.floor(Date.now() / 1000);
+      const eightDays = 8 * 24 * 3600;
+      const token = jwt.sign(
+        { userId: 'u1', iat: now - eightDays - 60, exp: now - eightDays },
+        STRONG_SECRET
+      );
+      expect(() => jwtConfig.verifyAuthTokenAllowExpired(token)).toThrow(/refresh window/);
+    });
+
+    it('rejects a token signed with the wrong secret', () => {
+      process.env.JWT_SECRET = STRONG_SECRET;
+      const jwt = require('jsonwebtoken');
+      const forged = jwt.sign({ userId: 'u1' }, 'totally-different-secret-value-000000000000');
+      expect(() => jwtConfig.verifyAuthTokenAllowExpired(forged)).toThrow();
+    });
+  });
 });

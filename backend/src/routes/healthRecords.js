@@ -494,11 +494,23 @@ router.get('/analyses', authenticateToken, async (req, res) => {
 
 // ========== FHIR ==========
 
-// GET /fhir/:patientId - 获取FHIR患者记录
-router.get('/fhir/:patientId', async (req, res) => {
+// GET /fhir/:patientId — 演示导入。生产禁用；非生产必须登录且只能查自己。
+router.get('/fhir/:patientId', authenticateToken, async (req, res) => {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(404).json({
+      success: false,
+      error: `API 不存在: GET ${req.originalUrl.split('?')[0]}`
+    });
+  }
+
+  const self = String(req.user?.email || '').trim().toLowerCase();
+  const requested = String(req.params.patientId || '').trim().toLowerCase();
+  if (!self || requested !== self) {
+    return res.status(403).json({ error: '只能查询自己的记录' });
+  }
+
   try {
-    const { patientId } = req.params;
-    const records = await fhirService.getPatientRecords(patientId);
+    const records = await fhirService.getPatientRecords(req.user.email);
     res.json(records);
   } catch (error) {
     res.status(500).json({ error: error.message });

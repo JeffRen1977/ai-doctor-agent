@@ -9,6 +9,14 @@ export interface Translations {
     loginButton: string
     demoAccount: string
     demoCredentials: string
+    forgotPassword: string
+    sendResetLink: string
+    resetPassword: string
+    newPassword: string
+    confirmNewPassword: string
+    backToLogin: string
+    resetEmailSent: string
+    resetSuccess: string
   }
   features: {
     title: string
@@ -425,7 +433,15 @@ export const translations: Record<Language, Translations> = {
       password: '密码',
       loginButton: '登录',
       demoAccount: '演示账号',
-      demoCredentials: 'demo@example.com / 密码：123456'
+      demoCredentials: 'demo@example.com / 密码：123456',
+      forgotPassword: '忘记密码？',
+      sendResetLink: '发送重置邮件',
+      resetPassword: '设置新密码',
+      newPassword: '新密码',
+      confirmNewPassword: '确认新密码',
+      backToLogin: '返回登录',
+      resetEmailSent: '如果该邮箱已注册，您将收到重置邮件',
+      resetSuccess: '密码已重置，请使用新密码登录'
     },
     features: {
       title: '核心功能',
@@ -877,7 +893,15 @@ export const translations: Record<Language, Translations> = {
       password: 'Password',
       loginButton: 'Login',
       demoAccount: 'Demo Account',
-      demoCredentials: 'demo@example.com / Password: 123456'
+      demoCredentials: 'demo@example.com / Password: 123456',
+      forgotPassword: 'Forgot password?',
+      sendResetLink: 'Send reset email',
+      resetPassword: 'Set a new password',
+      newPassword: 'New password',
+      confirmNewPassword: 'Confirm new password',
+      backToLogin: 'Back to login',
+      resetEmailSent: 'If that email is registered, you will receive a reset link',
+      resetSuccess: 'Password updated. Please sign in with your new password'
     },
     features: {
       title: 'Core Features',

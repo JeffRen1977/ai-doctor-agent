@@ -4,6 +4,7 @@ import { UserOutlined, MailOutlined, PhoneOutlined, HomeOutlined, EditOutlined, 
 import { useAuthStore } from '@/stores/authStore'
 import { useLanguageStore } from '@/stores/languageStore'
 import { getTranslation } from '@/locales'
+import api from '@/services/api'
 import './ProfilePage.css'
 
 const { Title, Text } = Typography;
@@ -49,24 +50,19 @@ const ProfilePage: React.FC = () => {
       
       try {
         setProfileLoading(true);
-        const response = await fetch(`/api/auth/profile/${encodeURIComponent(user.email)}`);
-        
-        if (response.ok) {
-          const data = await response.json();
-          const profile = data.profile;
-          
-          // 更新表单初始值
-          form.setFieldsValue({
-            name: profile.name || user?.name || '',
-            email: profile.email || user?.email || '',
-            phone: profile.phone || '',
-            address: profile.address || '',
-            age: profile.age || '',
-            gender: profile.gender || '',
-            emergencyContact: profile.emergencyContact || '',
-            emergencyPhone: profile.emergencyPhone || '',
-          });
-        }
+        const response = await api.get('/auth/profile');
+        const profile = response.data.profile || {};
+
+        form.setFieldsValue({
+          name: profile.name || user?.name || '',
+          email: profile.email || user?.email || '',
+          phone: profile.phone || '',
+          address: profile.address || '',
+          age: profile.age || '',
+          gender: profile.gender || '',
+          emergencyContact: profile.emergencyContact || '',
+          emergencyPhone: profile.emergencyPhone || '',
+        });
       } catch (error) {
         console.error('获取用户资料失败:', error);
         // 如果获取失败，使用默认值
@@ -87,30 +83,19 @@ const ProfilePage: React.FC = () => {
 
     setLoading(true)
     try {
-      const response = await fetch(`/api/auth/profile/${encodeURIComponent(user.email)}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(values)
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        
-        // 更新本地用户信息
+      const response = await api.put('/auth/profile', values);
+      if (response.status >= 200 && response.status < 300) {
         if (user) {
           login({
             ...user,
             name: values.name,
           });
         }
-        
+
         message.success(language === 'zh' ? '个人资料更新成功' : 'Profile updated successfully');
         setEditing(false);
       } else {
-        const errorData = await response.json();
-        message.error(errorData.message || (language === 'zh' ? '更新失败' : 'Update failed'));
+        message.error(language === 'zh' ? '更新失败' : 'Update failed');
       }
     } catch (error) {
       console.error('更新个人资料失败:', error);

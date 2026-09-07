@@ -14,16 +14,16 @@ const api = axios.create({
 // Token刷新函数
 const refreshToken = async () => {
   try {
-    const userStr = localStorage.getItem('user')
-    if (!userStr) {
-      throw new Error('No user data found')
+    const token = localStorage.getItem('token')
+    if (!token) {
+      throw new Error('No token found')
     }
-    
-    const user = JSON.parse(userStr)
-    const response = await axios.post(`${API_BASE_URL}/auth/refresh-token`, {
-      userId: user.id,
-      email: user.email
-    })
+
+    const response = await axios.post(
+      `${API_BASE_URL}/auth/refresh-token`,
+      {},
+      { headers: { Authorization: `Bearer ${token}` } }
+    )
     
     if (response.data.token) {
       localStorage.setItem('token', response.data.token)

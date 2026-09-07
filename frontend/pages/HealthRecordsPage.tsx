@@ -82,7 +82,13 @@ const HealthRecordsPage: React.FC = () => {
     loadPersonalHealthRecord();
   }, [user?.email]);
 
+  const fhirDemoEnabled = !import.meta.env.PROD;
+
   const fetchFhirRecords = async () => {
+    if (!fhirDemoEnabled) {
+      message.info(language === 'zh' ? '演示导入仅在开发环境可用' : 'Demo FHIR import is only available in development');
+      return;
+    }
     if (!user?.email) {
       message.error(language === 'zh' ? '请先登录' : 'Please login first');
       return;
@@ -1028,6 +1034,7 @@ const HealthRecordsPage: React.FC = () => {
               </Space>
             }
             extra={
+              fhirDemoEnabled ? (
                   <Button 
                     type="primary" 
                 icon={<LinkOutlined />}
@@ -1036,6 +1043,9 @@ const HealthRecordsPage: React.FC = () => {
               >
                 {language === 'zh' ? '导入FHIR' : 'Import FHIR'}
                   </Button>
+              ) : (
+                <span>{language === 'zh' ? '演示环境可用' : 'Available in demo environment'}</span>
+              )
             }
             >
               <List

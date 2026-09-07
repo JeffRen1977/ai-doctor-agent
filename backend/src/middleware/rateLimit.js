@@ -126,6 +126,14 @@ const loginLimiter = createLimiter({
   message: '密码错误次数过多，该账号已暂时锁定登录，请 15 分钟后再试。'
 });
 
+/** 找回密码：按 IP+邮箱限制，避免对邮箱服务或用户收件箱做轰炸 */
+const forgotPasswordLimiter = createLimiter({
+  windowMs: envInt('RATE_LIMIT_FORGOT_WINDOW_MS', 15 * MINUTE),
+  limit: envInt('RATE_LIMIT_FORGOT_MAX', 5),
+  keyGenerator: ipAndAccountKey,
+  message: '重置邮件发送过于频繁，请 15 分钟后再试。'
+});
+
 /** 注册：按 IP 限制批量刷号 */
 const registerLimiter = createLimiter({
   windowMs: envInt('RATE_LIMIT_REGISTER_WINDOW_MS', HOUR),
@@ -157,6 +165,7 @@ module.exports = {
   generalApiLimiter,
   authLimiter,
   loginLimiter,
+  forgotPasswordLimiter,
   registerLimiter,
   aiLimiter,
   aiHeavyLimiter,

@@ -52,9 +52,25 @@ async function getByUid(uid) {
   return snapshot.docs[0].data();
 }
 
+/**
+ * 按重置令牌哈希查找用户。明文令牌只出现在邮件里，库里只有 SHA-256。
+ * @param {string} hash
+ * @returns {Promise<Object | null>}
+ */
+async function findByPasswordResetHash(hash) {
+  if (!hash) return null;
+  const ref = collection(db, COLLECTION);
+  const q = query(ref, where('passwordResetTokenHash', '==', hash));
+  const snapshot = await getDocs(q);
+  if (snapshot.empty) return null;
+  const data = snapshot.docs[0].data() || {};
+  return { email: data.email || snapshot.docs[0].id, ...data };
+}
+
 module.exports = {
   getByEmail,
   setByEmail,
   updateByEmail,
-  getByUid
+  getByUid,
+  findByPasswordResetHash
 };

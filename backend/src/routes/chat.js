@@ -2,7 +2,7 @@ const express = require('express');
 const Joi = require('joi');
 const aiServiceFactory = require('../services/aiServiceFactory');
 const userSettingsService = require('../services/userSettingsService');
-const { authenticateToken, optionalAuth } = require('../middleware/auth');
+const { authenticateToken, optionalAuth, requireAdmin } = require('../middleware/auth');
 const { chatSessionRepo, chatHistoryRepo } = require('../repositories');
 const contextBuilderService = require('../services/contextBuilderService');
 
@@ -272,7 +272,7 @@ router.get('/stats', authenticateToken, async (req, res) => {
 });
 
 // 获取所有用户的聊天历史（管理员功能）
-router.get('/admin/all-users', authenticateToken, async (req, res) => {
+router.get('/admin/all-users', authenticateToken, requireAdmin, async (req, res) => {
   try {
     console.log('🔍 管理员获取所有用户聊天历史');
     const docs = await chatHistoryRepo.listAll();
@@ -299,7 +299,7 @@ router.get('/admin/all-users', authenticateToken, async (req, res) => {
 });
 
 // 删除特定用户的聊天历史（管理员功能，清空消息并标记删除）
-router.delete('/admin/user/:email', authenticateToken, async (req, res) => {
+router.delete('/admin/user/:email', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { email } = req.params;
     console.log('🗑️  管理员删除用户聊天历史:', email);
