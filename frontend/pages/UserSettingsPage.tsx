@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Form, Select, Button, message, Row, Col, Typography, Divider, Switch, Space, Alert } from 'antd';
-import { SettingOutlined, SaveOutlined, ReloadOutlined } from '@ant-design/icons';
+import { Card, Form, Select, Button, message, Row, Col, Typography, Divider, Switch, Space, Alert, Modal, Input } from 'antd';
+import { SettingOutlined, SaveOutlined, ReloadOutlined, DownloadOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useAuthStore } from '../stores/authStore';
 import { useLanguageStore } from '../stores/languageStore';
 import api from '../services/api';
 
-const { Title, Text } = Typography;
+const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
 
 interface UserSettings {
@@ -18,10 +18,16 @@ interface UserSettings {
     push: boolean;
     analysisComplete: boolean;
   };
-  privacy: {
-    dataSharing: boolean;
-    analytics: boolean;
+  privacy?: {
+    analytics?: boolean;
   };
+}
+
+interface ConsentStatus {
+  granted: boolean;
+  policyVersion: string | null;
+  timestamp: string | null;
+  currentPolicyVersion: string;
 }
 
 interface AIService {
@@ -38,6 +44,13 @@ const UserSettingsPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [aiServices, setAiServices] = useState<Record<string, AIService>>({});
   const [settings, setSettings] = useState<UserSettings | null>(null);
+  const [consents, setConsents] = useState<Record<string, ConsentStatus>>({});
+  const [policyVersion, setPolicyVersion] = useState('');
+  const [exporting, setExporting] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteEmail, setDeleteEmail] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   // 获取用户设置
   const fetchUserSettings = async () => {
@@ -57,6 +70,68 @@ const UserSettingsPage: React.FC = () => {
   };
 
   // 获取可用的AI服务
+  const fetchConsents = async () => {
+    try {
+      const response = await api.get('/privacy/consents');
+      if (response.data.success) {
+        setConsents(response.data.consents || {});
+        setPolicyVersion(response.data.policyVersion || '');
+      }
+    } catch (error) {
+      console.error('Failed to fetch consents:', error);
+    }
+  };
+
+  const updateConsent = async (purpose: string, granted: boolean) => {
+    try {
+      const response = await api.post('/privacy/consents', { purpose, granted });
+      if (response.data.success) {
+        setConsents(response.data.consents || {});
+        message.success(language === 'zh' ? '同意状态已更新' : 'Consent updated');
+      }
+    } catch (error) {
+      message.error(language === 'zh' ? '更新同意失败' : 'Failed to update consent');
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      setExporting(true);
+      const response = await api.post('/privacy/export');
+      const blob = new Blob([JSON.stringify(response.data.data || response.data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ai-theron-export-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      message.success(language === 'zh' ? '导出已下载' : 'Export downloaded');
+    } catch (error) {
+      message.error(language === 'zh' ? '导出失败' : 'Export failed');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    try {
+      setDeleting(true);
+      await api.post('/privacy/delete-account', {
+        password: deletePassword,
+        confirmEmail: deleteEmail
+      });
+      message.success(language === 'zh' ? '账号已申请注销' : 'Account deletion submitted');
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+    } catch (error) {
+      const err = error as { response?: { data?: { error?: string } } };
+      message.error(err.response?.data?.error || (language === 'zh' ? '注销失败' : 'Deletion failed'));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const fetchAiServices = async () => {
     try {
       const response = await api.get('/health-analysis/ai-services');
@@ -117,6 +192,7 @@ const UserSettingsPage: React.FC = () => {
   useEffect(() => {
     fetchUserSettings();
     fetchAiServices();
+    fetchConsents();
   }, []);
 
   if (loading) {
@@ -264,29 +340,71 @@ const UserSettingsPage: React.FC = () => {
             </Row>
           </Card>
 
-          {/* 隐私设置 */}
-          <Card size="small" title={language === 'zh' ? '隐私设置' : 'Privacy Settings'} style={{ marginBottom: '24px' }}>
+          {/* 隐私与同意 */}
+          <Card size="small" title={language === 'zh' ? '隐私与同意' : 'Privacy and consent'} style={{ marginBottom: '24px' }}>
+            <Alert
+              type="info"
+              showIcon
+              style={{ marginBottom: 16 }}
+              message={language === 'zh' ? `当前政策版本 ${policyVersion || '—'}` : `Policy version ${policyVersion || '—'}`}
+              description={
+                language === 'zh'
+                  ? '撤回「健康存储」后不能再写入病历/穿戴；撤回「AI 解读」后对话与分析会停止。本产品不会把数据交给厂商做训练。'
+                  : 'Withdrawing health storage blocks new writes. Withdrawing AI inference stops model calls. We do not share data with vendors for training.'
+              }
+            />
             <Row gutter={[16, 16]}>
               <Col xs={24} sm={12}>
-                <Form.Item
-                  name={['privacy', 'dataSharing']}
-                  label={language === 'zh' ? '数据共享' : 'Data Sharing'}
-                  valuePropName="checked"
-                >
-                  <Switch />
-                </Form.Item>
+                <Space>
+                  <Switch
+                    checked={!!consents.ai_inference?.granted}
+                    onChange={(checked) => updateConsent('ai_inference', checked)}
+                  />
+                  <Text>{language === 'zh' ? 'AI 解读' : 'AI inference'}</Text>
+                </Space>
               </Col>
-              
               <Col xs={24} sm={12}>
-                <Form.Item
-                  name={['privacy', 'analytics']}
-                  label={language === 'zh' ? '分析数据收集' : 'Analytics Data Collection'}
-                  valuePropName="checked"
-                >
-                  <Switch />
-                </Form.Item>
+                <Space>
+                  <Switch
+                    checked={!!consents.health_storage?.granted}
+                    onChange={(checked) => updateConsent('health_storage', checked)}
+                  />
+                  <Text>{language === 'zh' ? '健康数据存储' : 'Health storage'}</Text>
+                </Space>
+              </Col>
+              <Col xs={24} sm={12}>
+                <Space>
+                  <Switch
+                    checked={!!consents.cross_border?.granted}
+                    onChange={(checked) => updateConsent('cross_border', checked)}
+                  />
+                  <Text>{language === 'zh' ? '出境（OpenAI / Gemini）' : 'Cross-border (OpenAI / Gemini)'}</Text>
+                </Space>
+              </Col>
+              <Col xs={24} sm={12}>
+                <Space>
+                  <Switch
+                    checked={!!consents.analytics?.granted}
+                    onChange={(checked) => updateConsent('analytics', checked)}
+                  />
+                  <Text>{language === 'zh' ? '产品统计' : 'Analytics'}</Text>
+                </Space>
               </Col>
             </Row>
+            <Divider />
+            <Space wrap>
+              <Button icon={<DownloadOutlined />} loading={exporting} onClick={handleExport}>
+                {language === 'zh' ? '导出我的数据' : 'Export my data'}
+              </Button>
+              <Button danger icon={<DeleteOutlined />} onClick={() => {
+                setDeleteEmail(user?.email || '');
+                setDeleteOpen(true);
+              }}>
+                {language === 'zh' ? '注销账号' : 'Delete account'}
+              </Button>
+              <a href="/privacy" target="_blank" rel="noreferrer">{language === 'zh' ? '隐私政策' : 'Privacy policy'}</a>
+              <a href="/third-parties" target="_blank" rel="noreferrer">{language === 'zh' ? '第三方' : 'Third parties'}</a>
+            </Space>
           </Card>
 
           {/* 操作按钮 */}
@@ -314,6 +432,32 @@ const UserSettingsPage: React.FC = () => {
           </div>
         </Form>
       </Card>
+      <Modal
+        title={language === 'zh' ? '确认注销账号' : 'Confirm account deletion'}
+        open={deleteOpen}
+        onCancel={() => setDeleteOpen(false)}
+        onOk={handleDeleteAccount}
+        confirmLoading={deleting}
+        okButtonProps={{ danger: true, disabled: !deletePassword || !deleteEmail }}
+        okText={language === 'zh' ? '注销' : 'Delete'}
+      >
+        <Paragraph>
+          {language === 'zh'
+            ? '注销后健康档案会被删除或匿名化。已发送到大模型的内容无法追回。请输入邮箱和密码确认。'
+            : 'Health records will be deleted or anonymized. Content already sent to model providers cannot be recalled. Confirm with email and password.'}
+        </Paragraph>
+        <Input
+          style={{ marginBottom: 8 }}
+          placeholder={language === 'zh' ? '确认邮箱' : 'Confirm email'}
+          value={deleteEmail}
+          onChange={(e) => setDeleteEmail(e.target.value)}
+        />
+        <Input.Password
+          placeholder={language === 'zh' ? '当前密码' : 'Current password'}
+          value={deletePassword}
+          onChange={(e) => setDeletePassword(e.target.value)}
+        />
+      </Modal>
     </div>
   );
 };

@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('../middleware/auth');
+const { requireConsent } = require('../middleware/requireConsent');
+const { CONSENT_PURPOSES } = require('../models/consent');
 const riskMonitoringService = require('../services/riskMonitoringService');
 const { riskAlertRepo } = require('../repositories');
 
@@ -8,7 +10,7 @@ const { riskAlertRepo } = require('../repositories');
  * POST /api/risk-monitoring/process-stream
  * 处理实时流数据
  */
-router.post('/process-stream', authenticateToken, async (req, res) => {
+router.post('/process-stream', authenticateToken, requireConsent(CONSENT_PURPOSES.AI_INFERENCE), async (req, res) => {
   try {
     const userEmail = req.user?.email;
     if (!userEmail) {
@@ -42,7 +44,7 @@ router.post('/process-stream', authenticateToken, async (req, res) => {
  * POST /api/risk-monitoring/detect-anomalies
  * 异常检测。支持可选时间窗口与设备类型过滤。
  */
-router.post('/detect-anomalies', authenticateToken, async (req, res) => {
+router.post('/detect-anomalies', authenticateToken, requireConsent(CONSENT_PURPOSES.AI_INFERENCE), async (req, res) => {
   try {
     const userEmail = req.user?.email;
     if (!userEmail) {
@@ -74,7 +76,7 @@ router.post('/detect-anomalies', authenticateToken, async (req, res) => {
  * POST /api/risk-monitoring/predict-hypoglycemia
  * 血糖预测
  */
-router.post('/predict-hypoglycemia', authenticateToken, async (req, res) => {
+router.post('/predict-hypoglycemia', authenticateToken, requireConsent(CONSENT_PURPOSES.AI_INFERENCE), async (req, res) => {
   try {
     const userEmail = req.user?.email;
     if (!userEmail) {
@@ -104,7 +106,7 @@ router.post('/predict-hypoglycemia', authenticateToken, async (req, res) => {
  * POST /api/risk-monitoring/analyze-hrv
  * 心率变异性分析
  */
-router.post('/analyze-hrv', authenticateToken, async (req, res) => {
+router.post('/analyze-hrv', authenticateToken, requireConsent(CONSENT_PURPOSES.AI_INFERENCE), async (req, res) => {
   try {
     const userEmail = req.user?.email;
     if (!userEmail) {

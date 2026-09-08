@@ -48,6 +48,8 @@ const emergencyRoutes = require('./routes/emergency');
 const internalCronRoutes = require('./routes/internalCron');
 const telegramIntegrationRoutes = require('./routes/telegramIntegration');
 const internalTelegramRoutes = require('./routes/internalTelegram');
+const privacyRoutes = require('./routes/privacy');
+const internalAuditRoutes = require('./routes/internalAudit');
 const { requestLogger } = require('./middleware/requestLogger');
 const { errorHandler, apiNotFound } = require('./middleware/errorHandler');
 const {
@@ -166,6 +168,8 @@ app.use('/api/appointments', appointmentsRoutes);
 app.use('/api/reports', aiLimiter, reportsRoutes);
 app.use('/api/emergency', emergencyRoutes);
 app.use('/api/integrations/telegram', telegramIntegrationRoutes);
+app.use('/api/privacy', privacyRoutes);
+app.use('/api/internal/audit', internalAuditRoutes);
 app.use('/internal/cron', internalCronRoutes);
 app.use('/internal/telegram', internalTelegramRoutes);
 

@@ -102,6 +102,14 @@ async function deleteConversation(conversationId) {
   await deleteDoc(ref);
 }
 
+async function deleteByUser(userEmail) {
+  const rows = await listByUser(userEmail, 500);
+  for (const row of rows) {
+    if (row?.conversationId) await deleteConversation(row.conversationId);
+  }
+  return { deletedCount: rows.length };
+}
+
 module.exports = {
   getActiveConversationsByUser,
   saveConversation,
@@ -109,6 +117,7 @@ module.exports = {
   listByUser,
   updateConversation,
   deleteConversation,
+  deleteByUser,
   docToConversation,
   sanitizeConversation
 };

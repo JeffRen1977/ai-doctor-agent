@@ -68,9 +68,17 @@ async function update(userId, updates) {
   await col.updateOne({ _id: id }, { $set: payload }, { upsert: true });
 }
 
+async function deleteRecord(userId) {
+  const col = getCollection(COLLECTION);
+  const id = sanitizeUserId(userId);
+  const result = await col.deleteOne({ _id: id });
+  return { deletedCount: result.deletedCount };
+}
+
 module.exports = {
   get,
   set,
   update,
+  delete: deleteRecord,
   sanitizeUserId
 };

@@ -1,5 +1,12 @@
 const { verifyAuthToken } = require('../config/jwtConfig');
 const firebaseService = require('../services/firebaseService');
+const { setContextValue } = require('../observability/requestContext');
+
+function attachUserContext(user) {
+  if (!user) return;
+  setContextValue('userId', user.id || null);
+  setContextValue('userEmail', user.email || null);
+}
 
 // JWT认证中间件
 const authenticateToken = async (req, res, next) => {
@@ -17,6 +24,7 @@ const authenticateToken = async (req, res, next) => {
       return res.status(401).json({ error: '用户不存在' });
     }
     req.user = userResult.user;
+    attachUserContext(req.user);
     next();
   } catch (error) {
     return res.status(403).json({ error: '无效的token' });
@@ -39,6 +47,7 @@ const optionalAuth = async (req, res, next) => {
     
     if (userResult.success) {
       req.user = userResult.user;
+      attachUserContext(req.user);
     } else {
       req.user = null;
     }

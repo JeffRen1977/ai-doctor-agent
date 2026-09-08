@@ -14,7 +14,9 @@ const AUDIT_ACTIONS = {
   ALERT_GENERATED: 'alert.generated',   // 生成了健康风险告警
   ALERT_DELIVERED: 'alert.delivered',   // 告警实际送达用户
   ALERT_SUPPRESSED: 'alert.suppressed', // 告警被规则抑制（排查「为什么没发出来」的关键）
-  RECORD_ACCESSED: 'record.accessed'    // 病历被读取
+  RECORD_ACCESSED: 'record.accessed',   // 病历被读取
+  ACCOUNT_EXPORTED: 'account.exported', // 用户导出自己的数据
+  ACCOUNT_ERASED: 'account.erased'      // 账号注销（主体用哈希，保留处理证明）
 };
 
 const auditEventSchema = Joi.object({

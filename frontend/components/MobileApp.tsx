@@ -14,11 +14,13 @@ import MobileInstallPrompt from './MobileInstallPrompt'
 import DashboardPage from '../pages/DashboardPage'
 import HealthRecordsPage from '../pages/HealthRecordsPage'
 import ProfilePage from '../pages/ProfilePage'
+import UserSettingsPage from '../pages/UserSettingsPage'
 import DeviceSyncPage from '../pages/DeviceSyncPage'
 import InterventionEnginePage from '../pages/InterventionEnginePage'
 import CollaborationPage from '../pages/CollaborationPage'
 import DigitalTwinPage from '../pages/DigitalTwinPage'
 import RehabilitationAssistantPage from '../pages/RehabilitationAssistantPage'
+import LegalPage from '../pages/LegalPage'
 import { useAuthStore } from '../stores/authStore'
 import { useLanguageStore } from '../stores/languageStore'
 import { useMobile, useMobileNotifications } from '../hooks/useMobile'
@@ -93,6 +95,10 @@ const MobileApp: React.FC = () => {
           <Route path="/intervention" element={<InterventionEnginePage />} />
           <Route path="/rehabilitation" element={<RehabilitationAssistantPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/settings" element={<UserSettingsPage />} />
+          <Route path="/privacy" element={<LegalPage kind="privacy" />} />
+          <Route path="/terms" element={<LegalPage kind="terms" />} />
+          <Route path="/third-parties" element={<LegalPage kind="third-parties" />} />
         </Routes>
       </Content>
 

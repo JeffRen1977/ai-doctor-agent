@@ -36,6 +36,13 @@ async function getByUid(uid) {
   return rest;
 }
 
+async function deleteByEmail(email) {
+  if (!email) return { deletedCount: 0 };
+  const col = getCollection(COLLECTION);
+  const result = await col.deleteOne({ _id: email });
+  return { deletedCount: result.deletedCount };
+}
+
 /**
  * 按重置令牌哈希查找用户。明文令牌只出现在邮件里，库里只有 SHA-256。
  * @param {string} hash
@@ -55,5 +62,6 @@ module.exports = {
   setByEmail,
   updateByEmail,
   getByUid,
-  findByPasswordResetHash
+  findByPasswordResetHash,
+  deleteByEmail
 };

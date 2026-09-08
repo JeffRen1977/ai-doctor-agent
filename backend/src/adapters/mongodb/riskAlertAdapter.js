@@ -97,5 +97,12 @@ module.exports = {
   addAlert,
   getRecentAlertsByUser,
   acknowledgeAlert,
+  deleteByUser,
   docToAlert
 };
+
+async function deleteByUser(userEmail) {
+  const col = getCollection(COLLECTION);
+  const result = await col.deleteMany({ userEmail: userEmail || '' });
+  return { deletedCount: result.deletedCount };
+}

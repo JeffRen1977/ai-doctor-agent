@@ -3,7 +3,7 @@
  * 读写 chatHistory 集合；doc id 通常为 userEmail，或 addDocument 自动生成。
  */
 
-const { doc, getDoc, setDoc, collection, addDoc, getDocs } = require('firebase/firestore');
+const { doc, getDoc, setDoc, deleteDoc, collection, addDoc, getDocs } = require('firebase/firestore');
 const { db } = require('../../config/firebase');
 
 const COLLECTION = 'chatHistory';
@@ -60,11 +60,18 @@ async function setByUser(userEmail, data) {
   await setDoc(ref, data);
 }
 
+async function deleteByUser(userEmail) {
+  if (!userEmail) return { deletedCount: 0 };
+  await deleteDoc(doc(db, COLLECTION, userEmail));
+  return { deletedCount: 1 };
+}
+
 module.exports = {
   addDocument,
   getDocument,
   listAll,
   getByUser,
   setByUser,
+  deleteByUser,
   sanitize
 };

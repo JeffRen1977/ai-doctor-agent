@@ -214,7 +214,9 @@ class AIServiceFactory {
  * 全部 AI 路径加上了「谁在什么时候得到了什么结论」的留痕，无需改动各业务服务。
  */
 const auditService = require('./auditService');
+const consentService = require('./consentService');
 const logger = require('../observability/logger');
+const { getContext } = require('../observability/requestContext');
 
 /** 需要审计的方法 → 第一个参数在业务上的含义 */
 const AUDITED_METHODS = {
@@ -248,6 +250,9 @@ function withAudit(factory) {
       const provider = opts.provider || 'gemini';
       const model = opts.model || 'default';
       const startedAt = Date.now();
+      const subjectEmail = opts.userEmail || opts.subjectEmail || getContext().userEmail || null;
+
+      await consentService.assertCanCallAi(subjectEmail, provider);
 
       let result;
       let failure = null;
@@ -272,7 +277,7 @@ function withAudit(factory) {
             latencyMs: Date.now() - startedAt,
             success: !failure,
             errorMessage: failure?.message ?? null,
-            subjectEmail: opts.userEmail || opts.subjectEmail || null,
+            subjectEmail,
             metadata: { inputKind }
           });
         } catch (auditError) {

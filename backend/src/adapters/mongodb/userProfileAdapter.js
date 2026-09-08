@@ -27,8 +27,16 @@ async function updateByEmail(email, updates) {
   await col.updateOne({ _id: email }, { $set: updates });
 }
 
+async function deleteByEmail(email) {
+  if (!email) return { deletedCount: 0 };
+  const col = getCollection(COLLECTION);
+  const result = await col.deleteOne({ _id: email });
+  return { deletedCount: result.deletedCount };
+}
+
 module.exports = {
   getByEmail,
   setByEmail,
-  updateByEmail
+  updateByEmail,
+  deleteByEmail
 };

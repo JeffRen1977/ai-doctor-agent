@@ -19,6 +19,12 @@ jest.mock('../services/userSettingsService', () => ({
   resetUserSettings: (...args) => mockResetUserSettings(...args)
 }));
 
+jest.mock('../services/consentService', () => ({
+  recordConsent: jest.fn().mockResolvedValue({ recorded: true }),
+  assertConsent: jest.fn().mockResolvedValue(undefined),
+  CROSS_BORDER_PROVIDERS: new Set(['openai', 'gemini'])
+}));
+
 jest.mock('../middleware/auth', () => ({
   authenticateToken: (req, res, next) => {
     req.user = { id: 'user_1' };

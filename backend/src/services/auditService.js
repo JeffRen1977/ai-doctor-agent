@@ -22,7 +22,16 @@ const SUMMARY_MAX_CHARS = Number(process.env.AUDIT_SUMMARY_MAX_CHARS) || 2000;
 /** @returns {'digest'|'summary'|'full'} */
 function captureMode() {
   const mode = String(process.env.AUDIT_CAPTURE || 'summary').toLowerCase();
-  return ['digest', 'summary', 'full'].includes(mode) ? mode : 'summary';
+  const resolved = ['digest', 'summary', 'full'].includes(mode) ? mode : 'summary';
+  // 生产禁止无密钥保护的 full：会把病历原文再存一份。需要 full 时显式 AUDIT_FULL_ALLOWED=true。
+  if (
+    resolved === 'full' &&
+    process.env.NODE_ENV === 'production' &&
+    process.env.AUDIT_FULL_ALLOWED !== 'true'
+  ) {
+    return 'summary';
+  }
+  return resolved;
 }
 
 function stringify(value) {
@@ -157,10 +166,29 @@ async function getRequestTrail(requestId) {
   return auditEventRepo.listByRequestId(requestId);
 }
 
+/**
+ * 记录一次病历/健康资源读取。只记资源类型与 ID，不把 PHI 写进摘要。
+ */
+async function recordAccessed(params) {
+  return append({
+    action: AUDIT_ACTIONS.RECORD_ACCESSED,
+    operation: params.operation ?? null,
+    subjectEmail: params.subjectEmail ?? getContext().userEmail ?? null,
+    actorEmail: params.actorEmail ?? getContext().userEmail ?? null,
+    success: params.success !== false,
+    metadata: {
+      resourceType: params.resourceType ?? null,
+      resourceId: params.resourceId ?? null,
+      ...(params.metadata ?? {})
+    }
+  });
+}
+
 module.exports = {
   append,
   recordAiDecision,
   recordAlert,
+  recordAccessed,
   getSubjectTrail,
   getRequestTrail,
   digest,

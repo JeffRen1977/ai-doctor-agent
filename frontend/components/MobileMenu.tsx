@@ -10,7 +10,8 @@ import {
   ExclamationCircleOutlined,
   ThunderboltOutlined,
   UserOutlined,
-  LogoutOutlined
+  LogoutOutlined,
+  SettingOutlined
 } from '@ant-design/icons'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../stores/authStore'
@@ -72,6 +73,11 @@ const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose }) => {
       key: '/profile',
       icon: <UserOutlined />,
       label: t('sidebar.menu.profile'),
+    },
+    {
+      key: '/settings',
+      icon: <SettingOutlined />,
+      label: t('sidebar.menu.settings'),
     },
   ]
 

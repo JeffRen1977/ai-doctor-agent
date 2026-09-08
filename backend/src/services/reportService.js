@@ -42,7 +42,7 @@ class ReportService {
       // 使用LLM生成报告内容
       const aiResult = await aiServiceFactory.analyzeHealthRecords(
         { documents: [{ text: prompt }] },
-        { provider: aiProvider, model: aiModel, language, promptMode: 'direct' }
+        { provider: aiProvider, model: aiModel, language, promptMode: 'direct', userEmail }
       );
 
       if (!aiResult.success) {
@@ -122,7 +122,7 @@ class ReportService {
       // 使用LLM生成报告内容
       const aiResult = await aiServiceFactory.analyzeHealthRecords(
         { documents: [{ text: prompt }] },
-        { provider: aiProvider, model: aiModel, language, promptMode: 'direct' }
+        { provider: aiProvider, model: aiModel, language, promptMode: 'direct', userEmail }
       );
 
       if (!aiResult.success) {

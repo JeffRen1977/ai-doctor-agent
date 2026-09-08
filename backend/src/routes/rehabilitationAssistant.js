@@ -1,13 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('../middleware/auth');
+const { requireConsent } = require('../middleware/requireConsent');
+const { CONSENT_PURPOSES } = require('../models/consent');
 const rehabilitationAssistantService = require('../services/rehabilitationAssistantService');
 
 /**
  * POST /api/rehabilitation/explain-metrics
  * 科普解读临床指标
  */
-router.post('/explain-metrics', authenticateToken, async (req, res) => {
+router.post('/explain-metrics', authenticateToken, requireConsent(CONSENT_PURPOSES.AI_INFERENCE), async (req, res) => {
   try {
     const userEmail = req.user?.email;
     if (!userEmail) {
@@ -37,7 +39,7 @@ router.post('/explain-metrics', authenticateToken, async (req, res) => {
  * POST /api/rehabilitation/emotional-support
  * 情绪与心理支持
  */
-router.post('/emotional-support', authenticateToken, async (req, res) => {
+router.post('/emotional-support', authenticateToken, requireConsent(CONSENT_PURPOSES.AI_INFERENCE), async (req, res) => {
   try {
     const userEmail = req.user?.email;
     if (!userEmail) {
@@ -67,7 +69,7 @@ router.post('/emotional-support', authenticateToken, async (req, res) => {
  * POST /api/rehabilitation/meditation
  * 冥想引导
  */
-router.post('/meditation', authenticateToken, async (req, res) => {
+router.post('/meditation', authenticateToken, requireConsent(CONSENT_PURPOSES.AI_INFERENCE), async (req, res) => {
   try {
     const userEmail = req.user?.email;
     if (!userEmail) {
@@ -96,7 +98,7 @@ router.post('/meditation', authenticateToken, async (req, res) => {
  * POST /api/rehabilitation/cbt
  * 认知行为疗法支持
  */
-router.post('/cbt', authenticateToken, async (req, res) => {
+router.post('/cbt', authenticateToken, requireConsent(CONSENT_PURPOSES.AI_INFERENCE), async (req, res) => {
   try {
     const userEmail = req.user?.email;
     if (!userEmail) {
@@ -126,7 +128,7 @@ router.post('/cbt', authenticateToken, async (req, res) => {
  * POST /api/rehabilitation/answer
  * 健康问答
  */
-router.post('/answer', authenticateToken, async (req, res) => {
+router.post('/answer', authenticateToken, requireConsent(CONSENT_PURPOSES.AI_INFERENCE), async (req, res) => {
   try {
     const userEmail = req.user?.email;
     if (!userEmail) {

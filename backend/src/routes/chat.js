@@ -3,6 +3,8 @@ const Joi = require('joi');
 const aiServiceFactory = require('../services/aiServiceFactory');
 const userSettingsService = require('../services/userSettingsService');
 const { authenticateToken, optionalAuth, requireAdmin } = require('../middleware/auth');
+const { requireConsent } = require('../middleware/requireConsent');
+const { CONSENT_PURPOSES } = require('../models/consent');
 const { chatSessionRepo, chatHistoryRepo } = require('../repositories');
 const contextBuilderService = require('../services/contextBuilderService');
 
@@ -61,7 +63,7 @@ async function getChatHistory(userEmail, limitCount = 50) {
 }
 
 // 发送消息到AI医生
-router.post('/send', authenticateToken, async (req, res) => {
+router.post('/send', authenticateToken, requireConsent(CONSENT_PURPOSES.AI_INFERENCE), async (req, res) => {
   try {
     // 验证输入
     const { error, value } = messageSchema.validate(req.body);
@@ -110,7 +112,8 @@ router.post('/send', authenticateToken, async (req, res) => {
     const aiResult = await aiServiceFactory.healthChat(message, chatContext, {
       provider: userProvider,
       model: userModel,
-      language: userLanguage
+      language: userLanguage,
+      userEmail
     });
     
     if (!aiResult.success) {

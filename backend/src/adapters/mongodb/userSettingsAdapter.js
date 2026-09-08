@@ -35,6 +35,13 @@ async function setUserSettings(userId, data) {
   await col.updateOne({ _id: userId }, { $set: data }, { upsert: true });
 }
 
+async function deleteUserSettings(userId) {
+  if (!userId) return { deletedCount: 0 };
+  const col = getCollection(COLLECTION);
+  const result = await col.deleteOne({ _id: userId });
+  return { deletedCount: result.deletedCount };
+}
+
 /**
  * @param {string|number} telegramChatId
  * @returns {Promise<string|null>} userId = document _id
@@ -51,6 +58,7 @@ async function findUserIdByTelegramChatId(telegramChatId) {
 module.exports = {
   getUserSettings,
   setUserSettings,
+  deleteUserSettings,
   findUserIdByTelegramChatId,
   sanitize
 };

@@ -1,6 +1,8 @@
 const express = require('express');
 const multer = require('multer');
 const { authenticateToken } = require('../middleware/auth');
+const { requireConsent } = require('../middleware/requireConsent');
+const { CONSENT_PURPOSES } = require('../models/consent');
 const {
   analyzeHealthDocuments,
   getHealthAnalysisHistory,
@@ -71,7 +73,7 @@ const handleMulterError = (error, req, res, next) => {
  * @desc Analyze uploaded health documents
  * @access Private
  */
-router.post('/analyze', authenticateToken, (req, res, next) => {
+router.post('/analyze', authenticateToken, requireConsent(CONSENT_PURPOSES.AI_INFERENCE), (req, res, next) => {
   upload.array('documents', 20)(req, res, (err) => {
     if (err) return handleMulterError(err, req, res, next);
     next();

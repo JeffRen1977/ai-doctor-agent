@@ -27,13 +27,16 @@ function errorHandler(err, req, res, next) {
 
   if (res.headersSent) return next(err);
 
-  return res.status(status).json({
+  const body = {
     success: false,
     error: status >= 500 ? '服务器内部错误' : (err.message || '请求无法处理'),
     requestId: getContext().requestId,
     // 指纹不含用户数据，给出来便于用户/客服在工单里指认同一类问题
     errorId: fingerprint
-  });
+  };
+  if (err?.code) body.code = err.code;
+  if (err?.purpose) body.purpose = err.purpose;
+  return res.status(status).json(body);
 }
 
 /** 未匹配任何路由的 /api 请求，返回结构化 404 而不是落到前端 index.html */

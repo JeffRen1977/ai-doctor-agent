@@ -31,6 +31,8 @@ const vitalsDailyAdapter = require('./vitalsDailyAdapter');
 const chatSessionAdapter = require('./chatSessionAdapter');
 const telegramBindingAdapter = require('./telegramBindingAdapter');
 const auditEventAdapter = require('./auditEventAdapter');
+const consentAdapter = require('./consentAdapter');
+const privacyJobAdapter = require('./privacyJobAdapter');
 
 /** 供 auth 路由判断：当前为 MongoDB 时使用本地认证（不经过 Firebase Auth） */
 const __useMongoAuth = true;
@@ -65,5 +67,7 @@ module.exports = {
   userProfileRepo: userProfileAdapter,
   healthSummaryRepo: healthSummaryAdapter,
   telegramBindingRepo: telegramBindingAdapter,
-  auditEventRepo: auditEventAdapter
+  auditEventRepo: auditEventAdapter,
+  consentRepo: consentAdapter,
+  privacyJobRepo: privacyJobAdapter
 };

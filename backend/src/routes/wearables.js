@@ -1,6 +1,8 @@
 const express = require('express');
 const wearableService = require('../services/wearableService');
 const { authenticateToken } = require('../middleware/auth');
+const { requireConsent } = require('../middleware/requireConsent');
+const { CONSENT_PURPOSES } = require('../models/consent');
 
 const router = express.Router();
 
@@ -113,7 +115,7 @@ router.get('/status', authenticateToken, async (req, res) => {
 });
 
 // Generate mock data for demonstration
-router.post('/mock/generate', authenticateToken, async (req, res) => {
+router.post('/mock/generate', authenticateToken, requireConsent(CONSENT_PURPOSES.HEALTH_STORAGE), async (req, res) => {
   try {
     const userEmail = req.user.email;
     const { deviceType = 'fitbit' } = req.body;
@@ -154,7 +156,7 @@ router.get('/mock/summary', authenticateToken, async (req, res) => {
 });
 
 // Sync data from all connected devices (with mock fallback)
-router.post('/sync', authenticateToken, async (req, res) => {
+router.post('/sync', authenticateToken, requireConsent(CONSENT_PURPOSES.HEALTH_STORAGE), async (req, res) => {
   try {
     const userEmail = req.user.email;
     const { useMock = false } = req.body;
@@ -216,7 +218,7 @@ router.post('/sync', authenticateToken, async (req, res) => {
 });
 
 // Upload Apple Health data (CSV export)
-router.post('/apple/upload', authenticateToken, async (req, res) => {
+router.post('/apple/upload', authenticateToken, requireConsent(CONSENT_PURPOSES.HEALTH_STORAGE), async (req, res) => {
   try {
     const userEmail = req.user.email;
     const { healthData } = req.body;

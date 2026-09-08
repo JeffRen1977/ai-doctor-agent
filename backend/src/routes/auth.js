@@ -9,6 +9,8 @@ const { loginLimiter, registerLimiter, forgotPasswordLimiter } = require('../mid
 const { authenticateToken } = require('../middleware/auth');
 const passwordResetService = require('../services/passwordResetService');
 const logger = require('../observability/logger');
+const consentService = require('../services/consentService');
+const { CONSENT_PURPOSES } = require('../models/consent');
 
 const router = express.Router();
 // 由「当前加载的 adapter」决定认证方式，不读 env，避免 .env 未生效仍走 Firebase
@@ -26,7 +28,10 @@ const loginSchema = Joi.object({
 const registerSchema = Joi.object({
   email: Joi.string().email().required(),
   password: Joi.string().min(8).required(),
-  name: Joi.string().min(2).max(50).required()
+  name: Joi.string().min(2).max(50).required(),
+  acceptTerms: Joi.boolean().valid(true).required(),
+  acceptHealthAi: Joi.boolean().valid(true).required(),
+  acceptCrossBorder: Joi.boolean().optional()
 });
 
 const forgotPasswordSchema = Joi.object({
@@ -48,6 +53,32 @@ function assertOwnEmail(req, res, emailParam) {
     return false;
   }
   return true;
+}
+
+async function recordRegistrationConsents(email, value) {
+  try {
+    const grants = [
+      { purpose: CONSENT_PURPOSES.ACCOUNT, granted: true },
+      { purpose: CONSENT_PURPOSES.HEALTH_STORAGE, granted: true },
+      { purpose: CONSENT_PURPOSES.AI_INFERENCE, granted: true }
+    ];
+    if (value.acceptCrossBorder) {
+      grants.push({ purpose: CONSENT_PURPOSES.CROSS_BORDER, granted: true });
+    }
+    for (const grant of grants) {
+      const result = await consentService.recordConsent({
+        subjectEmail: email,
+        purpose: grant.purpose,
+        granted: grant.granted,
+        source: 'register'
+      });
+      if (!result.recorded) {
+        logger.error({ consentError: result.error, purpose: grant.purpose }, '注册同意落库失败');
+      }
+    }
+  } catch (err) {
+    logger.error({ err: { message: err?.message } }, '注册同意落库异常');
+  }
 }
 
 // 用户注册
@@ -82,6 +113,7 @@ router.post('/register', registerLimiter, async (req, res) => {
         createdAt: new Date(),
         updatedAt: new Date()
       });
+      await recordRegistrationConsents(email, value);
       const token = signAuthToken({ userId: uid, email });
       return res.status(201).json({
         user: { id: uid, email, name, avatar: null },
@@ -98,6 +130,7 @@ router.post('/register', registerLimiter, async (req, res) => {
     if (!result.success) {
       return res.status(400).json({ error: result.error });
     }
+    await recordRegistrationConsents(result.user.email || email, value);
     const token = signAuthToken({ userId: result.user.id, email: result.user.email });
     res.status(201).json({
       user: result.user,
@@ -124,6 +157,9 @@ router.post('/login', loginLimiter, async (req, res) => {
       const userData = await userRepo.getByEmail(email);
       if (!userData || !userData.passwordHash) {
         return res.status(401).json({ error: '邮箱或密码错误' });
+      }
+      if (userData.disabled || userData.deletedAt) {
+        return res.status(403).json({ error: '账号已注销' });
       }
       const match = await bcrypt.compare(password, userData.passwordHash);
       if (!match) {

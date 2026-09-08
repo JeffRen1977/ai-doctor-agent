@@ -13,6 +13,7 @@ import InterventionEnginePage from './pages/InterventionEnginePage'
 import DigitalTwinPage from './pages/DigitalTwinPage'
 import RehabilitationAssistantPage from './pages/RehabilitationAssistantPage'
 import CollaborationPage from './pages/CollaborationPage'
+import LegalPage from './pages/LegalPage'
 import { useAuthStore } from './stores/authStore'
 import { useLanguageStore } from './stores/languageStore'
 import './App.css'
@@ -66,7 +67,14 @@ function App() {
   }, [refreshLanguage])
 
   if (!isAuthenticated) {
-    return <LoginPage />
+    return (
+      <Routes>
+        <Route path="/privacy" element={<LegalPage kind="privacy" />} />
+        <Route path="/terms" element={<LegalPage kind="terms" />} />
+        <Route path="/third-parties" element={<LegalPage kind="third-parties" />} />
+        <Route path="*" element={<LoginPage />} />
+      </Routes>
+    )
   }
 
   // 移动端使用移动端布局
@@ -96,6 +104,9 @@ function App() {
             <Route path="/intervention" element={<InterventionEnginePage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/settings" element={<UserSettingsPage />} />
+            <Route path="/privacy" element={<LegalPage kind="privacy" />} />
+            <Route path="/terms" element={<LegalPage kind="terms" />} />
+            <Route path="/third-parties" element={<LegalPage kind="third-parties" />} />
           </Routes>
         </Content>
       </Layout>

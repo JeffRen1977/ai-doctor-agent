@@ -3,7 +3,7 @@
  * 读写 userProfile/{email}，文档 ID = email。
  */
 
-const { doc, getDoc, setDoc, updateDoc } = require('firebase/firestore');
+const { doc, getDoc, setDoc, updateDoc, deleteDoc } = require('firebase/firestore');
 const { db } = require('../../config/firebase');
 
 const COLLECTION = 'userProfile';
@@ -38,8 +38,15 @@ async function updateByEmail(email, updates) {
   await updateDoc(ref, updates);
 }
 
+async function deleteByEmail(email) {
+  if (!email) return { deletedCount: 0 };
+  await deleteDoc(doc(db, COLLECTION, email));
+  return { deletedCount: 1 };
+}
+
 module.exports = {
   getByEmail,
   setByEmail,
-  updateByEmail
+  updateByEmail,
+  deleteByEmail
 };

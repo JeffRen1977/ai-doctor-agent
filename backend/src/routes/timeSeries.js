@@ -6,12 +6,14 @@ const express = require('express');
 const router = express.Router();
 const firebaseService = require('../services/firebaseService');
 const { authenticateToken } = require('../middleware/auth');
+const { requireConsent } = require('../middleware/requireConsent');
+const { CONSENT_PURPOSES } = require('../models/consent');
 
 /**
  * POST /api/time-series/data-point
  * 添加时间序列数据点
  */
-router.post('/data-point', authenticateToken, async (req, res) => {
+router.post('/data-point', authenticateToken, requireConsent(CONSENT_PURPOSES.HEALTH_STORAGE), async (req, res) => {
   try {
     const userEmail = req.user?.email;
     if (!userEmail) {

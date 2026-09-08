@@ -97,6 +97,12 @@ async function deleteConversation(conversationId) {
   await col.deleteOne({ _id: conversationId });
 }
 
+async function deleteByUser(userEmail) {
+  const col = getCollection(COLLECTION);
+  const result = await col.deleteMany({ userEmail: userEmail || '' });
+  return { deletedCount: result.deletedCount };
+}
+
 module.exports = {
   getActiveConversationsByUser,
   saveConversation,
@@ -104,6 +110,7 @@ module.exports = {
   listByUser,
   updateConversation,
   deleteConversation,
+  deleteByUser,
   docToConversation,
   sanitizeConversation
 };

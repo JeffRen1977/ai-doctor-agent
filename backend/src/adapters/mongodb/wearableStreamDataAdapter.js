@@ -100,5 +100,12 @@ module.exports = {
   addDataPoint,
   getRecentByUser,
   listByUserInTimeRange,
+  deleteByUser,
   sanitizePoint
 };
+
+async function deleteByUser(userEmail) {
+  const col = getCollection(COLLECTION);
+  const result = await col.deleteMany({ userEmail: userEmail || '' });
+  return { deletedCount: result.deletedCount };
+}

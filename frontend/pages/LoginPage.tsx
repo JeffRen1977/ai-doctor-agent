@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Form, Input, Button, Card, message, Row, Col, Typography } from 'antd'
+import { Form, Input, Button, Card, message, Row, Col, Typography, Checkbox } from 'antd'
 import { UserOutlined, LockOutlined, GlobalOutlined, MessageOutlined, FileTextOutlined, CameraOutlined, BarChartOutlined, CalendarOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
 import { useAuthStore } from '@/stores/authStore'
 import { useLanguageStore } from '@/stores/languageStore'
@@ -20,6 +20,9 @@ interface RegisterForm {
   password: string
   confirmPassword: string
   name: string
+  acceptTerms: boolean
+  acceptHealthAi: boolean
+  acceptCrossBorder?: boolean
 }
 
 const LoginPage: React.FC = () => {
@@ -145,7 +148,10 @@ const LoginPage: React.FC = () => {
           body: JSON.stringify({
             email: registerValues.email,
             password: registerValues.password,
-            name: registerValues.name
+            name: registerValues.name,
+            acceptTerms: !!registerValues.acceptTerms,
+            acceptHealthAi: !!registerValues.acceptHealthAi,
+            acceptCrossBorder: !!registerValues.acceptCrossBorder
           })
         })
 
@@ -369,6 +375,49 @@ const LoginPage: React.FC = () => {
                   placeholder={language === 'zh' ? '确认密码' : 'Confirm Password'}
                 />
               </Form.Item>
+            )}
+
+            {!isLoginMode && (
+              <>
+                <Form.Item
+                  name="acceptTerms"
+                  valuePropName="checked"
+                  rules={[{
+                    validator: (_, v) => v
+                      ? Promise.resolve()
+                      : Promise.reject(new Error(language === 'zh' ? '请阅读并同意用户协议和隐私政策' : 'Please accept the terms and privacy policy'))
+                  }]}
+                >
+                  <Checkbox>
+                    {language === 'zh' ? '我已阅读并同意' : 'I agree to the '}
+                    <a href="/terms" target="_blank" rel="noreferrer">{language === 'zh' ? '用户协议' : 'Terms'}</a>
+                    {language === 'zh' ? '和' : ' and '}
+                    <a href="/privacy" target="_blank" rel="noreferrer">{language === 'zh' ? '隐私政策' : 'Privacy Policy'}</a>
+                  </Checkbox>
+                </Form.Item>
+                <Form.Item
+                  name="acceptHealthAi"
+                  valuePropName="checked"
+                  rules={[{
+                    validator: (_, v) => v
+                      ? Promise.resolve()
+                      : Promise.reject(new Error(language === 'zh' ? '请单独同意处理健康数据并用于 AI 解读' : 'Separate consent is required to process health data for AI'))
+                  }]}
+                >
+                  <Checkbox>
+                    {language === 'zh'
+                      ? '我单独同意处理健康数据（病历、穿戴、用药）并用于 AI 解读。可在设置中撤回。'
+                      : 'I separately consent to processing health data for AI interpretation. You can withdraw this in Settings.'}
+                  </Checkbox>
+                </Form.Item>
+                <Form.Item name="acceptCrossBorder" valuePropName="checked">
+                  <Checkbox>
+                    {language === 'zh'
+                      ? '我单独同意将健康内容发送至境外模型（OpenAI / Gemini）。不勾选则仅使用国内模型。'
+                      : 'I separately consent to sending health content to overseas models (OpenAI / Gemini). Leave unchecked to use domestic models only.'}
+                  </Checkbox>
+                </Form.Item>
+              </>
             )}
 
             {isLoginMode && (

@@ -1,7 +1,10 @@
 const express = require('express');
 const { authenticateToken } = require('../middleware/auth');
+const { requireConsent } = require('../middleware/requireConsent');
+const { CONSENT_PURPOSES } = require('../models/consent');
 const digitalTwinService = require('../services/digitalTwinService');
 const { digitalTwinRepo } = require('../repositories');
+const auditService = require('../services/auditService');
 
 const router = express.Router();
 
@@ -14,7 +17,7 @@ const send500 = (res, err) => {
  * 构建数字孪生模型
  * POST /api/digital-twin/build
  */
-router.post('/build', authenticateToken, async (req, res) => {
+router.post('/build', authenticateToken, requireConsent(CONSENT_PURPOSES.AI_INFERENCE), async (req, res) => {
   try {
     const userEmail = req.user?.email;
     if (!userEmail) return res.status(401).json({ success: false, error: 'User not authenticated' });
@@ -59,7 +62,7 @@ router.put('/update', authenticateToken, async (req, res) => {
  * 运行"What-if"模拟
  * POST /api/digital-twin/simulate
  */
-router.post('/simulate', authenticateToken, async (req, res) => {
+router.post('/simulate', authenticateToken, requireConsent(CONSENT_PURPOSES.AI_INFERENCE), async (req, res) => {
   try {
     const userEmail = req.user?.email;
     if (!userEmail) return res.status(401).json({ success: false, error: 'User not authenticated' });
@@ -77,7 +80,7 @@ router.post('/simulate', authenticateToken, async (req, res) => {
  * 并发症风险评估
  * POST /api/digital-twin/assess-risk
  */
-router.post('/assess-risk', authenticateToken, async (req, res) => {
+router.post('/assess-risk', authenticateToken, requireConsent(CONSENT_PURPOSES.AI_INFERENCE), async (req, res) => {
   try {
     const userEmail = req.user?.email;
     if (!userEmail) return res.status(401).json({ success: false, error: 'User not authenticated' });
@@ -95,7 +98,7 @@ router.post('/assess-risk', authenticateToken, async (req, res) => {
  * 健康趋势预测
  * POST /api/digital-twin/project
  */
-router.post('/project', authenticateToken, async (req, res) => {
+router.post('/project', authenticateToken, requireConsent(CONSENT_PURPOSES.AI_INFERENCE), async (req, res) => {
   try {
     const userEmail = req.user?.email;
     if (!userEmail) return res.status(401).json({ success: false, error: 'User not authenticated' });
@@ -122,7 +125,7 @@ router.get('/health-summary', authenticateToken, async (req, res) => {
 });
 
 /** POST /api/digital-twin/health-summary/refresh - 重新生成健康总结并写入数据库 */
-router.post('/health-summary/refresh', authenticateToken, async (req, res) => {
+router.post('/health-summary/refresh', authenticateToken, requireConsent(CONSENT_PURPOSES.AI_INFERENCE), async (req, res) => {
   try {
     const userEmail = req.user?.email;
     const userId = req.user?.id;
@@ -144,6 +147,11 @@ router.get('/health-data', authenticateToken, async (req, res) => {
     const userEmail = req.user?.email;
     if (!userEmail) return res.status(401).json({ success: false, error: 'User not authenticated' });
     const healthData = await digitalTwinService.aggregateUserHealthData(userEmail);
+    await auditService.recordAccessed({
+      operation: 'digitalTwin.getHealthData',
+      subjectEmail: userEmail,
+      resourceType: 'healthAggregate'
+    });
     res.json({ success: true, data: healthData });
   } catch (error) {
     send500(res, error);

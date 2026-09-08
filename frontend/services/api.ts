@@ -87,7 +87,10 @@ api.interceptors.response.use(
     }
 
     if (error.response?.status === 403) {
-      // Token无效，清除认证信息并重定向
+      if (error.response.data?.code === 'CONSENT_REQUIRED') {
+        error.friendlyMessage = error.response.data.error || '需要先同意相关数据处理'
+        return Promise.reject(error)
+      }
       localStorage.removeItem('token')
       localStorage.removeItem('user')
       window.location.href = '/login'

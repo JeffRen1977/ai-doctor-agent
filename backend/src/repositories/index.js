@@ -34,5 +34,7 @@ module.exports = {
   userProfileRepo: adapters.userProfileRepo,
   healthSummaryRepo: adapters.healthSummaryRepo,
   telegramBindingRepo: adapters.telegramBindingRepo,
-  auditEventRepo: adapters.auditEventRepo
+  auditEventRepo: adapters.auditEventRepo,
+  consentRepo: adapters.consentRepo,
+  privacyJobRepo: adapters.privacyJobRepo
 };

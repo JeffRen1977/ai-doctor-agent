@@ -114,6 +114,12 @@ class FirebaseService {
           error: '用户不存在'
         };
       }
+      if (userData.disabled || userData.deletedAt) {
+        return {
+          success: false,
+          error: '账号已注销'
+        };
+      }
       return {
         success: true,
         user: {

@@ -123,6 +123,17 @@ jest.mock('../adapters', () => ({
     getByEmail: jest.fn(),
     setByEmail: jest.fn(),
     updateByEmail: jest.fn()
+  },
+  healthSummaryRepo: null,
+  telegramBindingRepo: null,
+  auditEventRepo: null,
+  consentRepo: {
+    appendConsent: jest.fn(),
+    listBySubject: jest.fn()
+  },
+  privacyJobRepo: {
+    createJob: jest.fn(),
+    getJob: jest.fn()
   }
 }));
 
@@ -168,6 +179,8 @@ describe('repositories/index.js facade', () => {
     expect('personalHealthRecordRepo' in repos).toBe(true);
     expect('userRepo' in repos).toBe(true);
     expect('userProfileRepo' in repos).toBe(true);
+    expect('consentRepo' in repos).toBe(true);
+    expect('privacyJobRepo' in repos).toBe(true);
   });
 
   test('interventionRepo 有 getIntervention、setIntervention 方法', () => {

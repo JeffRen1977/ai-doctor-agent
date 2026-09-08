@@ -101,11 +101,18 @@ async function remove(userId, medicationId) {
   await col.deleteOne({ userId: userId || '', id: medicationId });
 }
 
+async function deleteByUser(userId) {
+  const col = getCollection(COLLECTION);
+  const result = await col.deleteMany({ userId: userId || '' });
+  return { deletedCount: result.deletedCount };
+}
+
 module.exports = {
   listActive,
   add,
   update,
   remove,
+  deleteByUser,
   fromFirestoreDoc,
   toFirestoreDoc
 };

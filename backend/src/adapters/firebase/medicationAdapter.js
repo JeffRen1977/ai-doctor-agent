@@ -108,11 +108,23 @@ async function remove(userId, medicationId) {
   await deleteDoc(subDocRef);
 }
 
+async function deleteByUser(userId) {
+  const subRef = collection(db, ROOT_COLLECTION, userId, MEDICATIONS_SUB);
+  const snap = await getDocs(subRef);
+  let deletedCount = 0;
+  for (const d of snap.docs) {
+    await deleteDoc(d.ref);
+    deletedCount += 1;
+  }
+  return { deletedCount };
+}
+
 module.exports = {
   listActive,
   add,
   update,
   remove,
+  deleteByUser,
   fromFirestoreDoc,
   toFirestoreDoc
 };

@@ -83,11 +83,19 @@ async function setByUser(userEmail, data) {
   );
 }
 
+async function deleteByUser(userEmail) {
+  if (!userEmail) return { deletedCount: 0 };
+  const col = getCollection(COLLECTION);
+  const result = await col.deleteOne({ _id: userEmail });
+  return { deletedCount: result.deletedCount };
+}
+
 module.exports = {
   addDocument,
   getDocument,
   listAll,
   getByUser,
   setByUser,
+  deleteByUser,
   sanitize
 };

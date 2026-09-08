@@ -4,7 +4,7 @@
  * 仅依赖 config/firebase，不依赖 services 或 routes。
  */
 
-const { collection, addDoc, getDocs, query, where, orderBy, limit } = require('firebase/firestore');
+const { collection, addDoc, getDocs, query, where, orderBy, limit, updateDoc, doc } = require('firebase/firestore');
 const { db } = require('../../config/firebase');
 
 const COLLECTION = 'auditEvents';
@@ -72,4 +72,22 @@ async function listByRequestId(requestId) {
   return snap.docs.map(docToEvent).filter(Boolean);
 }
 
-module.exports = { appendEvent, listBySubject, listByRequestId, docToEvent };
+async function redactSummariesBySubject(subjectEmail, hashedSubject) {
+  const ref = collection(db, COLLECTION);
+  const q = query(ref, where('subjectEmail', '==', subjectEmail || ''));
+  const snap = await getDocs(q);
+  let modifiedCount = 0;
+  for (const d of snap.docs) {
+    await updateDoc(doc(db, COLLECTION, d.id), {
+      inputSummary: null,
+      outputSummary: null,
+      subjectEmail: hashedSubject,
+      actorEmail: hashedSubject,
+      redactedAt: new Date().toISOString()
+    });
+    modifiedCount += 1;
+  }
+  return { modifiedCount };
+}
+
+module.exports = { appendEvent, listBySubject, listByRequestId, redactSummariesBySubject, docToEvent };

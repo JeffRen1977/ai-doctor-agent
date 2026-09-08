@@ -10,3 +10,8 @@ require('dotenv').config({ path: path.join(__dirname, 'backend', '.env') });
 if (!process.env.JWT_SECRET) {
   process.env.JWT_SECRET = 'jest-only-jwt-secret-'.padEnd(64, '0');
 }
+
+// 单测默认不强制同意门控；隐私相关测试会自行打开 CONSENT_ENFORCE。
+if (process.env.CONSENT_ENFORCE === undefined) {
+  process.env.CONSENT_ENFORCE = 'false';
+}

@@ -23,6 +23,9 @@ jest.mock('./adapters/qwenService', () => createMockAdapter());
 jest.mock('./auditService', () => ({
   recordAiDecision: jest.fn().mockResolvedValue({ recorded: true })
 }));
+jest.mock('./consentService', () => ({
+  assertCanCallAi: jest.fn().mockResolvedValue(undefined)
+}));
 
 const geminiService = require('./adapters/geminiService');
 const openaiService = require('./adapters/openaiService');

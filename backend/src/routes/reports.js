@@ -6,12 +6,14 @@ const express = require('express');
 const router = express.Router();
 const reportService = require('../services/reportService');
 const { authenticateToken } = require('../middleware/auth');
+const { requireConsent } = require('../middleware/requireConsent');
+const { CONSENT_PURPOSES } = require('../models/consent');
 
 /**
  * POST /api/reports/health-assessment
  * 生成健康评估报告
  */
-router.post('/health-assessment', authenticateToken, async (req, res) => {
+router.post('/health-assessment', authenticateToken, requireConsent(CONSENT_PURPOSES.AI_INFERENCE), async (req, res) => {
   try {
     const userEmail = req.user?.email;
     if (!userEmail) {
@@ -48,7 +50,7 @@ router.post('/health-assessment', authenticateToken, async (req, res) => {
  * POST /api/reports/comprehensive
  * 生成综合健康报告
  */
-router.post('/comprehensive', authenticateToken, async (req, res) => {
+router.post('/comprehensive', authenticateToken, requireConsent(CONSENT_PURPOSES.AI_INFERENCE), async (req, res) => {
   try {
     const userEmail = req.user?.email;
     if (!userEmail) {

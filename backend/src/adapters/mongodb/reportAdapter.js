@@ -78,5 +78,12 @@ module.exports = {
   saveReport,
   getReport,
   listReportsByUser,
+  deleteByUser,
   sanitizeReport
 };
+
+async function deleteByUser(userEmail) {
+  const col = getCollection(COLLECTION);
+  const result = await col.deleteMany({ userEmail: userEmail || '' });
+  return { deletedCount: result.deletedCount };
+}

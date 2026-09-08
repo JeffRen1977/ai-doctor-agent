@@ -69,4 +69,24 @@ async function listByRequestId(requestId) {
   return docs.map(docToEvent).filter(Boolean);
 }
 
-module.exports = { appendEvent, listBySubject, listByRequestId, docToEvent };
+/**
+ * 注销时去掉摘要、把主体改成哈希。哈希、action、时间保留。
+ */
+async function redactSummariesBySubject(subjectEmail, hashedSubject) {
+  const col = getCollection(COLLECTION);
+  const result = await col.updateMany(
+    { subjectEmail: subjectEmail || '' },
+    {
+      $set: {
+        inputSummary: null,
+        outputSummary: null,
+        subjectEmail: hashedSubject,
+        actorEmail: hashedSubject,
+        redactedAt: new Date().toISOString()
+      }
+    }
+  );
+  return { modifiedCount: result.modifiedCount };
+}
+
+module.exports = { appendEvent, listBySubject, listByRequestId, redactSummariesBySubject, docToEvent };

@@ -3,7 +3,7 @@
  * 读写 userSettings/{userId}，单文档 per user，merge 语义。
  */
 
-const { doc, getDoc, setDoc, collection, query, where, getDocs, limit } = require('firebase/firestore');
+const { doc, getDoc, setDoc, deleteDoc, collection, query, where, getDocs, limit } = require('firebase/firestore');
 const { db } = require('../../config/firebase');
 
 const COLLECTION = 'userSettings';
@@ -34,6 +34,12 @@ async function setUserSettings(userId, data) {
   await setDoc(ref, data, { merge: true });
 }
 
+async function deleteUserSettings(userId) {
+  if (!userId) return { deletedCount: 0 };
+  await deleteDoc(doc(db, COLLECTION, userId));
+  return { deletedCount: 1 };
+}
+
 /**
  * Find userSettings document id (userId) by bound Telegram chat_id.
  * @param {string|number} telegramChatId
@@ -52,6 +58,7 @@ async function findUserIdByTelegramChatId(telegramChatId) {
 module.exports = {
   getUserSettings,
   setUserSettings,
+  deleteUserSettings,
   findUserIdByTelegramChatId,
   sanitize
 };

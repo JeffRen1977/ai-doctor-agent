@@ -3,7 +3,7 @@
  * 读写 healthRecords/{documentId}，documentId = sanitized email（单文档 per user）。
  */
 
-const { doc, getDoc, setDoc, collection, query, where, orderBy, limit, getDocs } = require('firebase/firestore');
+const { doc, getDoc, setDoc, deleteDoc, collection, query, where, orderBy, limit, getDocs } = require('firebase/firestore');
 const { db } = require('../../config/firebase');
 
 const COLLECTION = 'healthRecords';
@@ -80,6 +80,13 @@ module.exports = {
   getByUser,
   setByUser,
   listByUser,
+  deleteByUser,
   sanitizeEmail,
   fromFirestore
 };
+
+async function deleteByUser(sanitizedEmail) {
+  const id = sanitizeEmail(sanitizedEmail);
+  await deleteDoc(doc(db, COLLECTION, id));
+  return { deletedCount: 1 };
+}

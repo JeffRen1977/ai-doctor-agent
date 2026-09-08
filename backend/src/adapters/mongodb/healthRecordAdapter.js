@@ -71,10 +71,19 @@ async function listByUser(userEmail, options = {}) {
   });
 }
 
+async function deleteByUser(sanitizedEmail) {
+  const col = getCollection(COLLECTION);
+  const id = sanitizeEmail(sanitizedEmail);
+  const byId = await col.deleteOne({ _id: id });
+  const byEmail = await col.deleteMany({ userEmail: sanitizedEmail || '' });
+  return { deletedCount: (byId.deletedCount || 0) + (byEmail.deletedCount || 0) };
+}
+
 module.exports = {
   getByUser,
   setByUser,
   listByUser,
+  deleteByUser,
   sanitizeEmail,
   fromFirestore
 };

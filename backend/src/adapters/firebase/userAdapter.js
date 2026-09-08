@@ -3,7 +3,7 @@
  * 读写 users/{email}，文档 ID = email。
  */
 
-const { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs } = require('firebase/firestore');
+const { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, getDocs } = require('firebase/firestore');
 const { db } = require('../../config/firebase');
 
 const COLLECTION = 'users';
@@ -67,10 +67,18 @@ async function findByPasswordResetHash(hash) {
   return { email: data.email || snapshot.docs[0].id, ...data };
 }
 
+async function deleteByEmail(email) {
+  if (!email) return { deletedCount: 0 };
+  const ref = doc(db, COLLECTION, email);
+  await deleteDoc(ref);
+  return { deletedCount: 1 };
+}
+
 module.exports = {
   getByEmail,
   setByEmail,
   updateByEmail,
   getByUid,
-  findByPasswordResetHash
+  findByPasswordResetHash,
+  deleteByEmail
 };

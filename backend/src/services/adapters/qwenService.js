@@ -13,6 +13,19 @@ function getDashScopeRegion() {
   return DASHSCOPE_HOSTS[r] ? r : 'cn';
 }
 
+function dashScopeRequestError(error) {
+  const region = getDashScopeRegion();
+  const host = DASHSCOPE_HOSTS[region];
+  const status = error.response?.status;
+  const data = error.response?.data || {};
+  const apiMsg = data.message || data.msg || error.message;
+  const code = data.code || '';
+  if (status === 401) {
+    return `通义千问 401 InvalidApiKey（region=${region}, host=${host}）。Key 必须与区域一致：中国站 cn / 国际站 intl（DASHSCOPE_REGION）。${code} ${apiMsg}`.trim();
+  }
+  return `通义千问错误 (${region}${status ? ` HTTP ${status}` : ''}): ${code} ${apiMsg}`.trim();
+}
+
 /**
  * 从 DashScope/Model Studio API 响应中安全解析首条文本内容。
  * 兼容 output.choices[0].message.content 的多种返回格式（字符串、数组、output.text、顶层 choices）。
@@ -125,14 +138,15 @@ class QwenService {
       return {
         success: true,
         text: text || '',
+        message: text || '',
         model: options.model || 'qwen-turbo',
         usage: response.data.usage || {}
       };
     } catch (error) {
-      console.error('❌ 通义千问对话错误:', error.message);
+      console.error('❌ 通义千问对话错误:', dashScopeRequestError(error));
       return {
         success: false,
-        error: error.message
+        error: dashScopeRequestError(error)
       };
     }
   }

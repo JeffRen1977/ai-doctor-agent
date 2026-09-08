@@ -45,7 +45,7 @@ class UserSettingsService {
       integrations: {
         telegramChatId: null
       },
-      privacy: { dataSharing: false, analytics: true },
+      privacy: { analytics: false },
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };

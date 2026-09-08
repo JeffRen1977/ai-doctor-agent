@@ -80,5 +80,14 @@ module.exports = {
   getUserWearables,
   setUserWearables,
   listHistoryByUser,
+  deleteByUser,
   sanitize
 };
+
+async function deleteByUser(userId) {
+  if (!userId) return { deletedCount: 0 };
+  const col = getCollection(COLLECTION);
+  const byId = await col.deleteOne({ _id: userId });
+  const byEmail = await col.deleteMany({ userEmail: userId });
+  return { deletedCount: (byId.deletedCount || 0) + (byEmail.deletedCount || 0) };
+}

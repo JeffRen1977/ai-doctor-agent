@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('../middleware/auth');
+const { requireConsent } = require('../middleware/requireConsent');
+const { CONSENT_PURPOSES } = require('../models/consent');
 const interventionEngineService = require('../services/interventionEngineService');
 const multer = require('multer');
 const path = require('path');
@@ -63,7 +65,7 @@ router.get('/medication', authenticateToken, async (req, res) => {
  * POST /api/intervention/medication/effectiveness
  * 分析药效
  */
-router.post('/medication/effectiveness', authenticateToken, async (req, res) => {
+router.post('/medication/effectiveness', authenticateToken, requireConsent(CONSENT_PURPOSES.AI_INFERENCE), async (req, res) => {
   try {
     const userEmail = req.user?.email;
     if (!userEmail) {
@@ -97,7 +99,7 @@ router.post('/medication/effectiveness', authenticateToken, async (req, res) => 
  * POST /api/intervention/nutrition
  * 动态营养分析（使用饮食分析API的逻辑）
  */
-router.post('/nutrition', authenticateToken, upload.single('image'), async (req, res) => {
+router.post('/nutrition', authenticateToken, requireConsent(CONSENT_PURPOSES.AI_INFERENCE), upload.single('image'), async (req, res) => {
   try {
     const userEmail = req.user?.email;
     if (!userEmail) {
@@ -163,7 +165,7 @@ router.get('/exercise', authenticateToken, async (req, res) => {
  * POST /api/intervention/exercise
  * 生成个性化运动计划
  */
-router.post('/exercise', authenticateToken, async (req, res) => {
+router.post('/exercise', authenticateToken, requireConsent(CONSENT_PURPOSES.AI_INFERENCE), async (req, res) => {
   try {
     const userEmail = req.user?.email;
     if (!userEmail) {
@@ -192,7 +194,7 @@ router.post('/exercise', authenticateToken, async (req, res) => {
  * POST /api/intervention/adjust
  * 动态调整干预方案
  */
-router.post('/adjust', authenticateToken, async (req, res) => {
+router.post('/adjust', authenticateToken, requireConsent(CONSENT_PURPOSES.AI_INFERENCE), async (req, res) => {
   try {
     const userEmail = req.user?.email;
     if (!userEmail) {
@@ -225,7 +227,7 @@ router.post('/adjust', authenticateToken, async (req, res) => {
  * POST /api/intervention/medication/add
  * 添加或更新用药记录
  */
-router.post('/medication/add', authenticateToken, async (req, res) => {
+router.post('/medication/add', authenticateToken, requireConsent(CONSENT_PURPOSES.HEALTH_STORAGE), async (req, res) => {
   try {
     const userEmail = req.user?.email;
     if (!userEmail) {
@@ -258,7 +260,7 @@ router.post('/medication/add', authenticateToken, async (req, res) => {
  * POST /api/intervention/medication/record
  * 记录用药历史（标记为已服用/未服用）
  */
-router.post('/medication/record', authenticateToken, async (req, res) => {
+router.post('/medication/record', authenticateToken, requireConsent(CONSENT_PURPOSES.HEALTH_STORAGE), async (req, res) => {
   try {
     const userEmail = req.user?.email;
     if (!userEmail) {

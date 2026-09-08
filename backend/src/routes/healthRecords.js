@@ -1,5 +1,7 @@
 const express = require('express');
 const { authenticateToken } = require('../middleware/auth');
+const { requireConsent } = require('../middleware/requireConsent');
+const { CONSENT_PURPOSES } = require('../models/consent');
 const firebaseService = require('../services/firebaseService');
 const { medicationRepo, personalHealthRecordRepo } = require('../repositories');
 const pdfCaseExtractionService = require('../services/pdfCaseExtractionService');
@@ -10,6 +12,7 @@ const {
   createAIAnalysis,
   MEDICAL_DOCUMENT_TYPES
 } = require('../models/healthRecordModels');
+const auditService = require('../services/auditService');
 
 const router = express.Router();
 
@@ -35,6 +38,11 @@ router.get('/personal-health-record', authenticateToken, async (req, res) => {
       return res.json({ success: true, data: null, message: 'Personal health record not found' });
     }
     const medications = await medicationRepo.listActive(sanitizedEmail);
+    await auditService.recordAccessed({
+      operation: 'healthRecords.getPersonal',
+      subjectEmail: userEmail,
+      resourceType: 'personalHealthRecord'
+    });
     res.json({ success: true, data: { ...data, medications } });
   } catch (error) {
     console.error('❌ Get personal health record error:', error);
@@ -47,7 +55,7 @@ router.get('/personal-health-record', authenticateToken, async (req, res) => {
 });
 
 // POST /personal-health-record - 保存/更新个人健康档案
-router.post('/personal-health-record', authenticateToken, upload.array('files', 10), async (req, res) => {
+router.post('/personal-health-record', authenticateToken, requireConsent(CONSENT_PURPOSES.HEALTH_STORAGE), upload.array('files', 10), async (req, res) => {
   try {
     const userEmail = req.user?.email;
     
@@ -283,7 +291,7 @@ router.post('/personal-health-record', authenticateToken, upload.array('files', 
 // ========== 医疗文档管理 ==========
 
 // POST /documents - 上传医疗文档
-router.post('/documents', authenticateToken, upload.array('files', 10), async (req, res) => {
+router.post('/documents', authenticateToken, requireConsent(CONSENT_PURPOSES.HEALTH_STORAGE), upload.array('files', 10), async (req, res) => {
   try {
     const userEmail = req.user?.email;
     const { documentType, title, description, medicalInfo, imagingInfo } = req.body;
@@ -372,6 +380,12 @@ router.get('/documents', authenticateToken, async (req, res) => {
 
     const documents = data.medicalDocuments || [];
 
+    await auditService.recordAccessed({
+      operation: 'healthRecords.listDocuments',
+      subjectEmail: userEmail,
+      resourceType: 'medicalDocument'
+    });
+
     res.json({
       success: true,
       documents: documents
@@ -410,6 +424,13 @@ router.get('/documents/:documentId', authenticateToken, async (req, res) => {
     if (!document) {
       return res.status(404).json({ error: 'Document not found' });
     }
+
+    await auditService.recordAccessed({
+      operation: 'healthRecords.getDocument',
+      subjectEmail: userEmail,
+      resourceType: 'medicalDocument',
+      resourceId: documentId
+    });
     
     res.json({
       success: true,
@@ -476,6 +497,12 @@ router.get('/analyses', authenticateToken, async (req, res) => {
     }
 
     const analyses = data.aiAnalyses || [];
+
+    await auditService.recordAccessed({
+      operation: 'healthRecords.listAnalyses',
+      subjectEmail: userEmail,
+      resourceType: 'aiAnalysis'
+    });
 
     res.json({
       success: true,

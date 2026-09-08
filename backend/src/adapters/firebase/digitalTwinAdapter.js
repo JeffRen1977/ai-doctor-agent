@@ -3,7 +3,7 @@
  * 读写 digitalTwins/{userId}，单文档 per user，merge 语义。userId 一般为 sanitized email。
  */
 
-const { doc, getDoc, setDoc } = require('firebase/firestore');
+const { doc, getDoc, setDoc, deleteDoc } = require('firebase/firestore');
 const { db } = require('../../config/firebase');
 
 const COLLECTION = 'digitalTwins';
@@ -39,9 +39,17 @@ async function setDigitalTwin(userId, data) {
   await setDoc(ref, data, { merge: true });
 }
 
+async function deleteDigitalTwin(userId) {
+  const id = sanitizeUserId(userId);
+  if (!id) return { deletedCount: 0 };
+  await deleteDoc(doc(db, COLLECTION, id));
+  return { deletedCount: 1 };
+}
+
 module.exports = {
   getDigitalTwin,
   setDigitalTwin,
+  deleteDigitalTwin,
   sanitizeUserId,
   sanitize
 };

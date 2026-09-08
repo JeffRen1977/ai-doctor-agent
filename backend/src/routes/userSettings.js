@@ -1,6 +1,8 @@
 const express = require('express');
 const { authenticateToken } = require('../middleware/auth');
 const userSettingsService = require('../services/userSettingsService');
+const consentService = require('../services/consentService');
+const { CONSENT_PURPOSES } = require('../models/consent');
 
 const router = express.Router();
 
@@ -42,7 +44,20 @@ router.get('/', authenticateToken, async (req, res) => {
  */
 router.put('/', authenticateToken, async (req, res) => {
   try {
-    const result = await userSettingsService.updateUserSettings(req.user.id, req.body);
+    const incoming = { ...req.body };
+    // dataSharing 历史上未真正生效，也不表示「交给厂商训练」。忽略以免虚假控制。
+    if (incoming.privacy && typeof incoming.privacy === 'object') {
+      if (typeof incoming.privacy.analytics === 'boolean') {
+        await consentService.recordConsent({
+          subjectEmail: req.user.email,
+          purpose: CONSENT_PURPOSES.ANALYTICS,
+          granted: incoming.privacy.analytics,
+          source: 'settings'
+        });
+      }
+      delete incoming.privacy.dataSharing;
+    }
+    const result = await userSettingsService.updateUserSettings(req.user.id, incoming);
     
     if (result.success) {
       res.json({
@@ -58,6 +73,14 @@ router.put('/', authenticateToken, async (req, res) => {
       });
     }
   } catch (error) {
+    if (error.code === 'CONSENT_REQUIRED') {
+      return res.status(403).json({
+        success: false,
+        error: error.message,
+        code: error.code,
+        purpose: error.purpose
+      });
+    }
     console.error('❌ Update user settings error:', error);
     res.status(500).json({
       success: false,
@@ -110,6 +133,9 @@ router.get('/ai', authenticateToken, async (req, res) => {
 router.put('/ai', authenticateToken, async (req, res) => {
   try {
     const { aiProvider, aiModel, language } = req.body;
+    if (consentService.CROSS_BORDER_PROVIDERS.has(String(aiProvider || '').toLowerCase())) {
+      await consentService.assertConsent(req.user.email, CONSENT_PURPOSES.CROSS_BORDER);
+    }
     const result = await userSettingsService.updateUserAISettings(req.user.id, { aiProvider, aiModel, language });
     
     if (result.success) {
@@ -130,6 +156,14 @@ router.put('/ai', authenticateToken, async (req, res) => {
       });
     }
   } catch (error) {
+    if (error.code === 'CONSENT_REQUIRED') {
+      return res.status(403).json({
+        success: false,
+        error: error.message,
+        code: error.code,
+        purpose: error.purpose
+      });
+    }
     console.error('❌ Update user AI settings error:', error);
     res.status(500).json({
       success: false,

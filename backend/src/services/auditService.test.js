@@ -139,4 +139,29 @@ describe('auditService', () => {
     expect(res.recorded).toBe(false);
     expect(mockAppendEvent).not.toHaveBeenCalled();
   });
+
+  it('records record.accessed without PHI summaries', async () => {
+    const res = await auditService.recordAccessed({
+      operation: 'healthRecords.getPersonal',
+      subjectEmail: 'patient@example.com',
+      resourceType: 'personalHealthRecord',
+      resourceId: null
+    });
+    expect(res.recorded).toBe(true);
+    const saved = mockAppendEvent.mock.calls[0][0];
+    expect(saved.action).toBe('record.accessed');
+    expect(saved.inputSummary).toBeUndefined();
+    expect(saved.outputSummary).toBeUndefined();
+    expect(saved.metadata.resourceType).toBe('personalHealthRecord');
+  });
+
+  it('downgrades full capture to summary in production unless explicitly allowed', async () => {
+    process.env.AUDIT_CAPTURE = 'full';
+    process.env.NODE_ENV = 'production';
+    delete process.env.AUDIT_FULL_ALLOWED;
+    jest.resetModules();
+    auditService = require('./auditService');
+    expect(auditService.captureMode()).toBe('summary');
+    process.env.NODE_ENV = 'test';
+  });
 });

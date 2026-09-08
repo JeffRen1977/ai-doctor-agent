@@ -3,7 +3,7 @@
  * 读写 personalHealthRecords/{userId} 根文档。与 userBasicInfo 同集合，本 adapter 负责整文档 get/set/update。
  */
 
-const { doc, getDoc, setDoc, updateDoc } = require('firebase/firestore');
+const { doc, getDoc, setDoc, updateDoc, deleteDoc } = require('firebase/firestore');
 const { db } = require('../../config/firebase');
 
 const COLLECTION = 'personalHealthRecords';
@@ -65,9 +65,16 @@ async function update(userId, updates) {
   await updateDoc(ref, updates);
 }
 
+async function deleteRecord(userId) {
+  const id = sanitizeUserId(userId);
+  await deleteDoc(doc(db, COLLECTION, id));
+  return { deletedCount: 1 };
+}
+
 module.exports = {
   get,
   set,
   update,
+  delete: deleteRecord,
   sanitizeUserId
 };
