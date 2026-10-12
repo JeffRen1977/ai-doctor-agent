@@ -40,6 +40,9 @@
     "android:bundle": "bash android/gradlew-release.sh"
   },
   "dependencies": {
+    "@alicloud/dysmsapi20170525": "^4.6.0",
+    "@alicloud/openapi-client": "^0.4.15",
+    "@alicloud/tea-util": "^1.4.11",
     "@ant-design/icons": "^5.0.0",
     "@ant-design/plots": "^2.6.3",
     "@capacitor/android": "^7.6.5",

@@ -17,6 +17,17 @@ export interface Translations {
     backToLogin: string
     resetEmailSent: string
     resetSuccess: string
+    emailLogin: string
+    phoneLogin: string
+    phone: string
+    smsCode: string
+    sendCode: string
+    codeSent: string
+    resendAfter: string
+    phoneRequired: string
+    codeRequired: string
+    registerPhone: string
+    name: string
   }
   features: {
     title: string
@@ -441,7 +452,18 @@ export const translations: Record<Language, Translations> = {
       confirmNewPassword: '确认新密码',
       backToLogin: '返回登录',
       resetEmailSent: '如果该邮箱已注册，您将收到重置邮件',
-      resetSuccess: '密码已重置，请使用新密码登录'
+      resetSuccess: '密码已重置，请使用新密码登录',
+      emailLogin: '邮箱登录',
+      phoneLogin: '手机号登录',
+      phone: '手机号',
+      smsCode: '验证码',
+      sendCode: '获取验证码',
+      codeSent: '验证码已发送',
+      resendAfter: '秒后重新发送',
+      phoneRequired: '请输入手机号！',
+      codeRequired: '请输入验证码！',
+      registerPhone: '手机号注册',
+      name: '姓名'
     },
     features: {
       title: '核心功能',
@@ -901,7 +923,18 @@ export const translations: Record<Language, Translations> = {
       confirmNewPassword: 'Confirm new password',
       backToLogin: 'Back to login',
       resetEmailSent: 'If that email is registered, you will receive a reset link',
-      resetSuccess: 'Password updated. Please sign in with your new password'
+      resetSuccess: 'Password updated. Please sign in with your new password',
+      emailLogin: 'Email Login',
+      phoneLogin: 'Phone Login',
+      phone: 'Phone Number',
+      smsCode: 'SMS Code',
+      sendCode: 'Send Code',
+      codeSent: 'Code sent',
+      resendAfter: 's to resend',
+      phoneRequired: 'Please enter your phone number!',
+      codeRequired: 'Please enter the SMS code!',
+      registerPhone: 'Phone Registration',
+      name: 'Full Name'
     },
     features: {
       title: 'Core Features',

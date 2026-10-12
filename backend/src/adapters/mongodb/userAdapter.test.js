@@ -4,7 +4,7 @@ jest.mock('./connection', () => ({
   getCollection: jest.fn(() => ({ findOne: mockFindOne, updateOne: mockUpdateOne }))
 }));
 
-const { getByEmail, setByEmail, updateByEmail, getByUid, findByPasswordResetHash } = require('./userAdapter');
+const { getByEmail, setByEmail, updateByEmail, getByUid, getByPhone, findByPasswordResetHash } = require('./userAdapter');
 
 beforeEach(() => {
   mockFindOne.mockReset();
@@ -51,6 +51,25 @@ describe('getByUid', () => {
     mockFindOne.mockResolvedValue({ _id: 'a@b.com', uid: 'uid1', name: 'Test' });
     const out = await getByUid('uid1');
     expect(out).toEqual({ uid: 'uid1', name: 'Test' });
+  });
+});
+
+describe('getByPhone', () => {
+  it('returns null when phone is empty', async () => {
+    expect(await getByPhone('')).toBeNull();
+    expect(await getByPhone(null)).toBeNull();
+  });
+
+  it('returns user doc with email when found by phone', async () => {
+    mockFindOne.mockResolvedValue({ _id: 'a@b.com', uid: 'uid1', phone: '13812345678', name: 'Test' });
+    const out = await getByPhone('13812345678');
+    expect(out).toEqual({ email: 'a@b.com', uid: 'uid1', phone: '13812345678', name: 'Test' });
+    expect(mockFindOne).toHaveBeenCalledWith({ phone: '13812345678' });
+  });
+
+  it('returns null when not found', async () => {
+    mockFindOne.mockResolvedValue(null);
+    expect(await getByPhone('13812345678')).toBeNull();
   });
 });
 

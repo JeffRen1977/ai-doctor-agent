@@ -36,5 +36,6 @@ module.exports = {
   telegramBindingRepo: adapters.telegramBindingRepo,
   auditEventRepo: adapters.auditEventRepo,
   consentRepo: adapters.consentRepo,
-  privacyJobRepo: adapters.privacyJobRepo
+  privacyJobRepo: adapters.privacyJobRepo,
+  smsCodeRepo: adapters.smsCodeRepo
 };

@@ -50,6 +50,7 @@ const telegramIntegrationRoutes = require('./routes/telegramIntegration');
 const internalTelegramRoutes = require('./routes/internalTelegram');
 const privacyRoutes = require('./routes/privacy');
 const internalAuditRoutes = require('./routes/internalAudit');
+const authPhoneRoutes = require('./routes/authPhone');
 const { requestLogger } = require('./middleware/requestLogger');
 const { errorHandler, apiNotFound } = require('./middleware/errorHandler');
 const {
@@ -152,6 +153,7 @@ app.use('/api', generalApiLimiter);
 
 // API routes
 app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/auth', authLimiter, authPhoneRoutes);
 app.use('/api/chat', aiLimiter, chatRoutes);
 app.use('/api/health-records', aiHeavyLimiter, healthRecordsRoutes);
 app.use('/api/wearables', wearableRoutes);

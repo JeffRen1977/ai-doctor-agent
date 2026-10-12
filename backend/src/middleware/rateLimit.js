@@ -161,6 +161,14 @@ const aiHeavyLimiter = createLimiter({
   message: '文件分析请求已达用量上限，请 1 小时后再试。'
 });
 
+/** 短信验证码：按 IP+手机号限制，防短信轰炸 */
+const smsLimiter = createLimiter({
+  windowMs: envInt('RATE_LIMIT_SMS_WINDOW_MS', MINUTE),
+  limit: envInt('RATE_LIMIT_SMS_MAX', 1),
+  keyGenerator: (req) => `ip:${ipKeyGenerator(req.ip)}|phone:${String(req.body?.phone || '')}`,
+  message: '短信发送过于频繁，请 1 分钟后再试。'
+});
+
 module.exports = {
   generalApiLimiter,
   authLimiter,
@@ -169,6 +177,7 @@ module.exports = {
   registerLimiter,
   aiLimiter,
   aiHeavyLimiter,
+  smsLimiter,
   // 导出内部函数供单测覆盖
   userOrIpKey,
   ipAndAccountKey,

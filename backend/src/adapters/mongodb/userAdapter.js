@@ -57,11 +57,21 @@ async function findByPasswordResetHash(hash) {
   return { email: rest.email || _id, ...rest };
 }
 
+async function getByPhone(phone) {
+  if (!phone) return null;
+  const col = getCollection(COLLECTION);
+  const doc = await col.findOne({ phone });
+  if (!doc) return null;
+  const { _id, ...rest } = doc;
+  return { email: rest.email || _id, ...rest };
+}
+
 module.exports = {
   getByEmail,
   setByEmail,
   updateByEmail,
   getByUid,
+  getByPhone,
   findByPasswordResetHash,
   deleteByEmail
 };
