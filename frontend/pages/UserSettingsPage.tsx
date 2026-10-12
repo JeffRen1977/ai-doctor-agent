@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Form, Select, Button, message, Row, Col, Typography, Divider, Switch, Space, Alert, Modal, Input } from 'antd';
-import { SettingOutlined, SaveOutlined, ReloadOutlined, DownloadOutlined, DeleteOutlined } from '@ant-design/icons';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Card, Form, Select, Button, message, Row, Col, Typography, Divider, Switch, Space, Alert, Modal, Input, Tag } from 'antd';
+import { SettingOutlined, SaveOutlined, ReloadOutlined, DownloadOutlined, DeleteOutlined, WechatOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import { useAuthStore } from '../stores/authStore';
 import { useLanguageStore } from '../stores/languageStore';
 import api from '../services/api';
@@ -51,6 +51,51 @@ const UserSettingsPage: React.FC = () => {
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteEmail, setDeleteEmail] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [wechatBindCode, setWechatBindCode] = useState('');
+  const [wechatCodeExpiry, setWechatCodeExpiry] = useState('');
+  const [wechatCountdown, setWechatCountdown] = useState(0);
+  const [wechatBinding, setWechatBinding] = useState(false);
+  const [wechatBound, setWechatBound] = useState(false);
+  const wechatTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const startWechatCountdown = useCallback((seconds: number) => {
+    setWechatCountdown(seconds);
+    if (wechatTimerRef.current) clearInterval(wechatTimerRef.current);
+    wechatTimerRef.current = setInterval(() => {
+      setWechatCountdown((prev) => {
+        if (prev <= 1) {
+          if (wechatTimerRef.current) clearInterval(wechatTimerRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (wechatTimerRef.current) clearInterval(wechatTimerRef.current);
+    };
+  }, []);
+
+  const handleWechatBind = async () => {
+    try {
+      setWechatBinding(true);
+      const response = await api.post('/integrations/wechat/bind-code');
+      if (response.data.success) {
+        setWechatBindCode(response.data.code);
+        setWechatCodeExpiry(response.data.expiresAt);
+        startWechatCountdown(900);
+        message.success(language === 'zh' ? '绑定码已生成' : 'Bind code generated');
+      } else {
+        message.error(response.data.error || (language === 'zh' ? '生成绑定码失败' : 'Failed to generate bind code'));
+      }
+    } catch (error) {
+      message.error(language === 'zh' ? '生成绑定码失败' : 'Failed to generate bind code');
+    } finally {
+      setWechatBinding(false);
+    }
+  };
 
   // 获取用户设置
   const fetchUserSettings = async () => {
@@ -338,6 +383,61 @@ const UserSettingsPage: React.FC = () => {
                 </Form.Item>
               </Col>
             </Row>
+          </Card>
+
+          {/* 微信绑定 */}
+          <Card size="small" title={
+            <Space>
+              <WechatOutlined style={{ color: '#07C160' }} />
+              {language === 'zh' ? '微信公众号绑定' : 'WeChat Official Account'}
+            </Space>
+          } style={{ marginBottom: '24px' }}>
+            <Alert
+              type="info"
+              showIcon
+              style={{ marginBottom: 16 }}
+              message={language === 'zh' ? '绑定微信后可接收每日健康报告和用药提醒' : 'Link WeChat to receive daily health reports and medication reminders'}
+            />
+            {wechatBound ? (
+              <Space>
+                <Tag icon={<CheckCircleOutlined />} color="success">
+                  {language === 'zh' ? '已绑定' : 'Linked'}
+                </Tag>
+                <Text type="secondary">
+                  {language === 'zh' ? '微信已关联，将自动接收消息' : 'WeChat linked, messages will be sent automatically'}
+                </Text>
+              </Space>
+            ) : (
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Button
+                  type="primary"
+                  icon={<WechatOutlined />}
+                  loading={wechatBinding}
+                  onClick={handleWechatBind}
+                  disabled={wechatCountdown > 0}
+                  style={{ backgroundColor: '#07C160', borderColor: '#07C160' }}
+                >
+                  {wechatCountdown > 0
+                    ? `${Math.floor(wechatCountdown / 60)}:${String(wechatCountdown % 60).padStart(2, '0')}`
+                    : (language === 'zh' ? '获取绑定码' : 'Get Bind Code')}
+                </Button>
+                {wechatBindCode && wechatCountdown > 0 && (
+                  <Alert
+                    type="success"
+                    message={
+                      <Space direction="vertical">
+                        <Text strong style={{ fontSize: 24, letterSpacing: 4 }}>{wechatBindCode}</Text>
+                        <Text type="secondary">
+                          {language === 'zh'
+                            ? '请在微信中关注公众号，并将上方 6 位码发送给公众号完成绑定'
+                            : 'Follow our WeChat Official Account and send this 6-digit code to complete binding'}
+                        </Text>
+                      </Space>
+                    }
+                  />
+                )}
+              </Space>
+            )}
           </Card>
 
           {/* 隐私与同意 */}

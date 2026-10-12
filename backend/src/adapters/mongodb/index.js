@@ -34,6 +34,7 @@ const auditEventAdapter = require('./auditEventAdapter');
 const consentAdapter = require('./consentAdapter');
 const privacyJobAdapter = require('./privacyJobAdapter');
 const smsCodeAdapter = require('./smsCodeAdapter');
+const wechatBindingAdapter = require('./wechatBindingAdapter');
 
 /** 供 auth 路由判断：当前为 MongoDB 时使用本地认证（不经过 Firebase Auth） */
 const __useMongoAuth = true;
@@ -71,5 +72,6 @@ module.exports = {
   auditEventRepo: auditEventAdapter,
   consentRepo: consentAdapter,
   privacyJobRepo: privacyJobAdapter,
-  smsCodeRepo: smsCodeAdapter
+  smsCodeRepo: smsCodeAdapter,
+  wechatBindingRepo: wechatBindingAdapter
 };

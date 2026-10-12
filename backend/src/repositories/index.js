@@ -37,5 +37,6 @@ module.exports = {
   auditEventRepo: adapters.auditEventRepo,
   consentRepo: adapters.consentRepo,
   privacyJobRepo: adapters.privacyJobRepo,
-  smsCodeRepo: adapters.smsCodeRepo
+  smsCodeRepo: adapters.smsCodeRepo,
+  wechatBindingRepo: adapters.wechatBindingRepo
 };

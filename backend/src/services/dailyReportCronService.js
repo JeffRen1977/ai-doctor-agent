@@ -56,14 +56,42 @@ async function sendTelegramSummary(chatId, text) {
   return { sent: true, telegram: res.data };
 }
 
-/**
- * WeChat template/subscription messages are not implemented here; keep Node-only with official SDK later.
- */
-async function sendWeChatIfConfigured() {
-  if (process.env.WECHAT_DAILY_REPORT_ENABLED === 'true') {
-    return { sent: false, reason: 'wechat_daily_not_implemented' };
+async function getWeChatOpenId(userId) {
+  try {
+    const settings = await userSettingsRepo.getUserSettings(userId);
+    if (!settings || typeof settings !== 'object') return null;
+    const id =
+      settings.integrations?.wechatOpenId ||
+      settings.wechatOpenId;
+    if (id == null || id === '') return null;
+    return String(id);
+  } catch {
+    return null;
   }
-  return { sent: false, reason: 'wechat_disabled' };
+}
+
+async function sendWeChatIfConfigured(userId, execSummary) {
+  if (process.env.WECHAT_DAILY_REPORT_ENABLED !== 'true') {
+    return { sent: false, reason: 'wechat_disabled' };
+  }
+
+  const openId = await getWeChatOpenId(userId);
+  if (!openId) {
+    return { sent: false, reason: 'no_wechat_openid_in_userSettings' };
+  }
+
+  const templateId = process.env.WECHAT_DAILY_REPORT_TEMPLATE_ID;
+  if (!templateId) {
+    return { sent: false, reason: 'no_template_id' };
+  }
+
+  const wechatIntegrationService = require('./wechatIntegrationService');
+  return wechatIntegrationService.sendTemplateMessage(openId, templateId, {
+    first: { value: '您的每日健康报告已生成' },
+    keyword1: { value: new Date().toLocaleDateString('zh-CN') },
+    keyword2: { value: String(execSummary).slice(0, 200) },
+    remark: { value: '点击查看完整报告' }
+  });
 }
 
 async function resolveReportLanguage(userId) {
@@ -160,7 +188,7 @@ async function runDailyReportBatch(opts = {}) {
         row.telegram = { sent: false, reason: 'no_telegram_chat_id_in_userSettings' };
       }
 
-      row.wechat = await sendWeChatIfConfigured();
+      row.wechat = await sendWeChatIfConfigured(userId, execSummary);
       summary.results.push(row);
     } catch (err) {
       row.error = err.message;

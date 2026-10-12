@@ -51,6 +51,8 @@ const internalTelegramRoutes = require('./routes/internalTelegram');
 const privacyRoutes = require('./routes/privacy');
 const internalAuditRoutes = require('./routes/internalAudit');
 const authPhoneRoutes = require('./routes/authPhone');
+const wechatIntegrationRoutes = require('./routes/wechatIntegration');
+const internalWechatRoutes = require('./routes/internalWechat');
 const { requestLogger } = require('./middleware/requestLogger');
 const { errorHandler, apiNotFound } = require('./middleware/errorHandler');
 const {
@@ -170,10 +172,12 @@ app.use('/api/appointments', appointmentsRoutes);
 app.use('/api/reports', aiLimiter, reportsRoutes);
 app.use('/api/emergency', emergencyRoutes);
 app.use('/api/integrations/telegram', telegramIntegrationRoutes);
+app.use('/api/integrations/wechat', wechatIntegrationRoutes);
 app.use('/api/privacy', privacyRoutes);
 app.use('/api/internal/audit', internalAuditRoutes);
 app.use('/internal/cron', internalCronRoutes);
 app.use('/internal/telegram', internalTelegramRoutes);
+app.use('/internal/wechat', internalWechatRoutes);
 
 app.get('/health', (req, res) => {
   res.json({
