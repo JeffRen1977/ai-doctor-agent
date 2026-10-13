@@ -43,8 +43,10 @@ function getPlan(planId) {
  * @param {string} params.planId  'monthly' | 'quarterly' | 'yearly'
  * @param {string} params.paymentMethod  'wechat_pay' | 'alipay'
  * @param {string} [params.openId]  required for WeChat JSAPI
+ * @param {string} [params.tradeType]  'JSAPI' | 'H5', default 'JSAPI'
+ * @param {string} [params.clientIp]  required for WeChat H5
  */
-async function createOrder({ userId, userEmail, planId, paymentMethod, openId }) {
+async function createOrder({ userId, userEmail, planId, paymentMethod, openId, tradeType, clientIp }) {
   const plan = getPlan(planId);
   if (!plan) {
     return { success: false, error: 'invalid_plan' };
@@ -73,17 +75,22 @@ async function createOrder({ userId, userEmail, planId, paymentMethod, openId })
   let payData = null;
 
   if (paymentMethod === 'wechat_pay') {
+    const wechatTradeType = tradeType || (openId ? 'JSAPI' : 'H5');
     const result = await wechatPayService.createUnifiedOrder({
       orderNo,
       amount: plan.amount,
       description: plan.nameZh,
-      openId
+      openId,
+      tradeType: wechatTradeType,
+      clientIp
     });
     if (!result.success) {
       await orderRepo.updateOrderStatus(orderNo, { status: 'failed', failReason: result.error });
       return { success: false, error: result.error };
     }
-    payData = wechatPayService.generatePayParams(result.prepayId);
+    payData = result.h5Url
+      ? { h5Url: result.h5Url }
+      : wechatPayService.generatePayParams(result.prepayId);
   } else {
     const result = alipayService.createTradePagePay({
       orderNo,
@@ -104,7 +111,7 @@ async function createOrder({ userId, userEmail, planId, paymentMethod, openId })
  * Handle successful payment — activate subscription.
  * @param {string} orderNo
  * @param {string} tradeNo  platform transaction id
- * @param {number} [paidAmountFen]  actual amount paid (fen), verified against order
+ * @param {number} paidAmountFen  actual amount paid (fen), verified against order
  */
 async function activateSubscription(orderNo, tradeNo, paidAmountFen) {
   const order = await orderRepo.getOrderByOrderNo(orderNo);
@@ -113,20 +120,24 @@ async function activateSubscription(orderNo, tradeNo, paidAmountFen) {
     return { success: false, error: 'order_not_found' };
   }
 
-  if (order.status === 'paid') {
-    return { success: true, message: 'already_processed' };
-  }
-
-  if (paidAmountFen !== undefined && paidAmountFen !== order.amount) {
-    logger.error({ orderNo, expected: order.amount, actual: paidAmountFen }, 'activateSubscription: amount mismatch');
-    return { success: false, error: 'amount_mismatch' };
-  }
-
   const plan = getPlan(order.planId);
   if (!plan) {
     return { success: false, error: 'invalid_plan' };
   }
 
+  if (paidAmountFen === undefined || paidAmountFen === null) {
+    logger.error({ orderNo }, 'activateSubscription: missing paid amount');
+    return { success: false, error: 'missing_paid_amount' };
+  }
+
+  if (paidAmountFen !== order.amount) {
+    logger.error({ orderNo, expected: order.amount, actual: paidAmountFen }, 'activateSubscription: amount mismatch');
+    return { success: false, error: 'amount_mismatch' };
+  }
+
+  // Atomic: only the first callback to flip status creates the subscription.
+  // If order is already paid, check whether subscription exists (it may have
+  // failed on a previous attempt) and retry if missing.
   const updated = await orderRepo.updateOrderStatus(orderNo, {
     status: 'paid',
     tradeNo,
@@ -134,17 +145,25 @@ async function activateSubscription(orderNo, tradeNo, paidAmountFen) {
   }, { condition: { status: { $ne: 'paid' } } });
 
   if (!updated) {
-    return { success: true, message: 'already_processed' };
+    const existing = await subscriptionRepo.getSubscriptionByOrderNo(orderNo);
+    if (existing) {
+      return { success: true, message: 'already_processed' };
+    }
+    // Order is paid but subscription is missing — fall through to create it.
   }
 
-  const startDate = new Date();
-  const endDate = new Date(startDate.getTime() + plan.durationDays * 24 * 60 * 60 * 1000);
+  const now = new Date();
+  const existingSub = await subscriptionRepo.getActiveSubscription(order.userId);
+  const baseDate = existingSub && new Date(existingSub.endDate) > now
+    ? new Date(existingSub.endDate)
+    : now;
+  const endDate = new Date(baseDate.getTime() + plan.durationDays * 24 * 60 * 60 * 1000);
 
   await subscriptionRepo.createSubscription({
     userId: order.userId,
     planId: order.planId,
     status: 'active',
-    startDate: startDate.toISOString(),
+    startDate: now.toISOString(),
     endDate: endDate.toISOString(),
     orderNo
   });

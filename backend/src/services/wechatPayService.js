@@ -60,14 +60,19 @@ function buildAuthHeader(method, url, body) {
  * @param {string} params.description
  * @param {string} [params.openId]  required for JSAPI
  * @param {string} [params.tradeType]  'JSAPI' | 'H5', default 'JSAPI'
+ * @param {string} [params.clientIp]  required for H5
  */
-async function createUnifiedOrder({ orderNo, amount, description, openId, tradeType = 'JSAPI' }) {
+async function createUnifiedOrder({ orderNo, amount, description, openId, tradeType = 'JSAPI', clientIp }) {
   if (!isConfigured()) {
     return { success: false, error: 'wechat_pay_not_configured' };
   }
 
   const config = getConfig();
-  const apiUrl = 'https://api.mch.weixin.qq.com/v3/pay/transactions/jsapi';
+  const isH5 = tradeType === 'H5';
+  const apiUrl = isH5
+    ? 'https://api.mch.weixin.qq.com/v3/pay/transactions/h5'
+    : 'https://api.mch.weixin.qq.com/v3/pay/transactions/jsapi';
+
   const body = {
     appid: config.appId,
     mchid: config.mchId,
@@ -77,7 +82,12 @@ async function createUnifiedOrder({ orderNo, amount, description, openId, tradeT
     amount: { total: amount, currency: 'CNY' }
   };
 
-  if (tradeType === 'JSAPI' && openId) {
+  if (isH5) {
+    body.scene_info = {
+      payer_client_ip: clientIp || '127.0.0.1',
+      h5_info: { type: 'Wap' }
+    };
+  } else if (openId) {
     body.payer = { openid: openId };
   }
 
@@ -94,6 +104,9 @@ async function createUnifiedOrder({ orderNo, amount, description, openId, tradeT
       timeout: 15000
     });
 
+    if (isH5) {
+      return { success: true, h5Url: data.h5_url };
+    }
     return { success: true, prepayId: data.prepay_id };
   } catch (err) {
     const errData = err.response?.data;
@@ -123,6 +136,24 @@ function generatePayParams(prepayId) {
   };
 }
 
+const CALLBACK_TIMESTAMP_TOLERANCE_S = 300;
+
+/**
+ * Verify platform signature on a callback notification.
+ * Requires WECHAT_PAY_PLATFORM_CERT_PATH (the platform public cert, NOT the merchant cert).
+ */
+function verifyCallbackSignature(timestamp, nonce, body, signature) {
+  const certPath = process.env.WECHAT_PAY_PLATFORM_CERT_PATH;
+  if (!certPath) {
+    return false;
+  }
+  const message = `${timestamp}\n${nonce}\n${body}\n`;
+  const publicKey = fs.readFileSync(certPath, 'utf8');
+  const verify = crypto.createVerify('RSA-SHA256');
+  verify.update(message);
+  return verify.verify(publicKey, signature, 'base64');
+}
+
 /**
  * Verify and decrypt callback notification.
  * @param {object} headers  request headers
@@ -141,7 +172,18 @@ function verifyCallback(headers, body) {
       return { success: false, error: 'missing_signature_headers' };
     }
 
-    const parsed = typeof body === 'string' ? JSON.parse(body) : body;
+    const age = Math.abs(Math.floor(Date.now() / 1000) - Number(timestamp));
+    if (Number.isNaN(age) || age > CALLBACK_TIMESTAMP_TOLERANCE_S) {
+      return { success: false, error: 'timestamp_expired' };
+    }
+
+    const bodyStr = typeof body === 'string' ? body : JSON.stringify(body);
+
+    if (!verifyCallbackSignature(timestamp, nonce, bodyStr, signature)) {
+      return { success: false, error: 'invalid_callback_signature' };
+    }
+
+    const parsed = typeof bodyStr === 'string' ? JSON.parse(bodyStr) : bodyStr;
     const resource = parsed.resource;
     if (!resource) {
       return { success: false, error: 'missing_resource' };

@@ -37,10 +37,21 @@ function isWeChatConfigured() {
  * SHA1(sort([token, timestamp, nonce])) === signature
  */
 function verifySignature(signature, timestamp, nonce) {
-  const token = process.env.WECHAT_TOKEN || '';
+  const token = process.env.WECHAT_TOKEN;
+  if (!token) {
+    return false;
+  }
+  if (!signature || !timestamp || !nonce) {
+    return false;
+  }
   const arr = [token, timestamp, nonce].sort();
   const hash = crypto.createHash('sha1').update(arr.join('')).digest('hex');
-  return hash === signature;
+  const expected = Buffer.from(hash, 'utf8');
+  const actual = Buffer.from(String(signature), 'utf8');
+  if (expected.length !== actual.length) {
+    return false;
+  }
+  return crypto.timingSafeEqual(expected, actual);
 }
 
 /**

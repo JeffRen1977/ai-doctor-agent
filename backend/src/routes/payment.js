@@ -11,7 +11,8 @@ const paymentService = require('../services/paymentService');
 const createOrderSchema = Joi.object({
   planId: Joi.string().valid('monthly', 'quarterly', 'yearly').required(),
   paymentMethod: Joi.string().valid('wechat_pay', 'alipay').required(),
-  openId: Joi.string().allow('').optional()
+  openId: Joi.string().allow('').optional(),
+  tradeType: Joi.string().valid('JSAPI', 'H5').optional()
 });
 
 router.get('/plans', (req, res) => {
@@ -51,7 +52,9 @@ router.post('/orders', authenticateToken, async (req, res) => {
       userEmail: req.user.email,
       planId: value.planId,
       paymentMethod: value.paymentMethod,
-      openId: value.openId
+      openId: value.openId,
+      tradeType: value.tradeType,
+      clientIp: req.ip
     });
 
     if (!result.success) {

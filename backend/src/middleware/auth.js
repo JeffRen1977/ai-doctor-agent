@@ -67,4 +67,24 @@ function requireAdmin(req, res, next) {
   return next();
 }
 
-module.exports = { authenticateToken, optionalAuth, requireAdmin }; 
+/**
+ * Requires an active subscription. Must follow authenticateToken.
+ */
+const requireSubscription = async (req, res, next) => {
+  try {
+    const paymentService = require('../services/paymentService');
+    const userId = req.user?.email || req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: '未提供认证token' });
+    }
+    const hasAccess = await paymentService.checkAccess(userId);
+    if (!hasAccess) {
+      return res.status(403).json({ error: '需要订阅会员', code: 'subscription_required' });
+    }
+    next();
+  } catch (error) {
+    return res.status(500).json({ error: '订阅状态检查失败' });
+  }
+};
+
+module.exports = { authenticateToken, optionalAuth, requireAdmin, requireSubscription };

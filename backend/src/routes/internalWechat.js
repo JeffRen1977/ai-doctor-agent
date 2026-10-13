@@ -43,7 +43,7 @@ router.get('/webhook', (req, res) => {
 router.post('/webhook', express.text({ type: ['text/xml', 'application/xml'] }), async (req, res) => {
   const { signature, timestamp, nonce } = req.query;
 
-  if (signature && !wechatIntegrationService.verifySignature(signature, timestamp, nonce)) {
+  if (!wechatIntegrationService.verifySignature(signature, timestamp, nonce)) {
     return res.status(403).send('Invalid signature');
   }
 

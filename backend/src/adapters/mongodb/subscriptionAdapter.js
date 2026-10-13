@@ -20,6 +20,15 @@ async function getActiveSubscription(userId) {
   return { subscriptionId: String(_id), ...rest };
 }
 
+async function getSubscriptionByOrderNo(orderNo) {
+  if (!orderNo) return null;
+  const col = getCollection(COLLECTION);
+  const doc = await col.findOne({ orderNo: String(orderNo) });
+  if (!doc) return null;
+  const { _id, ...rest } = doc;
+  return { subscriptionId: String(_id), ...rest };
+}
+
 async function createSubscription(sub) {
   if (!sub || !sub.userId || !sub.planId) throw new Error('userId and planId required');
   const col = getCollection(COLLECTION);
@@ -58,6 +67,7 @@ async function expireSubscription(subscriptionId) {
 
 module.exports = {
   getActiveSubscription,
+  getSubscriptionByOrderNo,
   createSubscription,
   updateSubscription,
   expireSubscription

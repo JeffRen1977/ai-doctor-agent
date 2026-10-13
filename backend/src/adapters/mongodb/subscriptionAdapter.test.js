@@ -46,6 +46,27 @@ describe('getActiveSubscription', () => {
   });
 });
 
+describe('getSubscriptionByOrderNo', () => {
+  it('returns null on empty orderNo', async () => {
+    expect(await subscriptionAdapter.getSubscriptionByOrderNo('')).toBeNull();
+  });
+
+  it('returns null when not found', async () => {
+    mockFindOne.mockResolvedValue(null);
+    expect(await subscriptionAdapter.getSubscriptionByOrderNo('ORD_MISSING')).toBeNull();
+  });
+
+  it('returns subscription with subscriptionId', async () => {
+    mockFindOne.mockResolvedValue({
+      _id: 'sub123', userId: 'user1', planId: 'monthly', orderNo: 'ORD001'
+    });
+    const result = await subscriptionAdapter.getSubscriptionByOrderNo('ORD001');
+    expect(result.subscriptionId).toBe('sub123');
+    expect(result.orderNo).toBe('ORD001');
+    expect(result._id).toBeUndefined();
+  });
+});
+
 describe('createSubscription', () => {
   it('throws on missing fields', async () => {
     await expect(subscriptionAdapter.createSubscription({})).rejects.toThrow('userId and planId required');

@@ -1,5 +1,6 @@
+const mockReadFileSync = jest.fn().mockReturnValue('fake-private-key');
 jest.mock('fs', () => ({
-  readFileSync: jest.fn().mockReturnValue('fake-private-key')
+  readFileSync: (...args) => mockReadFileSync(...args)
 }));
 
 jest.mock('axios');
@@ -11,14 +12,22 @@ const crypto = require('crypto');
 const axios = require('axios');
 const wechatPayService = require('./wechatPayService');
 
+const testKeyPair = crypto.generateKeyPairSync('rsa', {
+  modulusLength: 2048,
+  publicKeyEncoding: { type: 'spki', format: 'pem' },
+  privateKeyEncoding: { type: 'pkcs1', format: 'pem' }
+});
+
 beforeEach(() => {
   jest.clearAllMocks();
+  mockReadFileSync.mockReturnValue('fake-private-key');
   delete process.env.WECHAT_APP_ID;
   delete process.env.WECHAT_PAY_MCH_ID;
   delete process.env.WECHAT_PAY_API_KEY;
   delete process.env.WECHAT_PAY_SERIAL_NO;
   delete process.env.WECHAT_PAY_PRIVATE_KEY_PATH;
   delete process.env.WECHAT_PAY_NOTIFY_URL;
+  delete process.env.WECHAT_PAY_PLATFORM_CERT_PATH;
 });
 
 describe('isConfigured', () => {
@@ -67,24 +76,62 @@ describe('generatePayParams', () => {
 });
 
 describe('verifyCallback', () => {
+  function signBody(timestamp, nonce, body) {
+    const message = `${timestamp}\n${nonce}\n${body}\n`;
+    const sign = crypto.createSign('RSA-SHA256');
+    sign.update(message);
+    return sign.sign(testKeyPair.privateKey, 'base64');
+  }
+
   it('returns error on missing headers', () => {
     const result = wechatPayService.verifyCallback({}, '{}');
     expect(result.success).toBe(false);
     expect(result.error).toBe('missing_signature_headers');
   });
 
-  it('returns error on missing resource', () => {
+  it('returns error on expired timestamp', () => {
+    const staleTs = String(Math.floor(Date.now() / 1000) - 600);
     const result = wechatPayService.verifyCallback(
-      { 'wechatpay-timestamp': '123', 'wechatpay-nonce': 'abc', 'wechatpay-signature': 'sig' },
+      { 'wechatpay-timestamp': staleTs, 'wechatpay-nonce': 'abc', 'wechatpay-signature': 'sig' },
       '{}'
+    );
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('timestamp_expired');
+  });
+
+  it('returns error on invalid signature', () => {
+    process.env.WECHAT_PAY_PLATFORM_CERT_PATH = '/fake/platform.pem';
+    mockReadFileSync.mockReturnValue(testKeyPair.publicKey);
+
+    const ts = String(Math.floor(Date.now() / 1000));
+    const result = wechatPayService.verifyCallback(
+      { 'wechatpay-timestamp': ts, 'wechatpay-nonce': 'abc', 'wechatpay-signature': 'badsig' },
+      '{}'
+    );
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('invalid_callback_signature');
+  });
+
+  it('returns error on missing resource', () => {
+    process.env.WECHAT_PAY_PLATFORM_CERT_PATH = '/fake/platform.pem';
+    mockReadFileSync.mockReturnValue(testKeyPair.publicKey);
+
+    const ts = String(Math.floor(Date.now() / 1000));
+    const body = '{}';
+    const sig = signBody(ts, 'abc', body);
+    const result = wechatPayService.verifyCallback(
+      { 'wechatpay-timestamp': ts, 'wechatpay-nonce': 'abc', 'wechatpay-signature': sig },
+      body
     );
     expect(result.success).toBe(false);
     expect(result.error).toBe('missing_resource');
   });
 
-  it('decrypts callback data when configured', () => {
-    const apiKey = '12345678901234567890123456789012'; // 32 bytes
+  it('verifies signature, decrypts, and returns callback data', () => {
+    const apiKey = '12345678901234567890123456789012';
     process.env.WECHAT_PAY_API_KEY = apiKey;
+    process.env.WECHAT_PAY_PLATFORM_CERT_PATH = '/fake/platform.pem';
+    mockReadFileSync.mockReturnValue(testKeyPair.publicKey);
 
     const nonce = '000000000012';
     const aad = 'transaction';
@@ -100,8 +147,10 @@ describe('verifyCallback', () => {
       resource: { ciphertext, nonce, associated_data: aad }
     });
 
+    const ts = String(Math.floor(Date.now() / 1000));
+    const sig = signBody(ts, 'abc', body);
     const result = wechatPayService.verifyCallback(
-      { 'wechatpay-timestamp': '123', 'wechatpay-nonce': 'abc', 'wechatpay-signature': 'sig' },
+      { 'wechatpay-timestamp': ts, 'wechatpay-nonce': 'abc', 'wechatpay-signature': sig },
       body
     );
 
