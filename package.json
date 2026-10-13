@@ -41,6 +41,7 @@
   },
   "dependencies": {
     "@alicloud/dysmsapi20170525": "^4.6.0",
+    "@alicloud/green20220302": "^2.23.0",
     "@alicloud/openapi-client": "^0.4.15",
     "@alicloud/tea-util": "^1.4.11",
     "@ant-design/icons": "^5.0.0",

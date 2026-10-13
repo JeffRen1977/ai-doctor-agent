@@ -34,8 +34,18 @@ function detectCategory(operation) {
   return 'general';
 }
 
+const DISCLAIMER_MARKER = '⚠️';
+
+function hasDisclaimer(text) {
+  if (!text || typeof text !== 'string') return false;
+  return Object.values(DISCLAIMERS).some(d =>
+    text.includes(d.zh) || text.includes(d.en)
+  );
+}
+
 function wrapResponse(text, category = 'general', language = 'zh') {
   if (!text || typeof text !== 'string') return text;
+  if (hasDisclaimer(text)) return text;
   const disclaimer = getDisclaimer(category, language);
   return `${text}\n\n${disclaimer}`;
 }
@@ -60,4 +70,4 @@ function wrapAiResult(result, operation, language = 'zh') {
   return wrapped;
 }
 
-module.exports = { getDisclaimer, wrapResponse, wrapAiResult, detectCategory, DISCLAIMERS };
+module.exports = { getDisclaimer, wrapResponse, wrapAiResult, detectCategory, hasDisclaimer, DISCLAIMERS };

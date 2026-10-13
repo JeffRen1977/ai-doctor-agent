@@ -19,14 +19,53 @@ describe('contentModerationService', () => {
       expect(service.isConfigured()).toBe(false);
     });
 
-    it('returns false when package not installed (green SDK absent)', () => {
-      // The @alicloud/green20220302 package is not installed in dev,
-      // so isConfigured() should already return false regardless of env vars
+    it('returns true when the SDK is installed and keys are set', () => {
       process.env.ALIBABA_GREEN_ACCESS_KEY_ID = 'test-key';
       process.env.ALIBABA_GREEN_ACCESS_KEY_SECRET = 'test-secret';
       service = require('./contentModerationService');
-      // Without the green SDK, isConfigured returns false even with keys
-      expect(service.isConfigured()).toBe(false);
+      expect(service.isConfigured()).toBe(true);
+    });
+  });
+
+  describe('moderateText with the SDK', () => {
+    const mockTextModeration = jest.fn();
+
+    beforeEach(() => {
+      mockTextModeration.mockReset();
+      // Mirrors the real SDK shape: client is the default export, request is a named export.
+      jest.doMock('@alicloud/green20220302', () => {
+        class TextModerationRequest {
+          constructor(fields) { Object.assign(this, fields); }
+        }
+        class Client {
+          textModerationWithOptions(...args) { return mockTextModeration(...args); }
+        }
+        return { __esModule: true, default: Client, TextModerationRequest };
+      });
+      process.env.ALIBABA_GREEN_ACCESS_KEY_ID = 'test-key';
+      process.env.ALIBABA_GREEN_ACCESS_KEY_SECRET = 'test-secret';
+    });
+
+    afterEach(() => {
+      jest.dontMock('@alicloud/green20220302');
+    });
+
+    it('blocks text flagged with a blocked label', async () => {
+      mockTextModeration.mockResolvedValue({ body: { code: 200, data: { labels: 'spam,ad' } } });
+      service = require('./contentModerationService');
+      const result = await service.moderateText('buy now');
+      expect(result.safe).toBe(false);
+      expect(result.labels).toEqual(['spam', 'ad']);
+      const [request] = mockTextModeration.mock.calls[0];
+      expect(request.service).toBe('chat_detection');
+      expect(JSON.parse(request.serviceParameters)).toEqual({ content: 'buy now' });
+    });
+
+    it('allows text with no labels', async () => {
+      mockTextModeration.mockResolvedValue({ body: { code: 200, data: { labels: '' } } });
+      service = require('./contentModerationService');
+      const result = await service.moderateText('drink more water');
+      expect(result.safe).toBe(true);
     });
   });
 

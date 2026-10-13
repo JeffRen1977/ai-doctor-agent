@@ -56,7 +56,7 @@ const internalWechatRoutes = require('./routes/internalWechat');
 const paymentRoutes = require('./routes/payment');
 const paymentCallbackRoutes = require('./routes/paymentCallback');
 const { requestLogger } = require('./middleware/requestLogger');
-const { requireSubscription } = require('./middleware/auth');
+const { authenticateToken, requireSubscription } = require('./middleware/auth');
 const { errorHandler, apiNotFound } = require('./middleware/errorHandler');
 const {
   generalApiLimiter,
@@ -159,20 +159,20 @@ app.use('/api', generalApiLimiter);
 // API routes
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/auth', authLimiter, authPhoneRoutes);
-app.use('/api/chat', aiLimiter, requireSubscription, chatRoutes);
+app.use('/api/chat', aiLimiter, authenticateToken, requireSubscription, chatRoutes);
 app.use('/api/health-records', aiHeavyLimiter, healthRecordsRoutes);
 app.use('/api/wearables', wearableRoutes);
 app.use('/api/health-analysis', aiHeavyLimiter, healthAnalysisRoutes);
 app.use('/api/user-settings', userSettingsRoutes);
-app.use('/api/digital-twin', aiLimiter, requireSubscription, digitalTwinRoutes);
-app.use('/api/risk-monitoring', aiLimiter, requireSubscription, riskMonitoringRoutes);
-app.use('/api/intervention', aiLimiter, requireSubscription, interventionEngineRoutes);
-app.use('/api/rehabilitation', aiLimiter, requireSubscription, rehabilitationAssistantRoutes);
+app.use('/api/digital-twin', aiLimiter, authenticateToken, requireSubscription, digitalTwinRoutes);
+app.use('/api/risk-monitoring', aiLimiter, authenticateToken, requireSubscription, riskMonitoringRoutes);
+app.use('/api/intervention', aiLimiter, authenticateToken, requireSubscription, interventionEngineRoutes);
+app.use('/api/rehabilitation', aiLimiter, authenticateToken, requireSubscription, rehabilitationAssistantRoutes);
 app.use('/api/time-series', timeSeriesRoutes);
 app.use('/api/interventions', interventionsRoutes);
 app.use('/api/conversations', conversationsRoutes);
 app.use('/api/appointments', appointmentsRoutes);
-app.use('/api/reports', aiLimiter, requireSubscription, reportsRoutes);
+app.use('/api/reports', aiLimiter, authenticateToken, requireSubscription, reportsRoutes);
 app.use('/api/emergency', emergencyRoutes);
 app.use('/api/integrations/telegram', telegramIntegrationRoutes);
 app.use('/api/integrations/wechat', wechatIntegrationRoutes);

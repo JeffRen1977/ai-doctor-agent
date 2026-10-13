@@ -3,7 +3,6 @@ const userSettingsService = require('./userSettingsService');
 const userContextService = require('./userContextService');
 const contextBuilderService = require('./contextBuilderService');
 const aiProviderConfig = require('../config/aiProviderConfig');
-const { wrapResponse } = require('./medicalDisclaimerService');
 const { createRehabilitationRecord, validateRehabilitationRecord, validateFeedback } = require('../models/rehabilitationModels');
 const { rehabilitationRecordRepo, rehabilitationFeedbackRepo } = require('../repositories');
 
@@ -64,7 +63,7 @@ class RehabilitationAssistantService {
       
       return {
         success: true,
-        explanation: wrapResponse(aiResult.message, 'general', userLanguage),
+        explanation: aiResult.message,
         metrics: metrics
       };
     } catch (error) {
@@ -130,7 +129,7 @@ class RehabilitationAssistantService {
       
       return {
         success: true,
-        support: wrapResponse(aiResult.message, 'rehabilitation', userLanguage),
+        support: aiResult.message,
         anxietyLevel: anxietyLevel,
         recommendations: recommendations
       };
@@ -192,7 +191,7 @@ class RehabilitationAssistantService {
       return {
         success: true,
         type: type,
-        guidance: wrapResponse(aiResult.message, 'rehabilitation', userLanguage),
+        guidance: aiResult.message,
         duration: this.getMeditationDuration(type)
       };
     } catch (error) {
@@ -254,7 +253,7 @@ class RehabilitationAssistantService {
       
       return {
         success: true,
-        cbtSupport: wrapResponse(aiResult.message, 'rehabilitation', userLanguage),
+        cbtSupport: aiResult.message,
         techniques: techniques
       };
     } catch (error) {
@@ -329,7 +328,7 @@ class RehabilitationAssistantService {
       return {
         success: true,
         question: question,
-        answer: wrapResponse(answerText, 'general', userLanguage)
+        answer: answerText
       };
     } catch (error) {
       console.error('❌ Error answering health question:', error);

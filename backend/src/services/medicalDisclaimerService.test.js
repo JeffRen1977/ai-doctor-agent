@@ -3,6 +3,7 @@ const {
   wrapResponse,
   wrapAiResult,
   detectCategory,
+  hasDisclaimer,
   DISCLAIMERS
 } = require('./medicalDisclaimerService');
 
@@ -76,6 +77,35 @@ describe('medicalDisclaimerService', () => {
 
     it('returns empty string unchanged', () => {
       expect(wrapResponse('')).toBe('');
+    });
+
+    it('does not double-wrap when disclaimer already present', () => {
+      const once = wrapResponse('AI分析结果', 'general', 'zh');
+      const twice = wrapResponse(once, 'rehabilitation', 'zh');
+      expect(twice).toBe(once);
+      expect((twice.match(/⚠️/g) || []).length).toBe(1);
+    });
+
+    it('does not double-wrap with English disclaimer', () => {
+      const once = wrapResponse('AI result', 'general', 'en');
+      const twice = wrapResponse(once, 'medication', 'en');
+      expect(twice).toBe(once);
+    });
+  });
+
+  describe('hasDisclaimer', () => {
+    it('returns false for plain text', () => {
+      expect(hasDisclaimer('some plain text')).toBe(false);
+    });
+
+    it('returns true when text contains a disclaimer', () => {
+      const wrapped = wrapResponse('test', 'general', 'zh');
+      expect(hasDisclaimer(wrapped)).toBe(true);
+    });
+
+    it('returns false for null/empty', () => {
+      expect(hasDisclaimer(null)).toBe(false);
+      expect(hasDisclaimer('')).toBe(false);
     });
   });
 

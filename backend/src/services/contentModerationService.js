@@ -1,11 +1,14 @@
 const logger = require('../observability/logger');
 
 let GreenClient = null;
+let TextModerationRequest = null;
 let OpenApiModels = null;
 let TeaUtil = null;
 
 try {
-  GreenClient = require('@alicloud/green20220302').default;
+  const green = require('@alicloud/green20220302');
+  GreenClient = green.default;
+  TextModerationRequest = green.TextModerationRequest;
   OpenApiModels = require('@alicloud/openapi-client');
   TeaUtil = require('@alicloud/tea-util');
 } catch {
@@ -67,7 +70,7 @@ async function moderateText(text) {
       content: text.slice(0, 10000)
     });
 
-    const request = new GreenClient.TextModerationRequest({
+    const request = new TextModerationRequest({
       service: 'chat_detection',
       serviceParameters
     });
