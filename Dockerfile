@@ -20,8 +20,9 @@ WORKDIR /app
 
 ENV NODE_ENV production
 
-# Copy startup script (keep scripts directory structure)
+# Copy startup scripts
 COPY scripts/start-railway.js ./scripts/start-railway.js
+COPY scripts/start-production.js ./scripts/start-production.js
 
 # Copy dependencies and package files
 COPY package.json package-lock.json ./
@@ -37,19 +38,13 @@ COPY --from=builder /app/dist ./dist
 
 # Verify files are copied correctly
 RUN echo "=== BUILD VERIFICATION ===" && \
-    echo "Current directory:" && pwd && \
     echo "Root contents:" && ls -la && \
-    echo "Backend contents:" && ls -la backend/ && \
     echo "Backend/src contents:" && ls -la backend/src/ && \
     echo "Dist contents:" && ls -la dist/ && \
-    echo "Package.json exists:" && test -f package.json && echo "YES" || echo "NO" && \
-    echo "Start script exists:" && test -f scripts/start-railway.js && echo "YES" || echo "NO" && \
-    echo "Backend index exists:" && test -f backend/src/index.js && echo "YES" || echo "NO" && \
-    echo "Dist index exists:" && test -f dist/index.html && echo "YES" || echo "NO"
+    test -f backend/src/index.js && echo "Backend index: OK" && \
+    test -f dist/index.html && echo "Dist index: OK"
 
-# Railway will set PORT environment variable
-EXPOSE $PORT
+EXPOSE 8000
 ENV HOSTNAME "0.0.0.0"
 
-# Start using npm start (which runs start-railway.js)
-CMD ["npm", "start"]
+CMD ["node", "scripts/start-production.js"]

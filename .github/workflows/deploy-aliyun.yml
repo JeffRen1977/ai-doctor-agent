@@ -1,0 +1,111 @@
+name: Deploy to Alibaba Cloud
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20'
+  REGISTRY: ${{ secrets.ALIYUN_REGISTRY }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - run: npm ci
+
+      - run: npm test -- --no-coverage
+        env:
+          NODE_ENV: test
+          JWT_SECRET: test-secret-for-ci-only-not-production-aaaaaaaaaa
+
+  build-and-deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    env:
+      HAS_OSS_BUCKET: ${{ secrets.ALIYUN_OSS_BUCKET != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install and build frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Login to Alibaba Cloud ACR
+        run: |
+          docker login \
+            -u "${{ secrets.ALIYUN_ACR_USERNAME }}" \
+            -p "${{ secrets.ALIYUN_ACR_PASSWORD }}" \
+            "${{ env.REGISTRY }}"
+
+      - name: Build and push Docker image
+        run: |
+          IMAGE_TAG="${REGISTRY}/ai-doctor-agent:${GITHUB_SHA::7}"
+          docker build -t "$IMAGE_TAG" .
+          docker tag "$IMAGE_TAG" "${REGISTRY}/ai-doctor-agent:latest"
+          docker push "$IMAGE_TAG"
+          docker push "${REGISTRY}/ai-doctor-agent:latest"
+          echo "IMAGE_TAG=$IMAGE_TAG" >> "$GITHUB_ENV"
+
+      - name: Upload frontend to OSS
+        if: env.HAS_OSS_BUCKET == 'true'
+        run: |
+          curl -sSL https://gosspublic.alicdn.com/ossutil/install.sh | bash
+          ossutil config \
+            -e oss-cn-shanghai.aliyuncs.com \
+            -i "${{ secrets.ALIYUN_ACCESS_KEY_ID }}" \
+            -k "${{ secrets.ALIYUN_ACCESS_KEY_SECRET }}"
+          ossutil cp -r dist/assets \
+            "oss://${{ secrets.ALIYUN_OSS_BUCKET }}/assets/" \
+            --update
+
+      - name: Deploy to ECS
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.ALIYUN_ECS_HOST }}
+          username: ${{ secrets.ALIYUN_ECS_USER }}
+          key: ${{ secrets.ALIYUN_ECS_SSH_KEY }}
+          envs: IMAGE_TAG
+          script: |
+            set -euo pipefail
+            DEPLOY_DIR=/opt/ai-doctor-agent
+            cd "$DEPLOY_DIR"
+
+            cat > docker-compose.override.yml << EOF
+            services:
+              backend:
+                image: $IMAGE_TAG
+                build: !reset null
+            EOF
+
+            docker compose -f docker-compose.aliyun.yml \
+                           -f docker-compose.override.yml \
+                           pull backend
+
+            docker compose -f docker-compose.aliyun.yml \
+                           -f docker-compose.override.yml \
+                           up -d --remove-orphans
+
+            # Health check
+            for i in $(seq 1 30); do
+              curl -sf http://localhost:8000/health > /dev/null 2>&1 && break
+              sleep 1
+            done
+
+            docker compose -f docker-compose.aliyun.yml \
+                           -f docker-compose.override.yml ps

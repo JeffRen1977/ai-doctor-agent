@@ -12,10 +12,14 @@ export const getApiBaseUrl = (): string => {
   if (import.meta.env.VITE_RAILWAY_BACKEND_URL) {
     return `${import.meta.env.VITE_RAILWAY_BACKEND_URL}/api`
   }
+  // Alibaba Cloud ECS: same-origin deployment behind nginx
+  const hostname = window.location.hostname
+  if (hostname.endsWith('.aliyuncs.com') || hostname.endsWith('.ecs.aliyuncs.com')) {
+    return '/api'
+  }
+
   // In development, detect if accessing from mobile device
   if (import.meta.env.DEV) {
-    // Check if we're accessing from a mobile device or different host
-    const hostname = window.location.hostname
     const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1'
     
     if (isLocalhost) {

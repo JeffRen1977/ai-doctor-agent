@@ -108,19 +108,22 @@ if (!distPath) {
 
 // CORS configuration for Railway deployment
 const allowedOrigins = [
-  'http://localhost:3000', // Local development
-  'http://localhost:3001', // Vite dev server (alternative port)
-  'http://localhost:3003', // Vite HMR port (new)
-  'http://localhost:5173', // Vite dev server
-  'http://10.17.99.248:3000', // Network access for mobile testing
-  'http://10.17.99.248:3001', // Network access for mobile testing (alternative port)
-  'http://192.168.0.39:3000', // Network access for mobile testing (new IP)
-  'http://192.168.0.39:3001', // Network access for mobile testing (new IP alternative port)
-  'https://*.railway.app', // Railway domains
-  'https://*.vercel.app', // Vercel domains (all Vercel deployments)
-  'https://ai-theron.com', // Custom domain
-  'https://www.ai-theron.com', // Custom domain with www
-  process.env.FRONTEND_URL // Custom frontend URL if set
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3003',
+  'http://localhost:5173',
+  'http://10.17.99.248:3000',
+  'http://10.17.99.248:3001',
+  'http://192.168.0.39:3000',
+  'http://192.168.0.39:3001',
+  'https://*.railway.app',
+  'https://*.vercel.app',
+  'https://ai-theron.com',
+  'https://www.ai-theron.com',
+  'https://*.ecs.aliyuncs.com',
+  'https://*.oss-cn-shanghai.aliyuncs.com',
+  process.env.ALIYUN_CDN_DOMAIN ? `https://${process.env.ALIYUN_CDN_DOMAIN}` : null,
+  process.env.FRONTEND_URL
 ].filter(Boolean);
 
 const isDev = process.env.NODE_ENV !== 'production';
