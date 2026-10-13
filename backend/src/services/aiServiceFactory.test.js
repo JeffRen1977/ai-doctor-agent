@@ -72,10 +72,12 @@ describe('AIServiceFactory', () => {
       );
     });
 
-    test('returns adapter result', async () => {
+    test('returns adapter result with disclaimer', async () => {
       geminiService.analyzeImageWithAI.mockResolvedValue({ success: true, analysis: 'result text' });
       const out = await aiServiceFactory.analyzeImageWithAI('x', 'y', { provider: 'gemini' });
-      expect(out).toEqual({ success: true, analysis: 'result text' });
+      expect(out.success).toBe(true);
+      expect(out.analysis).toContain('result text');
+      expect(out.analysis).toContain('免责声明');
     });
   });
 
@@ -120,6 +122,43 @@ describe('AIServiceFactory', () => {
       geminiService.checkDrugInteractions = had;
       expect(out.success).toBe(false);
       expect(out.error).toContain('does not support checkDrugInteractions');
+    });
+  });
+
+  describe('medical disclaimer integration', () => {
+    test('healthChat result includes disclaimer', async () => {
+      geminiService.healthChat.mockResolvedValue({ success: true, message: 'AI advice' });
+      const out = await aiServiceFactory.healthChat('question', '', { provider: 'gemini' });
+      expect(out.message).toContain('AI advice');
+      expect(out.message).toContain('免责声明');
+    });
+
+    test('healthChat with English includes English disclaimer', async () => {
+      geminiService.healthChat.mockResolvedValue({ success: true, message: 'AI advice' });
+      const out = await aiServiceFactory.healthChat('question', '', { provider: 'gemini', language: 'en' });
+      expect(out.message).toContain('AI advice');
+      expect(out.message).toContain('Disclaimer');
+    });
+
+    test('checkDrugInteractions result includes medication disclaimer', async () => {
+      geminiService.checkDrugInteractions.mockResolvedValue({ success: true, analysis: 'drug info' });
+      const out = await aiServiceFactory.checkDrugInteractions(['aspirin'], { provider: 'gemini' });
+      expect(out.analysis).toContain('drug info');
+      expect(out.analysis).toContain('用药');
+    });
+
+    test('analyzeSymptoms result includes diagnosis disclaimer', async () => {
+      geminiService.analyzeSymptoms.mockResolvedValue({ success: true, analysis: 'symptom info' });
+      const out = await aiServiceFactory.analyzeSymptoms('headache', {}, { provider: 'gemini' });
+      expect(out.analysis).toContain('symptom info');
+      expect(out.analysis).toContain('诊断');
+    });
+
+    test('failed results are not wrapped', async () => {
+      geminiService.healthChat.mockResolvedValue({ success: false, error: 'API error' });
+      const out = await aiServiceFactory.healthChat('question', '', { provider: 'gemini' });
+      expect(out.error).toBe('API error');
+      expect(out.success).toBe(false);
     });
   });
 });

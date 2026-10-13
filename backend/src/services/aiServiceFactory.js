@@ -215,6 +215,8 @@ class AIServiceFactory {
  */
 const auditService = require('./auditService');
 const consentService = require('./consentService');
+const { wrapAiResult } = require('./medicalDisclaimerService');
+const contentModerationService = require('./contentModerationService');
 const logger = require('../observability/logger');
 const { getContext } = require('../observability/requestContext');
 
@@ -258,6 +260,30 @@ function withAudit(factory) {
       let failure = null;
       try {
         result = await original(...args);
+
+        const language = opts.language || 'zh';
+        result = wrapAiResult(result, method, language);
+
+        if (contentModerationService.isConfigured() && result && result.success) {
+          const textToCheck = result.analysis || result.message || result.text || '';
+          if (textToCheck) {
+            try {
+              const modResult = await contentModerationService.moderateHealthContent(textToCheck);
+              if (!modResult.safe) {
+                logger.warn({ method, labels: modResult.labels }, 'AI output blocked by content moderation');
+                result = {
+                  success: false,
+                  error: language === 'en'
+                    ? 'The generated content did not pass content review. Please rephrase your request.'
+                    : '生成内容未通过内容审核，请调整您的提问后重试。'
+                };
+              }
+            } catch (modErr) {
+              logger.error({ err: { message: modErr?.message } }, 'content moderation check failed');
+            }
+          }
+        }
+
         return result;
       } catch (error) {
         failure = error;
