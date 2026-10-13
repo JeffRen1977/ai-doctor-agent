@@ -18,6 +18,7 @@ import {
   WarningOutlined,
   FileSearchOutlined,
   TeamOutlined,
+  CrownOutlined,
 } from '@ant-design/icons'
 import { useAuthStore } from '@/stores/authStore'
 import { useLanguageStore } from '@/stores/languageStore'
@@ -175,6 +176,11 @@ const Sidebar: React.FC = () => {
     ...rehabilitationAssistantMenuItems,
     { type: 'divider', key: 'divider2' },
     ...clinicalCollaborationMenuItems,
+    {
+      key: '/subscription',
+      icon: <CrownOutlined />,
+      label: language === 'zh' ? '会员订阅' : 'Subscription',
+    },
   ]
 
   return (

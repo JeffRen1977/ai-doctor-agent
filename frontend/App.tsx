@@ -14,6 +14,7 @@ import DigitalTwinPage from './pages/DigitalTwinPage'
 import RehabilitationAssistantPage from './pages/RehabilitationAssistantPage'
 import CollaborationPage from './pages/CollaborationPage'
 import LegalPage from './pages/LegalPage'
+import SubscriptionPage from './pages/SubscriptionPage'
 import { useAuthStore } from './stores/authStore'
 import { useLanguageStore } from './stores/languageStore'
 import './App.css'
@@ -104,6 +105,7 @@ function App() {
             <Route path="/intervention" element={<InterventionEnginePage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/settings" element={<UserSettingsPage />} />
+            <Route path="/subscription" element={<SubscriptionPage />} />
             <Route path="/privacy" element={<LegalPage kind="privacy" />} />
             <Route path="/terms" element={<LegalPage kind="terms" />} />
             <Route path="/third-parties" element={<LegalPage kind="third-parties" />} />

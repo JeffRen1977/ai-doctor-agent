@@ -21,6 +21,7 @@ import CollaborationPage from '../pages/CollaborationPage'
 import DigitalTwinPage from '../pages/DigitalTwinPage'
 import RehabilitationAssistantPage from '../pages/RehabilitationAssistantPage'
 import LegalPage from '../pages/LegalPage'
+import SubscriptionPage from '../pages/SubscriptionPage'
 import { useAuthStore } from '../stores/authStore'
 import { useLanguageStore } from '../stores/languageStore'
 import { useMobile, useMobileNotifications } from '../hooks/useMobile'
@@ -96,6 +97,7 @@ const MobileApp: React.FC = () => {
           <Route path="/rehabilitation" element={<RehabilitationAssistantPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/settings" element={<UserSettingsPage />} />
+          <Route path="/subscription" element={<SubscriptionPage />} />
           <Route path="/privacy" element={<LegalPage kind="privacy" />} />
           <Route path="/terms" element={<LegalPage kind="terms" />} />
           <Route path="/third-parties" element={<LegalPage kind="third-parties" />} />

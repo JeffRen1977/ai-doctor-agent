@@ -38,5 +38,7 @@ module.exports = {
   consentRepo: adapters.consentRepo,
   privacyJobRepo: adapters.privacyJobRepo,
   smsCodeRepo: adapters.smsCodeRepo,
-  wechatBindingRepo: adapters.wechatBindingRepo
+  wechatBindingRepo: adapters.wechatBindingRepo,
+  orderRepo: adapters.orderRepo,
+  subscriptionRepo: adapters.subscriptionRepo
 };
