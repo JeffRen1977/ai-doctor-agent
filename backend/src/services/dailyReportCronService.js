@@ -189,6 +189,17 @@ async function runDailyReportBatch(opts = {}) {
       }
 
       row.wechat = await sendWeChatIfConfigured(userId, execSummary);
+
+      try {
+        const pushNotificationService = require('./pushNotificationService');
+        row.push = await pushNotificationService.sendPush(userId, {
+          title: language === 'en' ? 'Daily Health Report' : '每日健康报告',
+          body: String(execSummary).slice(0, 200)
+        });
+      } catch (pushErr) {
+        row.pushError = pushErr.message;
+      }
+
       summary.results.push(row);
     } catch (err) {
       row.error = err.message;

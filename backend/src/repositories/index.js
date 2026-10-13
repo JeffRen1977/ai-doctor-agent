@@ -40,5 +40,6 @@ module.exports = {
   smsCodeRepo: adapters.smsCodeRepo,
   wechatBindingRepo: adapters.wechatBindingRepo,
   orderRepo: adapters.orderRepo,
-  subscriptionRepo: adapters.subscriptionRepo
+  subscriptionRepo: adapters.subscriptionRepo,
+  deviceTokenRepo: adapters.deviceTokenRepo
 };
