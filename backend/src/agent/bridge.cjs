@@ -7,11 +7,12 @@ let _modules = null;
 
 async function loadAgentModules() {
   if (!_modules) {
-    const [orchestrator, init] = await Promise.all([
+    const [orchestrator, init, safety] = await Promise.all([
       import('./orchestrator.mjs'),
       import('./init.mjs'),
+      import('./safety.mjs'),
     ]);
-    _modules = { orchestrator, init };
+    _modules = { orchestrator, init, safety };
   }
   return _modules;
 }
@@ -31,4 +32,9 @@ async function getAgentInstance() {
   return init.getAgentInstance();
 }
 
-module.exports = { getOrchestrator, initAgent, getAgentInstance };
+async function getAgentSafety() {
+  const { safety } = await loadAgentModules();
+  return safety;
+}
+
+module.exports = { getOrchestrator, initAgent, getAgentInstance, getAgentSafety };

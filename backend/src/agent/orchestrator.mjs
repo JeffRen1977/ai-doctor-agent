@@ -15,7 +15,7 @@ export async function chat({
 
   const patientProfile = await memoryManager.loadPatientProfile(userId);
   const relevantMemories = await memoryManager.searchRelevant(message, userId);
-  const recentMessages = memoryManager.getRecentMessages(sessionId);
+  const recentMessages = memoryManager.getRecentMessages(userId, sessionId);
 
   const tools = toolRegistry.getForSkill(skill);
 
@@ -42,8 +42,8 @@ export async function chat({
 
   const answer = result.text;
 
-  memoryManager.appendToSession(sessionId, 'user', message);
-  memoryManager.appendToSession(sessionId, 'assistant', answer);
+  memoryManager.appendToSession(userId, sessionId, 'user', message);
+  memoryManager.appendToSession(userId, sessionId, 'assistant', answer);
 
   return {
     message: answer,

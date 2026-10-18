@@ -5,12 +5,12 @@ export class MemoryManager {
     this.shortTerm = new ShortTermMemory();
   }
 
-  getRecentMessages(sessionId, limit = 20) {
-    return this.shortTerm.getRecentMessages(sessionId, limit);
+  getRecentMessages(userId, sessionId, limit = 20) {
+    return this.shortTerm.getRecentMessages(userId, sessionId, limit);
   }
 
-  appendToSession(sessionId, role, content) {
-    this.shortTerm.append(sessionId, role, content);
+  appendToSession(userId, sessionId, role, content) {
+    this.shortTerm.append(userId, sessionId, role, content);
   }
 
   async loadPatientProfile(_userId) {

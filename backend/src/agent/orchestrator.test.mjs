@@ -105,8 +105,8 @@ describe('orchestrator.chat', () => {
     });
 
     expect(mockMemory.appendToSession).toHaveBeenCalledTimes(2);
-    expect(mockMemory.appendToSession).toHaveBeenCalledWith('s1', 'user', '你好');
-    expect(mockMemory.appendToSession).toHaveBeenCalledWith('s1', 'assistant', '回复内容');
+    expect(mockMemory.appendToSession).toHaveBeenCalledWith('u1', 's1', 'user', '你好');
+    expect(mockMemory.appendToSession).toHaveBeenCalledWith('u1', 's1', 'assistant', '回复内容');
   });
 
   test('prepends recent messages from memory', async () => {

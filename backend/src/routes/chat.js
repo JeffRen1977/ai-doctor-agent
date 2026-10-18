@@ -7,7 +7,7 @@ const { requireConsent } = require('../middleware/requireConsent');
 const { CONSENT_PURPOSES } = require('../models/consent');
 const { chatSessionRepo, chatHistoryRepo } = require('../repositories');
 const contextBuilderService = require('../services/contextBuilderService');
-const { getOrchestrator, getAgentInstance } = require('../agent/bridge.cjs');
+const { getOrchestrator, getAgentInstance, getAgentSafety } = require('../agent/bridge.cjs');
 
 const router = express.Router();
 
@@ -123,11 +123,16 @@ router.post('/send', authenticateToken, requireConsent(CONSENT_PURPOSES.AI_INFER
     if (agentEnabled) {
       // Agent 路径：通过 Vercel AI SDK Agent Loop
       try {
+        const safety = await getAgentSafety();
+        await safety.assertAgentConsent(userEmail);
+
         const { chat: agentChat } = await getOrchestrator();
         const { toolRegistry, memoryManager } = await getAgentInstance();
         const sanitizedUserId = sanitizeUserId(userEmail);
-        const currentSessionId = await chatSessionRepo.getOrCreateSession(sanitizedUserId).then(r => r.sessionId).catch(() => 'default');
+        const sessionResult = await chatSessionRepo.getOrCreateSession(sanitizedUserId);
+        const currentSessionId = sessionResult.sessionId;
 
+        const startedAt = Date.now();
         const agentResult = await agentChat({
           userId: sanitizedUserId,
           userEmail,
@@ -137,11 +142,22 @@ router.post('/send', authenticateToken, requireConsent(CONSENT_PURPOSES.AI_INFER
           toolRegistry,
           memoryManager,
         });
-        aiResponse = agentResult.message;
+        const latencyMs = Date.now() - startedAt;
+
+        const moderated = await safety.moderateAgentOutput(agentResult.message, userLanguage);
+        if (moderated === null) {
+          const errorMessage = userLanguage === 'en'
+            ? 'The generated content did not pass content review. Please rephrase your request.'
+            : '生成内容未通过内容审核，请调整您的提问后重试。';
+          await safety.recordAgentAudit({ userEmail, message, answer: null, latencyMs, success: false, errorMessage, steps: agentResult.steps });
+          return res.status(400).json({ error: errorMessage });
+        }
+
+        aiResponse = safety.appendDisclaimer(moderated, userLanguage);
+        await safety.recordAgentAudit({ userEmail, message, answer: aiResponse, latencyMs, success: true, steps: agentResult.steps });
         console.log(`✅ Agent responded in ${agentResult.steps} step(s)`);
       } catch (agentError) {
         console.error('❌ Agent path failed, falling back:', agentError.message);
-        // 降级到传统路径
         const agentFallback = await legacyChat(userEmail, message, userProvider, userModel, userLanguage);
         if (!agentFallback.success) {
           const errorMessage = userLanguage === 'en' ? 'AI service temporarily unavailable' : 'AI服务暂时不可用';
