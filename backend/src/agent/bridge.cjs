@@ -3,13 +3,32 @@
  * dynamic import() 是 CJS 中调用 ESM 的标准方式。
  */
 
-let _orchestrator = null;
+let _modules = null;
 
-async function getOrchestrator() {
-  if (!_orchestrator) {
-    _orchestrator = await import('./orchestrator.mjs');
+async function loadAgentModules() {
+  if (!_modules) {
+    const [orchestrator, init] = await Promise.all([
+      import('./orchestrator.mjs'),
+      import('./init.mjs'),
+    ]);
+    _modules = { orchestrator, init };
   }
-  return _orchestrator;
+  return _modules;
 }
 
-module.exports = { getOrchestrator };
+async function getOrchestrator() {
+  const { orchestrator } = await loadAgentModules();
+  return orchestrator;
+}
+
+async function initAgent(repos) {
+  const { init } = await loadAgentModules();
+  return init.initAgent(repos);
+}
+
+async function getAgentInstance() {
+  const { init } = await loadAgentModules();
+  return init.getAgentInstance();
+}
+
+module.exports = { getOrchestrator, initAgent, getAgentInstance };

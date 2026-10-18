@@ -7,6 +7,7 @@ const { requireConsent } = require('../middleware/requireConsent');
 const { CONSENT_PURPOSES } = require('../models/consent');
 const { chatSessionRepo, chatHistoryRepo } = require('../repositories');
 const contextBuilderService = require('../services/contextBuilderService');
+const { getOrchestrator, getAgentInstance } = require('../agent/bridge.cjs');
 
 const router = express.Router();
 
@@ -62,6 +63,28 @@ async function getChatHistory(userEmail, limitCount = 50) {
   }
 }
 
+async function legacyChat(userEmail, message, provider, model, language) {
+  let chatContext = '';
+  try {
+    const sanitizedUserId = sanitizeUserId(userEmail);
+    const payload = await contextBuilderService.buildAIContext(sanitizedUserId, {
+      medications: true,
+      chatRecent: true,
+      language,
+    });
+    chatContext = contextBuilderService.formatContextForSystemPrompt(payload);
+  } catch (e) {
+    console.warn('⚠️ buildAIContext for chat failed:', e.message);
+  }
+
+  return aiServiceFactory.healthChat(message, chatContext, {
+    provider,
+    model,
+    language,
+    userEmail,
+  });
+}
+
 // 发送消息到AI医生
 router.post('/send', authenticateToken, requireConsent(CONSENT_PURPOSES.AI_INFERENCE), async (req, res) => {
   try {
@@ -93,35 +116,48 @@ router.post('/send', authenticateToken, requireConsent(CONSENT_PURPOSES.AI_INFER
     userLanguage = userAISettings.success ? userAISettings.language : 'zh';
     
     console.log(`🤖 Using AI provider: ${userProvider}, model: ${userModel}, language: ${userLanguage} for chat`);
-    
-    // 通过 Context Builder 获取基础档案 + 最近对话，拼入 prompt 上下文
-    let chatContext = '';
-    try {
-      const sanitizedUserId = sanitizeUserId(userEmail);
-      const payload = await contextBuilderService.buildAIContext(sanitizedUserId, {
-        medications: true,
-        chatRecent: true,
-        language: userLanguage
-      });
-      chatContext = contextBuilderService.formatContextForSystemPrompt(payload);
-    } catch (e) {
-      console.warn('⚠️ buildAIContext for chat failed:', e.message);
-    }
-    
-    // 使用AI服务工厂生成回复
-    const aiResult = await aiServiceFactory.healthChat(message, chatContext, {
-      provider: userProvider,
-      model: userModel,
-      language: userLanguage,
-      userEmail
-    });
-    
-    if (!aiResult.success) {
-      const errorMessage = userLanguage === 'en' ? 'AI service temporarily unavailable' : 'AI服务暂时不可用';
-      return res.status(500).json({ error: errorMessage });
-    }
 
-    const aiResponse = aiResult.message;
+    let aiResponse;
+    const agentEnabled = process.env.AGENT_ENABLED === 'true';
+
+    if (agentEnabled) {
+      // Agent 路径：通过 Vercel AI SDK Agent Loop
+      try {
+        const { chat: agentChat } = await getOrchestrator();
+        const { toolRegistry, memoryManager } = await getAgentInstance();
+        const sanitizedUserId = sanitizeUserId(userEmail);
+        const currentSessionId = await chatSessionRepo.getOrCreateSession(sanitizedUserId).then(r => r.sessionId).catch(() => 'default');
+
+        const agentResult = await agentChat({
+          userId: sanitizedUserId,
+          userEmail,
+          message,
+          sessionId: currentSessionId,
+          language: userLanguage,
+          toolRegistry,
+          memoryManager,
+        });
+        aiResponse = agentResult.message;
+        console.log(`✅ Agent responded in ${agentResult.steps} step(s)`);
+      } catch (agentError) {
+        console.error('❌ Agent path failed, falling back:', agentError.message);
+        // 降级到传统路径
+        const agentFallback = await legacyChat(userEmail, message, userProvider, userModel, userLanguage);
+        if (!agentFallback.success) {
+          const errorMessage = userLanguage === 'en' ? 'AI service temporarily unavailable' : 'AI服务暂时不可用';
+          return res.status(500).json({ error: errorMessage });
+        }
+        aiResponse = agentFallback.message;
+      }
+    } else {
+      // 传统路径：通过 AIServiceFactory
+      const legacyResult = await legacyChat(userEmail, message, userProvider, userModel, userLanguage);
+      if (!legacyResult.success) {
+        const errorMessage = userLanguage === 'en' ? 'AI service temporarily unavailable' : 'AI服务暂时不可用';
+        return res.status(500).json({ error: errorMessage });
+      }
+      aiResponse = legacyResult.message;
+    }
 
     // 保存AI回复
     try {

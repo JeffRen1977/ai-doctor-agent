@@ -618,6 +618,16 @@ async function startServer() {
   } else {
     console.log('🔐 Auth: firebase (Firebase Auth)');
   }
+  if (process.env.AGENT_ENABLED === 'true') {
+    try {
+      const { initAgent } = require('./agent/bridge.cjs');
+      const repos = require('./repositories');
+      await initAgent(repos);
+      console.log('✅ Agent initialized (AGENT_ENABLED=true)');
+    } catch (agentErr) {
+      console.error('⚠️ Agent init failed, agent path disabled:', agentErr.message);
+    }
+  }
   return new Promise((resolve, reject) => {
     const server = app.listen(PORT, '0.0.0.0', () => {
       // env 已由 logger 的 base 字段提供，此处不再重复传，避免 JSON 出现重复 key
