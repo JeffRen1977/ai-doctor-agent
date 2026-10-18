@@ -21,8 +21,9 @@
     "start": "node scripts/start-railway.js",
     "start:railway": "node scripts/start-railway.js",
     "start:backend": "node backend/src/index.js",
-    "test": "jest --testPathIgnorePatterns=node_modules",
-    "test:unit": "jest backend/src --testPathIgnorePatterns=node_modules",
+    "test": "NODE_OPTIONS='--experimental-vm-modules' jest --testPathIgnorePatterns=node_modules",
+    "test:unit": "NODE_OPTIONS='--experimental-vm-modules' jest backend/src --testPathIgnorePatterns=node_modules",
+    "test:agent": "NODE_OPTIONS='--experimental-vm-modules' jest backend/src/agent --testPathIgnorePatterns=node_modules",
     "test:login": "node scripts/test-login.js",
     "test:language": "node scripts/test-language-sync.js",
     "test:mongodb": "node scripts/test-mongodb-health-summary.js",
@@ -40,6 +41,7 @@
     "android:bundle": "bash android/gradlew-release.sh"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^4.0.96",
     "@alicloud/dysmsapi20170525": "^4.6.0",
     "@alicloud/green20220302": "^2.23.0",
     "@alicloud/openapi-client": "^0.4.15",
@@ -51,6 +53,7 @@
     "@capacitor/core": "^7.6.5",
     "@google-cloud/storage": "^7.17.0",
     "@google/generative-ai": "^0.24.1",
+    "ai": "^7.0.143",
     "antd": "^5.0.0",
     "axios": "^1.3.0",
     "bcryptjs": "^2.4.3",
@@ -81,6 +84,7 @@
     "react-router-dom": "^6.8.0",
     "remark-gfm": "^4.0.1",
     "xml2js": "^0.6.2",
+    "zod": "^4.6.7",
     "zustand": "^4.3.0"
   },
   "devDependencies": {
@@ -107,6 +111,11 @@
   "jest": {
     "setupFiles": [
       "<rootDir>/jest.setup.js"
+    ],
+    "transform": {},
+    "testMatch": [
+      "**/*.test.js",
+      "**/*.test.mjs"
     ]
   }
 }
