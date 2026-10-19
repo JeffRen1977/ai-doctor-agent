@@ -41,10 +41,10 @@ export function createAgentSafety(deps = {}) {
       return disclaimerService.wrapResponse(text, 'message', language);
     },
 
-    async recordAgentAudit({ userEmail, message, answer, latencyMs, success, errorMessage, steps }) {
+    async recordAgentAudit({ userEmail, message, answer, latencyMs, success, errorMessage, steps, skillName }) {
       try {
         await auditService.recordAiDecision({
-          operation: 'healthChat',
+          operation: skillName || 'healthChat',
           provider: getAgentProvider(),
           model: process.env.AGENT_MODEL || 'gpt-4o',
           input: message,

@@ -82,6 +82,20 @@ describe('Agent safety', () => {
     expect(params.metadata.steps).toBe(2);
   });
 
+  test('recordAgentAudit uses custom skillName as operation', async () => {
+    await safety.recordAgentAudit({
+      userEmail: 'u@test.com',
+      message: 'q',
+      answer: 'a',
+      latencyMs: 100,
+      success: true,
+      steps: 1,
+      skillName: 'symptom_analysis',
+    });
+    const params = mockAuditService.recordAiDecision.mock.calls[0][0];
+    expect(params.operation).toBe('symptom_analysis');
+  });
+
   test('recordAgentAudit swallows audit errors', async () => {
     mockAuditService.recordAiDecision.mockRejectedValue(new Error('db down'));
     await expect(

@@ -7,9 +7,10 @@ describe('initAgent', () => {
     medicationRepo: { listActive: jest.fn() },
     userBasicInfoRepo: { getBasicInfo: jest.fn(), getFullHealthRecord: jest.fn() },
     riskAlertRepo: { getRecentAlertsByUser: jest.fn() },
+    wearableStreamDataRepo: { getRecentByUser: jest.fn() },
   };
 
-  test('registers all 4 tools and creates memoryManager', () => {
+  test('registers all 5 tools and creates memoryManager', () => {
     const { toolRegistry, memoryManager } = initAgent(fakeRepos);
     expect(toolRegistry.list()).toEqual(
       expect.arrayContaining([
@@ -17,17 +18,30 @@ describe('initAgent', () => {
         'query_medications',
         'query_health_records',
         'query_risk_alerts',
+        'query_wearable_stream',
       ]),
     );
-    expect(toolRegistry.list()).toHaveLength(4);
+    expect(toolRegistry.list()).toHaveLength(5);
     expect(memoryManager).toBeDefined();
     expect(typeof memoryManager.appendToSession).toBe('function');
   });
 
-  test('getAgentInstance returns same instance after init', () => {
+  test('registers all 4 skills with healthChat as default', () => {
+    const { skillRegistry } = initAgent(fakeRepos);
+    expect(skillRegistry.list()).toEqual(
+      expect.arrayContaining([
+        'health_chat', 'symptom_analysis', 'drug_interaction', 'risk_assessment',
+      ]),
+    );
+    expect(skillRegistry.list()).toHaveLength(4);
+    expect(skillRegistry.getDefault().name).toBe('health_chat');
+  });
+
+  test('getAgentInstance returns same instance with all three registries', () => {
     initAgent(fakeRepos);
     const inst = getAgentInstance();
     expect(inst.toolRegistry).toBeDefined();
     expect(inst.memoryManager).toBeDefined();
+    expect(inst.skillRegistry).toBeDefined();
   });
 });

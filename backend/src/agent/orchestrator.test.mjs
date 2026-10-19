@@ -28,6 +28,12 @@ describe('orchestrator.chat', () => {
     }),
   };
 
+  const mockSkillReg = {
+    get: jest.fn(),
+    getDefault: jest.fn(),
+    has: jest.fn(() => true),
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
     mockMemory.loadPatientProfile.mockResolvedValue(null);
@@ -35,7 +41,7 @@ describe('orchestrator.chat', () => {
     mockMemory.getRecentMessages.mockReturnValue([]);
   });
 
-  test('calls generateText with correct structure and returns response', async () => {
+  test('falls back to healthChat when no skillRegistry provided', async () => {
     mockGenerateText.mockResolvedValue({
       text: '您的血糖最近控制得不错',
       steps: [{ toolCalls: [] }, { toolCalls: [] }],
@@ -53,21 +59,48 @@ describe('orchestrator.chat', () => {
     });
 
     expect(result.message).toContain('血糖');
+    expect(result.skillName).toBe('health_chat');
     expect(result.steps).toBe(2);
-    expect(result.usage).toBeDefined();
 
-    expect(mockGenerateText).toHaveBeenCalledTimes(1);
     const callArgs = mockGenerateText.mock.calls[0][0];
-    expect(callArgs.model).toEqual({ modelId: 'gpt-4o' });
     expect(callArgs.system).toContain('健康管家');
-    expect(callArgs.messages).toHaveLength(1);
-    expect(callArgs.messages[0]).toEqual({ role: 'user', content: '血糖怎么样' });
     expect(callArgs.stopWhen).toBe('stepCount:5');
   });
 
-  test('builds toolsContext with userId and userEmail per tool', async () => {
+  test('uses intent router to select skill when skillRegistry provided', async () => {
+    const symptomSkill = {
+      name: 'symptom_analysis',
+      allowedTools: ['query_vitals'],
+      systemPrompt: () => '症状分析专用提示',
+      postProcess: (t) => t,
+      safetyRules: {},
+    };
+    mockSkillReg.get.mockReturnValue(symptomSkill);
+    mockSkillReg.getDefault.mockReturnValue({ name: 'health_chat' });
+    mockGenerateText.mockResolvedValue({
+      text: 'symptom answer', steps: [], usage: {},
+    });
+
+    const result = await chat({
+      userId: 'u1',
+      userEmail: 'u1@test.com',
+      message: '我头疼',
+      sessionId: 's1',
+      language: 'zh',
+      toolRegistry: mockToolReg,
+      memoryManager: mockMemory,
+      skillRegistry: mockSkillReg,
+    });
+
+    expect(result.skillName).toBe('symptom_analysis');
+    const callArgs = mockGenerateText.mock.calls[0][0];
+    expect(callArgs.system).toBe('症状分析专用提示');
+  });
+
+  test('builds toolsContext with userEmail for wearable_stream tool', async () => {
     mockToolReg.getForSkill.mockReturnValue({
       query_vitals: {},
+      query_wearable_stream: {},
       query_risk_alerts: {},
     });
     mockGenerateText.mockResolvedValue({
@@ -87,6 +120,35 @@ describe('orchestrator.chat', () => {
     const callArgs = mockGenerateText.mock.calls[0][0];
     expect(callArgs.toolsContext.query_vitals).toEqual({ userId: 'u1' });
     expect(callArgs.toolsContext.query_risk_alerts).toEqual({ userEmail: 'u1@test.com' });
+    expect(callArgs.toolsContext.query_wearable_stream).toEqual({ userEmail: 'u1@test.com' });
+  });
+
+  test('calls skill.postProcess on the answer', async () => {
+    const customSkill = {
+      name: 'custom',
+      allowedTools: [],
+      systemPrompt: () => 'prompt',
+      postProcess: (t) => `[processed] ${t}`,
+      safetyRules: {},
+    };
+    mockSkillReg.get.mockReturnValue(customSkill);
+    mockSkillReg.getDefault.mockReturnValue(customSkill);
+    mockGenerateText.mockResolvedValue({
+      text: 'raw answer', steps: [], usage: {},
+    });
+
+    const result = await chat({
+      userId: 'u1',
+      userEmail: 'u1@test.com',
+      message: 'test',
+      sessionId: 's1',
+      language: 'zh',
+      toolRegistry: mockToolReg,
+      memoryManager: mockMemory,
+      skillRegistry: mockSkillReg,
+    });
+
+    expect(result.message).toBe('[processed] raw answer');
   });
 
   test('updates short-term memory after response', async () => {

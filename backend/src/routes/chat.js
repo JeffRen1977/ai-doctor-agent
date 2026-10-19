@@ -127,7 +127,7 @@ router.post('/send', authenticateToken, requireConsent(CONSENT_PURPOSES.AI_INFER
         await safety.assertAgentConsent(userEmail);
 
         const { chat: agentChat } = await getOrchestrator();
-        const { toolRegistry, memoryManager } = await getAgentInstance();
+        const { toolRegistry, memoryManager, skillRegistry } = await getAgentInstance();
         const sanitizedUserId = sanitizeUserId(userEmail);
         const sessionResult = await chatSessionRepo.getOrCreateSession(sanitizedUserId);
         const currentSessionId = sessionResult.sessionId;
@@ -141,6 +141,7 @@ router.post('/send', authenticateToken, requireConsent(CONSENT_PURPOSES.AI_INFER
           language: userLanguage,
           toolRegistry,
           memoryManager,
+          skillRegistry,
         });
         const latencyMs = Date.now() - startedAt;
 
@@ -149,13 +150,13 @@ router.post('/send', authenticateToken, requireConsent(CONSENT_PURPOSES.AI_INFER
           const errorMessage = userLanguage === 'en'
             ? 'The generated content did not pass content review. Please rephrase your request.'
             : '生成内容未通过内容审核，请调整您的提问后重试。';
-          await safety.recordAgentAudit({ userEmail, message, answer: null, latencyMs, success: false, errorMessage, steps: agentResult.steps });
+          await safety.recordAgentAudit({ userEmail, message, answer: null, latencyMs, success: false, errorMessage, steps: agentResult.steps, skillName: agentResult.skillName });
           return res.status(400).json({ error: errorMessage });
         }
 
         aiResponse = safety.appendDisclaimer(moderated, userLanguage);
-        await safety.recordAgentAudit({ userEmail, message, answer: aiResponse, latencyMs, success: true, steps: agentResult.steps });
-        console.log(`✅ Agent responded in ${agentResult.steps} step(s)`);
+        await safety.recordAgentAudit({ userEmail, message, answer: aiResponse, latencyMs, success: true, steps: agentResult.steps, skillName: agentResult.skillName });
+        console.log(`✅ Agent [${agentResult.skillName}] responded in ${agentResult.steps} step(s)`);
       } catch (agentError) {
         console.error('❌ Agent path failed, falling back:', agentError.message);
         const agentFallback = await legacyChat(userEmail, message, userProvider, userModel, userLanguage);

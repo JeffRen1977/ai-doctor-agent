@@ -1,9 +1,15 @@
 import { ToolRegistry } from './tools/registry.mjs';
 import { MemoryManager } from './memoryManager.mjs';
+import { SkillRegistry } from './skills/skillRegistry.mjs';
 import { createQueryVitalsTool } from './tools/queryVitals.mjs';
 import { createQueryMedicationsTool } from './tools/queryMedications.mjs';
 import { createQueryHealthRecordsTool } from './tools/queryHealthRecords.mjs';
 import { createQueryRiskAlertsTool } from './tools/queryRiskAlerts.mjs';
+import { createQueryWearableStreamTool } from './tools/queryWearableStream.mjs';
+import { healthChatSkill } from './skills/healthChat.mjs';
+import { symptomAnalysisSkill } from './skills/symptomAnalysis.mjs';
+import { drugInteractionSkill } from './skills/drugInteraction.mjs';
+import { riskAssessmentSkill } from './skills/riskAssessment.mjs';
 
 let _instance = null;
 
@@ -30,10 +36,21 @@ export function initAgent(repos) {
     createQueryRiskAlertsTool(repos.riskAlertRepo),
     'read',
   );
+  toolRegistry.register(
+    'query_wearable_stream',
+    createQueryWearableStreamTool(repos.wearableStreamDataRepo),
+    'read',
+  );
+
+  const skillRegistry = new SkillRegistry();
+  skillRegistry.register({ ...healthChatSkill, isDefault: true });
+  skillRegistry.register(symptomAnalysisSkill);
+  skillRegistry.register(drugInteractionSkill);
+  skillRegistry.register(riskAssessmentSkill);
 
   const memoryManager = new MemoryManager();
 
-  _instance = { toolRegistry, memoryManager };
+  _instance = { toolRegistry, memoryManager, skillRegistry };
   return _instance;
 }
 
