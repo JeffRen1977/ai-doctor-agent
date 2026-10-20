@@ -33,6 +33,8 @@ const telegramBindingAdapter = require('./telegramBindingAdapter');
 const auditEventAdapter = require('./auditEventAdapter');
 const consentAdapter = require('./consentAdapter');
 const privacyJobAdapter = require('./privacyJobAdapter');
+const agentMemoryAdapter = require('./agentMemoryAdapter');
+const patientProfileAdapter = require('./patientProfileAdapter');
 
 module.exports = {
   userBasicInfoRepo: userBasicInfoAdapter,
@@ -65,5 +67,7 @@ module.exports = {
   telegramBindingRepo: telegramBindingAdapter,
   auditEventRepo: auditEventAdapter,
   consentRepo: consentAdapter,
-  privacyJobRepo: privacyJobAdapter
+  privacyJobRepo: privacyJobAdapter,
+  agentMemoryRepo: agentMemoryAdapter,
+  patientProfileRepo: patientProfileAdapter
 };

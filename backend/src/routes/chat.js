@@ -242,11 +242,13 @@ router.delete('/history', authenticateToken, async (req, res) => {
     const userEmail = req.user.email;
     const userId = sanitizeUserId(userEmail);
     console.log('🗑️  清除聊天历史，用户邮箱:', userEmail);
-    await chatSessionRepo.clearLatestSession(userId);
     try {
       const { memoryManager } = await getAgentInstance();
-      memoryManager.clearUserSessions(userId);
-    } catch (_) { /* agent not initialised */ }
+      const sessionResult = await chatSessionRepo.getLatestSession(userId);
+      const sid = sessionResult ? sessionResult.sessionId : null;
+      await memoryManager.summarizeAndClear(userId, sid);
+    } catch (_) { /* agent not initialised — fall back to plain clear */ }
+    await chatSessionRepo.clearLatestSession(userId);
     res.json({ message: '聊天历史已清除' });
   } catch (error) {
     console.error('❌ 清除聊天历史错误:', error);

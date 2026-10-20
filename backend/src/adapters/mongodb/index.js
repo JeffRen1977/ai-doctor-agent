@@ -38,6 +38,8 @@ const wechatBindingAdapter = require('./wechatBindingAdapter');
 const orderAdapter = require('./orderAdapter');
 const subscriptionAdapter = require('./subscriptionAdapter');
 const deviceTokenAdapter = require('./deviceTokenAdapter');
+const agentMemoryAdapter = require('./agentMemoryAdapter');
+const patientProfileAdapter = require('./patientProfileAdapter');
 
 /** 供 auth 路由判断：当前为 MongoDB 时使用本地认证（不经过 Firebase Auth） */
 const __useMongoAuth = true;
@@ -79,5 +81,7 @@ module.exports = {
   wechatBindingRepo: wechatBindingAdapter,
   orderRepo: orderAdapter,
   subscriptionRepo: subscriptionAdapter,
-  deviceTokenRepo: deviceTokenAdapter
+  deviceTokenRepo: deviceTokenAdapter,
+  agentMemoryRepo: agentMemoryAdapter,
+  patientProfileRepo: patientProfileAdapter
 };

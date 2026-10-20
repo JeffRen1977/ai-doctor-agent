@@ -1,10 +1,14 @@
 import { ShortTermMemory } from './memory/shortTermMemory.mjs';
+import { LongTermMemory } from './memory/longTermMemory.mjs';
+import { EpisodicMemory } from './memory/episodicMemory.mjs';
 
 export class MemoryManager {
-  constructor({ chatSessionRepo, userBasicInfoRepo } = {}) {
+  constructor({ chatSessionRepo, userBasicInfoRepo, agentMemoryRepo, patientProfileRepo } = {}) {
     this.shortTerm = new ShortTermMemory();
     this.chatSessionRepo = chatSessionRepo || null;
     this.userBasicInfoRepo = userBasicInfoRepo || null;
+    this.longTerm = new LongTermMemory({ agentMemoryRepo });
+    this.episodic = new EpisodicMemory({ patientProfileRepo });
     this._hydrated = new Set();
   }
 
@@ -35,6 +39,20 @@ export class MemoryManager {
   }
 
   async loadPatientProfile(userId) {
+    const [basicInfo, episodicProfile] = await Promise.all([
+      this._loadBasicInfo(userId),
+      this.episodic.getProfile(userId),
+    ]);
+
+    if (!basicInfo && !episodicProfile) return null;
+
+    return {
+      ...(basicInfo || {}),
+      ...(episodicProfile || {}),
+    };
+  }
+
+  async _loadBasicInfo(userId) {
     if (!this.userBasicInfoRepo) return null;
     try {
       const info = await this.userBasicInfoRepo.getBasicInfo(userId);
@@ -51,6 +69,23 @@ export class MemoryManager {
     }
   }
 
+  async searchRelevant(query, userId, limit = 5) {
+    return this.longTerm.search(query, userId, limit);
+  }
+
+  async summarizeAndClear(userId, sessionId) {
+    const messages = this.shortTerm.getMessages(userId, sessionId);
+
+    if (messages.length > 0) {
+      await Promise.all([
+        this.longTerm.extractAndStore(userId, sessionId, messages),
+        this.episodic.updateFromConversation(userId, messages),
+      ]);
+    }
+
+    this.clearUserSessions(userId);
+  }
+
   clearUserSessions(userId) {
     this.shortTerm.clearByUser(userId);
     for (const key of this._hydrated) {
@@ -58,9 +93,5 @@ export class MemoryManager {
         this._hydrated.delete(key);
       }
     }
-  }
-
-  async searchRelevant(_query, _userId) {
-    return [];
   }
 }

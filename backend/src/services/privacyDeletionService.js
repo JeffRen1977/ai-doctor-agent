@@ -12,6 +12,8 @@ const {
   healthRecordRepo,
   chatHistoryRepo,
   chatSessionRepo,
+  agentMemoryRepo,
+  patientProfileRepo,
   userSettingsRepo,
   digitalTwinRepo,
   conversationRepo,
@@ -118,6 +120,8 @@ async function deleteAccount({ email, userId, password, confirmEmail }) {
   steps.push(await tryStep('medications', () => callIfPresent(medicationRepo, 'deleteByUser', sanitized)));
   steps.push(await tryStep('chatHistory', () => callIfPresent(chatHistoryRepo, 'deleteByUser', email)));
   steps.push(await tryStep('chatSessions', () => callIfPresent(chatSessionRepo, 'deleteUserSessions', sanitized)));
+  steps.push(await tryStep('agentMemories', () => callIfPresent(agentMemoryRepo, 'deleteByUser', sanitized)));
+  steps.push(await tryStep('patientProfiles', () => callIfPresent(patientProfileRepo, 'deleteByUser', sanitized)));
   steps.push(await tryStep('chatSessions.memory', async () => {
     const { getAgentInstance } = require('../agent/bridge.cjs');
     const { memoryManager } = await getAgentInstance();

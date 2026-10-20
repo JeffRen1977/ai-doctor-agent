@@ -41,5 +41,7 @@ module.exports = {
   wechatBindingRepo: adapters.wechatBindingRepo,
   orderRepo: adapters.orderRepo,
   subscriptionRepo: adapters.subscriptionRepo,
-  deviceTokenRepo: adapters.deviceTokenRepo
+  deviceTokenRepo: adapters.deviceTokenRepo,
+  agentMemoryRepo: adapters.agentMemoryRepo,
+  patientProfileRepo: adapters.patientProfileRepo
 };

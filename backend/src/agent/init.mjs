@@ -51,6 +51,8 @@ export function initAgent(repos) {
   const memoryManager = new MemoryManager({
     chatSessionRepo: repos.chatSessionRepo,
     userBasicInfoRepo: repos.userBasicInfoRepo,
+    agentMemoryRepo: repos.agentMemoryRepo,
+    patientProfileRepo: repos.patientProfileRepo,
   });
 
   _instance = { toolRegistry, memoryManager, skillRegistry };
