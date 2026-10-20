@@ -51,6 +51,14 @@ export class ShortTermMemory {
     this.sessions.delete(this._key(userId, sessionId));
   }
 
+  clearByUser(userId) {
+    for (const key of this.sessions.keys()) {
+      if (key.startsWith(`${userId}:`)) {
+        this.sessions.delete(key);
+      }
+    }
+  }
+
   purgeExpired() {
     const now = Date.now();
     for (const [key, entry] of this.sessions) {

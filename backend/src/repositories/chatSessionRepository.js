@@ -13,6 +13,10 @@
  *   按 lastMessageAt 取最新会话，取尾 maxTurns 条格式化为 "User: ...\nAssistant: ..." 字符串；无会话返回 '' 或占位
  * clearLatestSession(userId: string) => Promise<void>
  *   将最新会话的 messages 清空（供「清除历史」用）
+ * listAllUsers() => Promise<Array<{ userId, messageCount, lastActivity, startedAt, updatedAt }>>
+ *   列出所有有会话的用户（管理员用）
+ * deleteUserSessions(userId: string) => Promise<void>
+ *   删除指定用户的所有会话（管理员用）
  */
 
 function notImplemented() {
@@ -24,5 +28,7 @@ module.exports = {
   getLatestSession: () => notImplemented(),
   appendMessage: () => notImplemented(),
   getRecentTurnsForAgent: () => notImplemented(),
-  clearLatestSession: () => notImplemented()
+  clearLatestSession: () => notImplemented(),
+  listAllUsers: () => notImplemented(),
+  deleteUserSessions: () => notImplemented()
 };

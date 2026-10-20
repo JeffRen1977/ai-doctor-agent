@@ -115,11 +115,48 @@ async function clearLatestSession(userId) {
   );
 }
 
+async function listAllUsers() {
+  const col = getCollection(COLLECTION);
+  const pipeline = [
+    { $sort: { lastMessageAt: -1 } },
+    {
+      $group: {
+        _id: '$userId',
+        sessionId: { $first: '$sessionId' },
+        messages: { $first: '$messages' },
+        startedAt: { $first: '$startedAt' },
+        updatedAt: { $first: '$updatedAt' },
+        lastMessageAt: { $first: '$lastMessageAt' }
+      }
+    },
+    { $sort: { lastMessageAt: -1 } }
+  ];
+  const docs = await col.aggregate(pipeline).toArray();
+  return docs.map((d) => {
+    const messages = d.messages || [];
+    const lastMsg = messages.length > 0 ? messages[messages.length - 1] : null;
+    return {
+      userId: d._id,
+      messageCount: messages.length,
+      lastActivity: lastMsg ? (lastMsg.timestamp || null) : null,
+      startedAt: d.startedAt,
+      updatedAt: d.updatedAt
+    };
+  });
+}
+
+async function deleteUserSessions(userId) {
+  const col = getCollection(COLLECTION);
+  await col.deleteMany({ userId: userId || '' });
+}
+
 module.exports = {
   getOrCreateSession,
   getLatestSession,
   appendMessage,
   getRecentTurnsForAgent,
   clearLatestSession,
+  listAllUsers,
+  deleteUserSessions,
   toSessionShape
 };

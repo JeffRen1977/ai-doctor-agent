@@ -243,6 +243,10 @@ router.delete('/history', authenticateToken, async (req, res) => {
     const userId = sanitizeUserId(userEmail);
     console.log('🗑️  清除聊天历史，用户邮箱:', userEmail);
     await chatSessionRepo.clearLatestSession(userId);
+    try {
+      const { memoryManager } = await getAgentInstance();
+      memoryManager.clearUserSessions(userId);
+    } catch (_) { /* agent not initialised */ }
     res.json({ message: '聊天历史已清除' });
   } catch (error) {
     console.error('❌ 清除聊天历史错误:', error);
@@ -327,48 +331,35 @@ router.get('/stats', authenticateToken, async (req, res) => {
   }
 });
 
-// 获取所有用户的聊天历史（管理员功能）
+// 获取所有用户的聊天历史（管理员功能，从 chat_sessions 读取）
 router.get('/admin/all-users', authenticateToken, requireAdmin, async (req, res) => {
   try {
     console.log('🔍 管理员获取所有用户聊天历史');
-    const docs = await chatHistoryRepo.listAll();
-    const allUsers = docs.map((data) => {
-      const lastMsg = data.messages && data.messages.length > 0 ? data.messages[data.messages.length - 1] : null;
-      return {
-        email: data.id,
-        messageCount: data.messages ? data.messages.length : 0,
-        lastActivity: lastMsg ? (lastMsg.timestamp || null) : null,
-        createdAt: data.createdAt,
-        updatedAt: data.updatedAt
-      };
-    });
-    allUsers.sort((a, b) => {
-      if (!a.lastActivity) return 1;
-      if (!b.lastActivity) return -1;
-      return new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime();
-    });
-    res.json(allUsers);
+    const allUsers = await chatSessionRepo.listAllUsers();
+    res.json(allUsers.map((u) => ({
+      email: u.userId,
+      messageCount: u.messageCount,
+      lastActivity: u.lastActivity,
+      createdAt: u.startedAt,
+      updatedAt: u.updatedAt
+    })));
   } catch (error) {
     console.error('❌ 获取所有用户聊天历史错误:', error);
     res.status(500).json({ error: '服务器内部错误' });
   }
 });
 
-// 删除特定用户的聊天历史（管理员功能，清空消息并标记删除）
+// 删除特定用户的聊天历史（管理员功能，删除 chat_sessions）
 router.delete('/admin/user/:email', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { email } = req.params;
+    const userId = sanitizeUserId(email);
     console.log('🗑️  管理员删除用户聊天历史:', email);
-    const now = new Date().toISOString();
-    await chatHistoryRepo.setByUser(email, {
-      userEmail: email,
-      messages: [],
-      createdAt: now,
-      updatedAt: now,
-      totalMessages: 0,
-      deletedAt: now,
-      deletedBy: req.user.email
-    });
+    await chatSessionRepo.deleteUserSessions(userId);
+    try {
+      const { memoryManager } = await getAgentInstance();
+      memoryManager.clearUserSessions(userId);
+    } catch (_) { /* agent not initialised */ }
     res.json({ message: `用户 ${email} 的聊天历史已删除` });
   } catch (error) {
     console.error('❌ 删除用户聊天历史错误:', error);

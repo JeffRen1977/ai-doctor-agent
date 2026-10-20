@@ -8,6 +8,7 @@ const {
   doc,
   getDoc,
   setDoc,
+  deleteDoc,
   collection,
   query,
   orderBy,
@@ -201,11 +202,57 @@ async function clearLatestSession(userId) {
   await setDoc(ref, { messages: [], lastMessageAt: now, updatedAt: now }, { merge: true });
 }
 
+/**
+ * 列出所有有 chat_sessions 的用户（管理员用）。
+ * 遍历 personalHealthRecords 根文档，对每个用户取其最新会话。
+ */
+async function listAllUsers() {
+  const rootRef = collection(db, ROOT_COLLECTION);
+  const rootSnap = await getDocs(rootRef);
+  const results = [];
+  for (const userDoc of rootSnap.docs) {
+    const userId = userDoc.id;
+    const latest = await getLatestSession(userId);
+    if (!latest) continue;
+    const session = latest.session;
+    const messages = session.messages || [];
+    const lastMsg = messages.length > 0 ? messages[messages.length - 1] : null;
+    results.push({
+      userId,
+      messageCount: messages.length,
+      lastActivity: lastMsg ? lastMsg.timestamp : null,
+      startedAt: session.startedAt,
+      updatedAt: session.updatedAt
+    });
+  }
+  results.sort((a, b) => {
+    if (!a.lastActivity) return 1;
+    if (!b.lastActivity) return -1;
+    return new Date(b.lastActivity) - new Date(a.lastActivity);
+  });
+  return results;
+}
+
+/**
+ * 删除指定用户的所有 chat_sessions 文档。
+ */
+async function deleteUserSessions(userId) {
+  const sessionsRef = collection(db, ROOT_COLLECTION, userId, CHAT_SESSIONS_SUB);
+  const snap = await getDocs(sessionsRef);
+  const deletes = [];
+  snap.forEach((d) => {
+    deletes.push(deleteDoc(doc(db, ROOT_COLLECTION, userId, CHAT_SESSIONS_SUB, d.id)));
+  });
+  await Promise.all(deletes);
+}
+
 module.exports = {
   getOrCreateSession,
   getLatestSession,
   appendMessage,
   getRecentTurnsForAgent,
   clearLatestSession,
+  listAllUsers,
+  deleteUserSessions,
   toSessionShape
 };

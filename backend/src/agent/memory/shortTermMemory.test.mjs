@@ -75,4 +75,15 @@ describe('ShortTermMemory', () => {
     expect(mem.sessions.size).toBe(1);
     expect(mem.sessions.has('u1:s2')).toBe(true);
   });
+
+  test('clearByUser removes all sessions for a user', () => {
+    const mem = new ShortTermMemory();
+    mem.append('u1', 's1', 'user', 'a');
+    mem.append('u1', 's2', 'user', 'b');
+    mem.append('u2', 's1', 'user', 'c');
+    mem.clearByUser('u1');
+    expect(mem.getMessages('u1', 's1')).toHaveLength(0);
+    expect(mem.getMessages('u1', 's2')).toHaveLength(0);
+    expect(mem.getMessages('u2', 's1')).toHaveLength(1);
+  });
 });

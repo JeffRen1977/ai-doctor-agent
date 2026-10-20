@@ -48,7 +48,10 @@ export function initAgent(repos) {
   skillRegistry.register(drugInteractionSkill);
   skillRegistry.register(riskAssessmentSkill);
 
-  const memoryManager = new MemoryManager();
+  const memoryManager = new MemoryManager({
+    chatSessionRepo: repos.chatSessionRepo,
+    userBasicInfoRepo: repos.userBasicInfoRepo,
+  });
 
   _instance = { toolRegistry, memoryManager, skillRegistry };
   return _instance;

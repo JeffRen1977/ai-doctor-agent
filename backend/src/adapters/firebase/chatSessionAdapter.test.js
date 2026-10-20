@@ -4,12 +4,14 @@
 
 const mockGetDoc = jest.fn();
 const mockSetDoc = jest.fn();
+const mockDeleteDoc = jest.fn();
 const mockGetDocs = jest.fn();
 jest.mock('../../config/firebase', () => ({ db: {} }));
 jest.mock('firebase/firestore', () => ({
   doc: jest.fn((db, c, id, sub, subId) => ({ _c: c, _id: id, _sub: sub, _subId: subId })),
   getDoc: (...args) => mockGetDoc(...args),
   setDoc: (...args) => mockSetDoc(...args),
+  deleteDoc: (...args) => mockDeleteDoc(...args),
   collection: jest.fn(() => ({ _col: true })),
   query: jest.fn(() => ({ _q: true })),
   orderBy: jest.fn(() => {}),
@@ -22,12 +24,15 @@ const {
   getLatestSession,
   appendMessage,
   getRecentTurnsForAgent,
-  clearLatestSession
+  clearLatestSession,
+  listAllUsers,
+  deleteUserSessions
 } = require('./chatSessionAdapter');
 
 beforeEach(() => {
   mockGetDoc.mockReset();
   mockSetDoc.mockReset();
+  mockDeleteDoc.mockReset();
   mockGetDocs.mockReset();
 });
 
@@ -176,5 +181,71 @@ describe('clearLatestSession', () => {
     mockGetDocs.mockResolvedValue({ empty: true });
     await clearLatestSession('user_1');
     expect(mockSetDoc).not.toHaveBeenCalled();
+  });
+});
+
+describe('listAllUsers', () => {
+  test('returns user list with message counts from latest sessions', async () => {
+    const now = new Date();
+    // First call: root collection listing
+    mockGetDocs
+      .mockResolvedValueOnce({
+        docs: [
+          { id: 'user_a' },
+          { id: 'user_b' }
+        ]
+      })
+      // Second call: user_a sessions
+      .mockResolvedValueOnce({
+        empty: false,
+        docs: [{
+          id: 'sa1',
+          data: () => ({
+            sessionId: 'sa1',
+            messages: [
+              { id: 'm1', role: 'user', content: 'hi', timestamp: now },
+              { id: 'm2', role: 'assistant', content: 'hello', timestamp: now }
+            ],
+            startedAt: now,
+            lastMessageAt: now,
+            updatedAt: now
+          })
+        }]
+      })
+      // Third call: user_b sessions (empty)
+      .mockResolvedValueOnce({ empty: true });
+
+    const result = await listAllUsers();
+    expect(result).toHaveLength(1);
+    expect(result[0].userId).toBe('user_a');
+    expect(result[0].messageCount).toBe(2);
+  });
+
+  test('returns empty array when no users have sessions', async () => {
+    mockGetDocs.mockResolvedValueOnce({ docs: [] });
+    const result = await listAllUsers();
+    expect(result).toEqual([]);
+  });
+});
+
+describe('deleteUserSessions', () => {
+  test('deletes all session documents for a user', async () => {
+    mockGetDocs.mockResolvedValueOnce({
+      forEach: (fn) => {
+        fn({ id: 's1' });
+        fn({ id: 's2' });
+      }
+    });
+    mockDeleteDoc.mockResolvedValue(undefined);
+    await deleteUserSessions('user_1');
+    expect(mockDeleteDoc).toHaveBeenCalledTimes(2);
+  });
+
+  test('no-ops when user has no sessions', async () => {
+    mockGetDocs.mockResolvedValueOnce({
+      forEach: () => {}
+    });
+    await deleteUserSessions('user_1');
+    expect(mockDeleteDoc).not.toHaveBeenCalled();
   });
 });

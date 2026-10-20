@@ -1,24 +1,30 @@
 const mockFindOne = jest.fn();
 const mockInsertOne = jest.fn();
 const mockUpdateOne = jest.fn();
+const mockDeleteMany = jest.fn();
 const mockToArray = jest.fn();
+const mockAggregateToArray = jest.fn();
 
 jest.mock('./connection', () => ({
   getCollection: jest.fn(() => ({
     findOne: mockFindOne,
     insertOne: mockInsertOne,
     updateOne: mockUpdateOne,
-    find: () => ({ sort: () => ({ limit: () => ({ toArray: mockToArray }) }) })
+    deleteMany: mockDeleteMany,
+    find: () => ({ sort: () => ({ limit: () => ({ toArray: mockToArray }) }) }),
+    aggregate: () => ({ toArray: mockAggregateToArray })
   }))
 }));
 
-const { getLatestSession, getOrCreateSession, appendMessage, getRecentTurnsForAgent, clearLatestSession } = require('./chatSessionAdapter');
+const { getLatestSession, getOrCreateSession, appendMessage, getRecentTurnsForAgent, clearLatestSession, listAllUsers, deleteUserSessions } = require('./chatSessionAdapter');
 
 beforeEach(() => {
   mockFindOne.mockReset();
   mockInsertOne.mockReset();
   mockUpdateOne.mockReset();
+  mockDeleteMany.mockReset();
   mockToArray.mockReset();
+  mockAggregateToArray.mockReset();
 });
 
 describe('chatSessionAdapter', () => {
@@ -47,5 +53,38 @@ describe('chatSessionAdapter', () => {
     mockToArray.mockResolvedValue([]);
     await clearLatestSession('u1');
     expect(mockUpdateOne).not.toHaveBeenCalled();
+  });
+
+  it('listAllUsers returns aggregated user list', async () => {
+    const now = new Date();
+    mockAggregateToArray.mockResolvedValue([
+      {
+        _id: 'u1',
+        sessionId: 's1',
+        messages: [
+          { id: 'm1', role: 'user', content: 'hi', timestamp: now },
+          { id: 'm2', role: 'assistant', content: 'hello', timestamp: now }
+        ],
+        startedAt: now,
+        updatedAt: now,
+        lastMessageAt: now
+      }
+    ]);
+    const result = await listAllUsers();
+    expect(result).toHaveLength(1);
+    expect(result[0].userId).toBe('u1');
+    expect(result[0].messageCount).toBe(2);
+  });
+
+  it('listAllUsers returns empty when no sessions', async () => {
+    mockAggregateToArray.mockResolvedValue([]);
+    const result = await listAllUsers();
+    expect(result).toEqual([]);
+  });
+
+  it('deleteUserSessions calls deleteMany', async () => {
+    mockDeleteMany.mockResolvedValue({ deletedCount: 2 });
+    await deleteUserSessions('u1');
+    expect(mockDeleteMany).toHaveBeenCalledWith({ userId: 'u1' });
   });
 });

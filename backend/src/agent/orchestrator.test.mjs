@@ -18,7 +18,7 @@ describe('orchestrator.chat', () => {
   const mockMemory = {
     loadPatientProfile: jest.fn().mockResolvedValue(null),
     searchRelevant: jest.fn().mockResolvedValue([]),
-    getRecentMessages: jest.fn().mockReturnValue([]),
+    getRecentMessages: jest.fn().mockResolvedValue([]),
     appendToSession: jest.fn(),
   };
   const mockToolReg = {
@@ -38,7 +38,7 @@ describe('orchestrator.chat', () => {
     jest.clearAllMocks();
     mockMemory.loadPatientProfile.mockResolvedValue(null);
     mockMemory.searchRelevant.mockResolvedValue([]);
-    mockMemory.getRecentMessages.mockReturnValue([]);
+    mockMemory.getRecentMessages.mockResolvedValue([]);
   });
 
   test('falls back to healthChat when no skillRegistry provided', async () => {
@@ -172,7 +172,7 @@ describe('orchestrator.chat', () => {
   });
 
   test('prepends recent messages from memory', async () => {
-    mockMemory.getRecentMessages.mockReturnValue([
+    mockMemory.getRecentMessages.mockResolvedValue([
       { role: 'user', content: '之前的问题' },
       { role: 'assistant', content: '之前的回答' },
     ]);
@@ -194,6 +194,57 @@ describe('orchestrator.chat', () => {
     expect(callArgs.messages).toHaveLength(3);
     expect(callArgs.messages[0].content).toBe('之前的问题');
     expect(callArgs.messages[2].content).toBe('继续');
+  });
+
+  test('deduplicates when hydrated history ends with the incoming user message', async () => {
+    mockMemory.getRecentMessages.mockResolvedValue([
+      { role: 'user', content: '昨天头疼' },
+      { role: 'assistant', content: '建议休息' },
+      { role: 'user', content: '今天还疼' },
+    ]);
+    mockGenerateText.mockResolvedValue({
+      text: 'ok', steps: [], usage: {},
+    });
+
+    await chat({
+      userId: 'u1',
+      userEmail: 'u1@test.com',
+      message: '今天还疼',
+      sessionId: 's1',
+      language: 'zh',
+      toolRegistry: mockToolReg,
+      memoryManager: mockMemory,
+    });
+
+    const callArgs = mockGenerateText.mock.calls[0][0];
+    expect(callArgs.messages).toHaveLength(3);
+    expect(callArgs.messages[0].content).toBe('昨天头疼');
+    expect(callArgs.messages[1].content).toBe('建议休息');
+    expect(callArgs.messages[2]).toEqual({ role: 'user', content: '今天还疼' });
+  });
+
+  test('does not strip trailing message when content differs', async () => {
+    mockMemory.getRecentMessages.mockResolvedValue([
+      { role: 'user', content: '旧消息' },
+    ]);
+    mockGenerateText.mockResolvedValue({
+      text: 'ok', steps: [], usage: {},
+    });
+
+    await chat({
+      userId: 'u1',
+      userEmail: 'u1@test.com',
+      message: '新消息',
+      sessionId: 's1',
+      language: 'zh',
+      toolRegistry: mockToolReg,
+      memoryManager: mockMemory,
+    });
+
+    const callArgs = mockGenerateText.mock.calls[0][0];
+    expect(callArgs.messages).toHaveLength(2);
+    expect(callArgs.messages[0].content).toBe('旧消息');
+    expect(callArgs.messages[1].content).toBe('新消息');
   });
 
   test('passes patient profile and memories to system prompt', async () => {

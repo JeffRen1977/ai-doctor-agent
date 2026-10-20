@@ -21,7 +21,16 @@ export async function chat({
 
   const patientProfile = await memoryManager.loadPatientProfile(userId);
   const relevantMemories = await memoryManager.searchRelevant(message, userId);
-  const recentMessages = memoryManager.getRecentMessages(userId, sessionId);
+  let recentMessages = await memoryManager.getRecentMessages(userId, sessionId);
+
+  // The route saves the user message to the DB before calling the agent.
+  // When memory is cold, hydration loads it back, causing a duplicate.
+  if (recentMessages.length > 0) {
+    const last = recentMessages[recentMessages.length - 1];
+    if (last.role === 'user' && last.content === message) {
+      recentMessages = recentMessages.slice(0, -1);
+    }
+  }
 
   const tools = toolRegistry.getForSkill(skill);
 
