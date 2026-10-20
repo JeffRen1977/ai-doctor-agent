@@ -68,20 +68,16 @@ describe('LongTermMemory', () => {
       expect(prefCall[1].content).toBe('我不想吃西药');
     });
 
-    test('stores last assistant message as summary when long enough', async () => {
-      const longMsg = '这是一段足够长的总结内容，包含了对您近期健康状况的详细分析以及后续的跟进计划和日常保健措施，希望这些信息对您的健康管理有所帮助。';
+    test('does not store general replies that only mention 需要 or 注意', async () => {
       const messages = [
         { role: 'user', content: '谢谢' },
-        { role: 'assistant', content: longMsg },
+        { role: 'assistant', content: '不客气！保持好心情很重要，需要注意劳逸结合，有问题随时来问我。' },
       ];
       await ltm.extractAndStore('u1', 's1', messages);
-      const calls = mockRepo.save.mock.calls;
-      const summaryCall = calls.find(c => c[1].type === 'summary');
-      expect(summaryCall).toBeDefined();
-      expect(summaryCall[1].importance).toBe(0.4);
+      expect(mockRepo.save).not.toHaveBeenCalled();
     });
 
-    test('does not duplicate last message if already stored as conclusion', async () => {
+    test('stores each conclusion once', async () => {
       const msg = '根据您的情况，建议您去医院做一个详细的血液检查，排除其他可能的原因。';
       const messages = [
         { role: 'user', content: '怎么办' },
@@ -89,7 +85,18 @@ describe('LongTermMemory', () => {
       ];
       await ltm.extractAndStore('u1', 's1', messages);
       const contents = mockRepo.save.mock.calls.map(c => c[1].content);
-      expect(contents.filter(c => c === msg)).toHaveLength(1);
+      expect(contents).toEqual([msg]);
+    });
+
+    test('truncates long content before storing', async () => {
+      const messages = [
+        { role: 'user', content: `我不想${'吃药'.repeat(200)}` },
+        { role: 'assistant', content: `可能是${'睡眠不足'.repeat(200)}` },
+      ];
+      await ltm.extractAndStore('u1', 's1', messages);
+      const byType = Object.fromEntries(mockRepo.save.mock.calls.map(c => [c[1].type, c[1].content]));
+      expect(byType.preference).toHaveLength(200);
+      expect(byType.conclusion).toHaveLength(500);
     });
 
     test('stores nothing for empty conversation', async () => {

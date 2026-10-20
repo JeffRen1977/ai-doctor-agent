@@ -14,9 +14,19 @@ const CONDITION_PATTERNS = [
   /肾病|kidney disease|nephropathy/i,
 ];
 
-const ALLERGY_RE = /(?:对(.{1,20})过敏|过敏.{0,5}(?:是|为|：|:)\s*(.+?)(?:[，。,.]|$)|allerg\w*\s+(?:to\s+)?(.+?)(?:[,.]|$))/i;
+const ALLERGY_RE = /(?:对(.{1,20}?)过敏|过敏.{0,5}(?:是|为|：|:)\s*(.+?)(?:[，。,.]|$)|allerg\w*\s+(?:to\s+)?(.+?)(?:[,.]|$))/i;
 
 const GOAL_RE = /(?:目标|希望|想要|打算|goal|want to|plan to)\s*[：:是]?\s*(.+?)(?:[。，,.]|$)/i;
+
+const SELF_CONDITION_RE = /我(?:有|得了|得过|患有|患了|确诊|被诊断)|我是.{0,8}患者|患有|确诊|诊断为|\bi (?:have|had|was diagnosed|am diagnosed|suffer)/i;
+const NEGATION_RE = /没有|没得|未患|不是|否认|排除|\bnot\b|\bno\b|\bnever\b|don't have|do not have/i;
+const ALLERGY_NEGATION_RE = /不过敏|没有过敏|无过敏|not allergic|no (?:known )?allerg/i;
+const QUESTION_RE = /[？?]|吗|能不能|可不可以|是否|怎么|如何|为什么|什么|哪些/;
+const OTHER_PERSON_RE = /妈妈|母亲|爸爸|父亲|爷爷|奶奶|外公|外婆|姥姥|姥爷|家人|亲戚|哥哥|姐姐|弟弟|妹妹|儿子|女儿|孩子|老婆|老公|丈夫|妻子|朋友|同事|\bmy (?:mother|mom|father|dad|parents?|brother|sister|son|daughter|wife|husband|friend)/i;
+
+function splitClauses(text) {
+  return text.split(/(?<=[，。！？；,.!?;\n])/).map((c) => c.trim()).filter(Boolean);
+}
 
 export class EpisodicMemory {
   constructor({ patientProfileRepo } = {}) {
@@ -39,23 +49,31 @@ export class EpisodicMemory {
     const goals = new Set();
 
     for (const msg of messages) {
-      const text = msg.content || '';
+      if (msg.role !== 'user') continue;
 
-      for (const pattern of CONDITION_PATTERNS) {
-        const m = text.match(pattern);
-        if (m) conditions.add(m[0]);
-      }
+      for (const clause of splitClauses(msg.content || '')) {
+        if (QUESTION_RE.test(clause) || OTHER_PERSON_RE.test(clause)) continue;
 
-      const allergyMatch = text.match(ALLERGY_RE);
-      if (allergyMatch) {
-        const allergen = (allergyMatch[1] || allergyMatch[2] || allergyMatch[3] || '').trim();
-        if (allergen) allergies.add(allergen);
-      }
+        if (SELF_CONDITION_RE.test(clause) && !NEGATION_RE.test(clause)) {
+          for (const pattern of CONDITION_PATTERNS) {
+            const m = clause.match(pattern);
+            if (m) conditions.add(m[0]);
+          }
+        }
 
-      const goalMatch = text.match(GOAL_RE);
-      if (goalMatch) {
-        const goal = goalMatch[1].trim();
-        if (goal.length >= 3 && goal.length <= 100) goals.add(goal);
+        if (!ALLERGY_NEGATION_RE.test(clause)) {
+          const allergyMatch = clause.match(ALLERGY_RE);
+          if (allergyMatch) {
+            const allergen = (allergyMatch[1] || allergyMatch[2] || allergyMatch[3] || '').trim();
+            if (allergen) allergies.add(allergen);
+          }
+        }
+
+        const goalMatch = clause.match(GOAL_RE);
+        if (goalMatch) {
+          const goal = goalMatch[1].trim();
+          if (goal.length >= 3 && goal.length <= 100) goals.add(goal);
+        }
       }
     }
 

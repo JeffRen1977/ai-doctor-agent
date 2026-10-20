@@ -154,6 +154,7 @@ router.post('/send', authenticateToken, requireConsent(CONSENT_PURPOSES.AI_INFER
           return res.status(400).json({ error: errorMessage });
         }
 
+        memoryManager.rememberTurn(sanitizedUserId, currentSessionId, message, moderated);
         aiResponse = safety.appendDisclaimer(moderated, userLanguage);
         await safety.recordAgentAudit({ userEmail, message, answer: aiResponse, latencyMs, success: true, steps: agentResult.steps, skillName: agentResult.skillName });
         console.log(`✅ Agent [${agentResult.skillName}] responded in ${agentResult.steps} step(s)`);
@@ -242,13 +243,11 @@ router.delete('/history', authenticateToken, async (req, res) => {
     const userEmail = req.user.email;
     const userId = sanitizeUserId(userEmail);
     console.log('🗑️  清除聊天历史，用户邮箱:', userEmail);
+    await chatSessionRepo.clearLatestSession(userId);
     try {
       const { memoryManager } = await getAgentInstance();
-      const sessionResult = await chatSessionRepo.getLatestSession(userId);
-      const sid = sessionResult ? sessionResult.sessionId : null;
-      await memoryManager.summarizeAndClear(userId, sid);
-    } catch (_) { /* agent not initialised — fall back to plain clear */ }
-    await chatSessionRepo.clearLatestSession(userId);
+      memoryManager.clearUserSessions(userId);
+    } catch (_) { /* agent not initialised */ }
     res.json({ message: '聊天历史已清除' });
   } catch (error) {
     console.error('❌ 清除聊天历史错误:', error);

@@ -2,13 +2,16 @@
  * Firebase Adapter: AgentMemory
  * Collection: agent_memories (root-level)
  */
+const crypto = require('crypto');
 const {
-  doc, setDoc, getDocs, deleteDoc,
+  doc, setDoc, getDoc, getDocs, deleteDoc,
   collection, query, where, orderBy, limit: fbLimit,
 } = require('firebase/firestore');
 const { db } = require('../../config/firebase');
+const { tokenize, rankMemories } = require('../memorySearch');
 
 const COLLECTION = 'agent_memories';
+const SEARCH_POOL_SIZE = 200;
 
 function normalize(snap) {
   const d = snap.data();
@@ -28,15 +31,20 @@ function normalize(snap) {
 
 async function save(userId, { type, content, importance = 0.5, sourceSessionId, metadata }) {
   const now = new Date().toISOString();
-  const id = `${userId}_${Buffer.from(content).toString('base64url').slice(0, 32)}`;
-  const ref = doc(db, COLLECTION, id);
-  await setDoc(ref, {
+  const contentHash = crypto.createHash('sha256').update(content).digest('hex').slice(0, 32);
+  const ref = doc(db, COLLECTION, `${userId}_${contentHash}`);
+  const existing = await getDoc(ref);
+  const fields = {
     userId, type, content, importance,
     sourceSessionId: sourceSessionId || null,
     metadata: metadata || {},
-    accessCount: 0,
-    createdAt: now, updatedAt: now,
-  }, { merge: true });
+    updatedAt: now,
+  };
+  if (!existing.exists()) {
+    fields.accessCount = 0;
+    fields.createdAt = now;
+  }
+  await setDoc(ref, fields, { merge: true });
 }
 
 async function findByUser(userId, { type, limit: maxResults = 20 } = {}) {
@@ -48,30 +56,10 @@ async function findByUser(userId, { type, limit: maxResults = 20 } = {}) {
   return snap.docs.map(normalize);
 }
 
-function tokenize(q) {
-  return q.toLowerCase().split(/[\s,，。？！?!;；：:]+/).filter(t => t.length >= 2);
-}
-
-function timeDecay(dateStr) {
-  const days = (Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24);
-  return Math.max(0, 1 - days / 180);
-}
-
 async function search(userId, queryStr, limit = 5) {
-  const tokens = tokenize(queryStr);
-  if (tokens.length === 0) return [];
-  const all = await findByUser(userId, { limit: 100 });
-  const scored = all.map(m => {
-    const lower = (m.content || '').toLowerCase();
-    const matchCount = tokens.filter(t => lower.includes(t)).length;
-    if (matchCount === 0) return null;
-    const score = (matchCount / tokens.length) * 0.5
-      + (m.importance || 0.5) * 0.3
-      + timeDecay(m.updatedAt || m.createdAt) * 0.2;
-    return { ...m, score };
-  }).filter(Boolean);
-  scored.sort((a, b) => b.score - a.score);
-  return scored.slice(0, limit);
+  if (tokenize(queryStr).length === 0) return [];
+  const candidates = await findByUser(userId, { limit: SEARCH_POOL_SIZE });
+  return rankMemories(candidates, queryStr, limit);
 }
 
 async function deleteByUser(userId) {

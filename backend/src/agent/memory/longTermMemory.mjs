@@ -1,6 +1,7 @@
-const CONCLUSION_RE = /诊断|建议|可能是|注意|需要|应该|recommend|suggest|diagnos|should|consider/i;
+const CONCLUSION_RE = /可能是|考虑为|诊断为|初步判断|提示.{0,4}(?:风险|异常)|建议.{0,15}(?:就医|就诊|检查|复查|服用|停用|停药|调整|监测|减少|增加|避免)|likely (?:due to|caused by)|diagnos|recommend (?:that )?you|you should (?:see|get|take|stop|avoid|monitor)/i;
 const PREFERENCE_RE = /我不想|我更喜欢|我习惯|我希望|不要给我|prefer|don't want|i like/i;
-const MIN_SUMMARY_LENGTH = 50;
+const MAX_CONCLUSION_LENGTH = 500;
+const MAX_PREFERENCE_LENGTH = 200;
 
 export class LongTermMemory {
   constructor({ agentMemoryRepo } = {}) {
@@ -28,19 +29,12 @@ export class LongTermMemory {
     const toStore = [];
 
     for (const msg of messages) {
-      if (msg.role === 'assistant' && CONCLUSION_RE.test(msg.content)) {
-        toStore.push({ type: 'conclusion', content: msg.content, importance: 0.7 });
+      const content = msg.content || '';
+      if (msg.role === 'assistant' && CONCLUSION_RE.test(content)) {
+        toStore.push({ type: 'conclusion', content: content.slice(0, MAX_CONCLUSION_LENGTH), importance: 0.7 });
       }
-      if (msg.role === 'user' && PREFERENCE_RE.test(msg.content)) {
-        toStore.push({ type: 'preference', content: msg.content, importance: 0.6 });
-      }
-    }
-
-    const last = messages[messages.length - 1];
-    if (last && last.role === 'assistant' && last.content.length > MIN_SUMMARY_LENGTH) {
-      const alreadyStored = toStore.some(m => m.content === last.content);
-      if (!alreadyStored) {
-        toStore.push({ type: 'summary', content: last.content, importance: 0.4 });
+      if (msg.role === 'user' && PREFERENCE_RE.test(content)) {
+        toStore.push({ type: 'preference', content: content.slice(0, MAX_PREFERENCE_LENGTH), importance: 0.6 });
       }
     }
 

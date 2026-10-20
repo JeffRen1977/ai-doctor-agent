@@ -70,6 +70,34 @@ describe('EpisodicMemory', () => {
       expect(facts.goals).toEqual([]);
     });
 
+    test('ignores negations, family members, and assistant messages', () => {
+      const messages = [
+        { role: 'user', content: '我没有糖尿病，我妈妈有高血压。我对青霉素不过敏。' },
+        { role: 'assistant', content: '糖尿病患者需要控制饮食。希望您早日康复。' },
+      ];
+      expect(em.extractFacts(messages)).toEqual({ conditions: [], allergies: [], goals: [] });
+    });
+
+    test('ignores questions about a condition or allergy', () => {
+      const messages = [
+        { role: 'user', content: '糖尿病能吃西瓜吗？对青霉素过敏的人可以用头孢吗？' },
+      ];
+      expect(em.extractFacts(messages)).toEqual({ conditions: [], allergies: [], goals: [] });
+    });
+
+    test('requires a first-person statement for conditions', () => {
+      const facts = em.extractFacts([{ role: 'user', content: '高血压是常见病' }]);
+      expect(facts.conditions).toEqual([]);
+    });
+
+    test('keeps facts from other clauses of the same message', () => {
+      const facts = em.extractFacts([
+        { role: 'user', content: '我爸爸有糖尿病，我自己确诊了高血压，对花粉过敏' },
+      ]);
+      expect(facts.conditions).toEqual(['高血压']);
+      expect(facts.allergies).toEqual(['花粉']);
+    });
+
     test('deduplicates extracted conditions', () => {
       const messages = [
         { role: 'user', content: '我有糖尿病' },

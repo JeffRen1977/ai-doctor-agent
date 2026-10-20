@@ -3,7 +3,7 @@
  * 不含 passwordHash、重置令牌、第三方 OAuth 令牌；文档只出元数据，不出文件原文。
  */
 
-const { privacyJobRepo, consentRepo, personalHealthRecordRepo, medicationRepo, userRepo, userProfileRepo, healthRecordRepo, chatHistoryRepo, conversationRepo, reportRepo } = require('../repositories');
+const { privacyJobRepo, consentRepo, personalHealthRecordRepo, medicationRepo, userRepo, userProfileRepo, healthRecordRepo, chatHistoryRepo, conversationRepo, reportRepo, agentMemoryRepo, patientProfileRepo } = require('../repositories');
 const auditService = require('./auditService');
 const { AUDIT_ACTIONS } = require('../models/auditEvent');
 const logger = require('../observability/logger');
@@ -71,6 +71,8 @@ async function createExportJob({ email, userId }) {
   const reports = reportRepo.listReportsByUser
     ? await safe('reports', () => reportRepo.listReportsByUser(email, { limit: 50 }))
     : [];
+  const agentMemories = await safe('agentMemories', () => agentMemoryRepo.findByUser(sanitized, { limit: 1000 }));
+  const learnedProfile = await safe('patientProfiles', () => patientProfileRepo.getByUser(sanitized));
   const consents = await safe('consents', () => consentRepo.listBySubject(email, { limit: 200 }));
   const audit = await safe('auditEvents', () => auditService.getSubjectTrail(email, { limit: 200 }));
 
@@ -87,7 +89,9 @@ async function createExportJob({ email, userId }) {
     aiHistory: {
       chatHistory: chat && !chat._skipped ? chat : null,
       conversations: conversations && !conversations._skipped ? conversations : [],
-      reports: reports && !reports._skipped ? reports : []
+      reports: reports && !reports._skipped ? reports : [],
+      agentMemories: agentMemories && !agentMemories._skipped ? agentMemories : [],
+      learnedProfile: learnedProfile && !learnedProfile._skipped ? learnedProfile : null
     },
     consents: consents && !consents._skipped ? consents : [],
     audit: audit && !audit._skipped ? audit : []

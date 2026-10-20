@@ -100,8 +100,33 @@ describe('MemoryManager', () => {
     const profile = await mm.loadPatientProfile('u1');
     expect(profile.basicInfo.name).toBe('Test');
     expect(profile.medicalHistory).toBe('diabetes');
-    expect(profile.conditions).toEqual(['hypertension']);
-    expect(profile.goals).toEqual(['减重']);
+    expect(profile.learnedFromChat).toEqual({ conditions: ['hypertension'], goals: ['减重'] });
+  });
+
+  test('loadPatientProfile keeps user-entered allergies when the learned profile has none', async () => {
+    const mm = new MemoryManager({
+      userBasicInfoRepo: { getBasicInfo: async () => ({ allergies: '青霉素过敏' }) },
+      patientProfileRepo: {
+        getByUser: async () => ({
+          userId: 'u1', conditions: [], allergies: [], goals: ['减肥'], contraindications: [],
+          concerns: [], preferences: {}, lastUpdatedBy: 'agent', metadata: {}, createdAt: 'x', updatedAt: 'y',
+        }),
+      },
+    });
+    const profile = await mm.loadPatientProfile('u1');
+    expect(profile.allergies).toBe('青霉素过敏');
+    expect(profile.learnedFromChat).toEqual({ goals: ['减肥'] });
+    expect(profile).not.toHaveProperty('userId');
+    expect(profile).not.toHaveProperty('metadata');
+  });
+
+  test('loadPatientProfile omits learnedFromChat when the learned profile is empty', async () => {
+    const mm = new MemoryManager({
+      userBasicInfoRepo: { getBasicInfo: async () => ({ medicalHistory: '无' }) },
+      patientProfileRepo: { getByUser: async () => ({ userId: 'u1', conditions: [], allergies: [], preferences: {} }) },
+    });
+    const profile = await mm.loadPatientProfile('u1');
+    expect(profile).not.toHaveProperty('learnedFromChat');
   });
 
   test('loadPatientProfile returns basic info only when no episodic data', async () => {
@@ -176,40 +201,36 @@ describe('MemoryManager', () => {
     expect(await mm.getRecentMessages('u2', 's1')).toHaveLength(1);
   });
 
-  test('summarizeAndClear extracts memories then clears', async () => {
-    const mockMemRepo = {
-      save: jest.fn().mockResolvedValue(undefined),
-      search: jest.fn().mockResolvedValue([]),
-    };
-    const mockProfileRepo = {
-      getByUser: jest.fn().mockResolvedValue(null),
-      upsert: jest.fn().mockResolvedValue(undefined),
-    };
+  test('rememberTurn stores conclusions and profile facts from one turn', async () => {
+    const mockMemRepo = { save: jest.fn().mockResolvedValue(undefined) };
+    const mockProfileRepo = { upsert: jest.fn().mockResolvedValue(undefined) };
     const mm = new MemoryManager({
       agentMemoryRepo: mockMemRepo,
       patientProfileRepo: mockProfileRepo,
     });
 
-    mm.appendToSession('u1', 's1', 'user', '我有糖尿病');
-    mm.appendToSession('u1', 's1', 'assistant', '根据您的情况，建议定期监测血糖。这是一段很长的回复，确保超过50个字符才能被提取为摘要。');
+    await mm.rememberTurn('u1', 's1', '我有糖尿病', '根据您的情况，建议定期监测血糖。');
 
-    await mm.summarizeAndClear('u1', 's1');
-
-    expect(mockMemRepo.save).toHaveBeenCalled();
-    expect(mockProfileRepo.upsert).toHaveBeenCalledWith('u1', expect.objectContaining({
-      conditions: expect.arrayContaining(['糖尿病']),
+    expect(mockMemRepo.save).toHaveBeenCalledWith('u1', expect.objectContaining({
+      type: 'conclusion', sourceSessionId: 's1',
     }));
-    expect(await mm.getRecentMessages('u1', 's1')).toHaveLength(0);
+    expect(mockProfileRepo.upsert).toHaveBeenCalledWith('u1', expect.objectContaining({
+      conditions: ['糖尿病'],
+    }));
   });
 
-  test('summarizeAndClear works with empty session', async () => {
-    const mockMemRepo = {
-      save: jest.fn(),
-      search: jest.fn().mockResolvedValue([]),
-    };
-    const mm = new MemoryManager({ agentMemoryRepo: mockMemRepo });
+  test('rememberTurn does not touch the short-term session', async () => {
+    const mm = new MemoryManager({ agentMemoryRepo: { save: jest.fn() } });
+    mm.appendToSession('u1', 's1', 'user', 'hi');
+    await mm.rememberTurn('u1', 's1', 'hi', 'hello');
+    expect(await mm.getRecentMessages('u1', 's1')).toHaveLength(1);
+  });
 
-    await mm.summarizeAndClear('u1', 's1');
-    expect(mockMemRepo.save).not.toHaveBeenCalled();
+  test('rememberTurn swallows repo errors', async () => {
+    const mm = new MemoryManager({
+      patientProfileRepo: { upsert: jest.fn().mockRejectedValue(new Error('db down')) },
+      agentMemoryRepo: { save: jest.fn().mockRejectedValue(new Error('db down')) },
+    });
+    await expect(mm.rememberTurn('u1', 's1', '我有糖尿病', '可能是血糖偏高')).resolves.toBeUndefined();
   });
 });

@@ -1,6 +1,8 @@
 const { getCollection } = require('./connection');
+const { tokenize, rankMemories } = require('../memorySearch');
 
 const COLLECTION = 'agent_memories';
+const SEARCH_POOL_SIZE = 200;
 
 function normalize(doc) {
   if (!doc) return null;
@@ -42,38 +44,10 @@ async function findByUser(userId, { type, limit = 20 } = {}) {
   return docs.map(normalize);
 }
 
-function tokenize(query) {
-  return query
-    .toLowerCase()
-    .split(/[\s,，。？！?!;；：:]+/)
-    .filter(t => t.length >= 2);
-}
-
-function timeDecay(dateStr) {
-  const age = Date.now() - new Date(dateStr).getTime();
-  const days = age / (1000 * 60 * 60 * 24);
-  return Math.max(0, 1 - days / 180);
-}
-
 async function search(userId, query, limit = 5) {
-  const tokens = tokenize(query);
-  if (tokens.length === 0) return [];
-
-  const col = getCollection(COLLECTION);
-  const orClauses = tokens.map(t => ({ content: { $regex: t, $options: 'i' } }));
-  const docs = await col.find({ userId, $or: orClauses }).toArray();
-
-  const scored = docs.map(doc => {
-    const lower = (doc.content || '').toLowerCase();
-    const matchCount = tokens.filter(t => lower.includes(t)).length;
-    const score = (matchCount / tokens.length) * 0.5
-      + (doc.importance || 0.5) * 0.3
-      + timeDecay(doc.updatedAt || doc.createdAt) * 0.2;
-    return { ...normalize(doc), score };
-  });
-
-  scored.sort((a, b) => b.score - a.score);
-  return scored.slice(0, limit);
+  if (tokenize(query).length === 0) return [];
+  const candidates = await findByUser(userId, { limit: SEARCH_POOL_SIZE });
+  return rankMemories(candidates, query, limit);
 }
 
 async function deleteByUser(userId) {

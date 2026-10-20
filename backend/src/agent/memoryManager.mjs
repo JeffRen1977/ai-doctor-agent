@@ -2,6 +2,22 @@ import { ShortTermMemory } from './memory/shortTermMemory.mjs';
 import { LongTermMemory } from './memory/longTermMemory.mjs';
 import { EpisodicMemory } from './memory/episodicMemory.mjs';
 
+const LEARNED_LIST_FIELDS = ['conditions', 'allergies', 'contraindications', 'goals', 'concerns'];
+
+function pickLearnedFacts(profile) {
+  if (!profile) return null;
+  const facts = {};
+  for (const field of LEARNED_LIST_FIELDS) {
+    if (Array.isArray(profile[field]) && profile[field].length > 0) {
+      facts[field] = profile[field];
+    }
+  }
+  if (profile.preferences && Object.keys(profile.preferences).length > 0) {
+    facts.preferences = profile.preferences;
+  }
+  return Object.keys(facts).length > 0 ? facts : null;
+}
+
 export class MemoryManager {
   constructor({ chatSessionRepo, userBasicInfoRepo, agentMemoryRepo, patientProfileRepo } = {}) {
     this.shortTerm = new ShortTermMemory();
@@ -44,11 +60,14 @@ export class MemoryManager {
       this.episodic.getProfile(userId),
     ]);
 
-    if (!basicInfo && !episodicProfile) return null;
+    const learnedFromChat = pickLearnedFacts(episodicProfile);
+    if (!basicInfo && !learnedFromChat) return null;
 
+    // User-entered basic info and chat-extracted facts stay under separate keys
+    // so extracted facts can never overwrite fields such as allergies.
     return {
       ...(basicInfo || {}),
-      ...(episodicProfile || {}),
+      ...(learnedFromChat ? { learnedFromChat } : {}),
     };
   }
 
@@ -73,17 +92,19 @@ export class MemoryManager {
     return this.longTerm.search(query, userId, limit);
   }
 
-  async summarizeAndClear(userId, sessionId) {
-    const messages = this.shortTerm.getMessages(userId, sessionId);
-
-    if (messages.length > 0) {
+  async rememberTurn(userId, sessionId, userMessage, answer) {
+    const messages = [
+      { role: 'user', content: userMessage },
+      { role: 'assistant', content: answer },
+    ];
+    try {
       await Promise.all([
         this.longTerm.extractAndStore(userId, sessionId, messages),
         this.episodic.updateFromConversation(userId, messages),
       ]);
+    } catch (err) {
+      console.warn('⚠️ MemoryManager.rememberTurn failed:', err.message);
     }
-
-    this.clearUserSessions(userId);
   }
 
   clearUserSessions(userId) {
