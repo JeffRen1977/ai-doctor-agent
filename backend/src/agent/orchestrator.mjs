@@ -23,12 +23,14 @@ export async function chat({
   const relevantMemories = await memoryManager.searchRelevant(message, userId);
   let recentMessages = await memoryManager.getRecentMessages(userId, sessionId);
 
-  // The route saves the user message to the DB before calling the agent.
+  // The route persists the user message before calling the agent.
   // When memory is cold, hydration loads it back, causing a duplicate.
+  let userAlreadyInMemory = false;
   if (recentMessages.length > 0) {
     const last = recentMessages[recentMessages.length - 1];
     if (last.role === 'user' && last.content === message) {
       recentMessages = recentMessages.slice(0, -1);
+      userAlreadyInMemory = true;
     }
   }
 
@@ -57,7 +59,9 @@ export async function chat({
 
   const answer = skill.postProcess ? skill.postProcess(result.text) : result.text;
 
-  memoryManager.appendToSession(userId, sessionId, 'user', message);
+  if (!userAlreadyInMemory) {
+    memoryManager.appendToSession(userId, sessionId, 'user', message);
+  }
   memoryManager.appendToSession(userId, sessionId, 'assistant', answer);
 
   return {

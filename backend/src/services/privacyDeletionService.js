@@ -118,6 +118,11 @@ async function deleteAccount({ email, userId, password, confirmEmail }) {
   steps.push(await tryStep('medications', () => callIfPresent(medicationRepo, 'deleteByUser', sanitized)));
   steps.push(await tryStep('chatHistory', () => callIfPresent(chatHistoryRepo, 'deleteByUser', email)));
   steps.push(await tryStep('chatSessions', () => callIfPresent(chatSessionRepo, 'deleteUserSessions', sanitized)));
+  steps.push(await tryStep('chatSessions.memory', async () => {
+    const { getAgentInstance } = require('../agent/bridge.cjs');
+    const { memoryManager } = await getAgentInstance();
+    memoryManager.clearUserSessions(sanitized);
+  }));
   steps.push(await tryStep('conversations', () => callIfPresent(conversationRepo, 'deleteByUser', email)));
   steps.push(await tryStep('reports', () => callIfPresent(reportRepo, 'deleteByUser', email)));
   steps.push(await tryStep('riskAlerts', () => callIfPresent(riskAlertRepo, 'deleteByUser', email)));

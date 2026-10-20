@@ -223,6 +223,28 @@ describe('orchestrator.chat', () => {
     expect(callArgs.messages[2]).toEqual({ role: 'user', content: '今天还疼' });
   });
 
+  test('skips duplicate user append so turn 2 memory stays clean', async () => {
+    mockMemory.getRecentMessages.mockResolvedValue([
+      { role: 'user', content: '今天还疼' },
+    ]);
+    mockGenerateText.mockResolvedValue({
+      text: '多喝水', steps: [], usage: {},
+    });
+
+    await chat({
+      userId: 'u1',
+      userEmail: 'u1@test.com',
+      message: '今天还疼',
+      sessionId: 's1',
+      language: 'zh',
+      toolRegistry: mockToolReg,
+      memoryManager: mockMemory,
+    });
+
+    expect(mockMemory.appendToSession).toHaveBeenCalledTimes(1);
+    expect(mockMemory.appendToSession).toHaveBeenCalledWith('u1', 's1', 'assistant', '多喝水');
+  });
+
   test('does not strip trailing message when content differs', async () => {
     mockMemory.getRecentMessages.mockResolvedValue([
       { role: 'user', content: '旧消息' },
@@ -267,5 +289,45 @@ describe('orchestrator.chat', () => {
     const callArgs = mockGenerateText.mock.calls[0][0];
     expect(callArgs.system).toContain('diabetes');
     expect(callArgs.system).toContain('建议减少碳水');
+  });
+
+  test('two-turn cold-start: no duplicate in prompt or memory on turn 2', async () => {
+    const { MemoryManager } = await import('./memoryManager.mjs');
+    const mockSessionRepo = {
+      getLatestSession: jest.fn().mockResolvedValue({
+        sessionId: 's1',
+        session: {
+          messages: [
+            { role: 'user', content: '昨天头疼' },
+            { role: 'assistant', content: '建议休息' },
+            { role: 'user', content: '今天还疼' },
+          ],
+        },
+      }),
+    };
+    const realMM = new MemoryManager({ chatSessionRepo: mockSessionRepo });
+
+    // Turn 1: cold start — hydrates from DB which already has '今天还疼'
+    mockGenerateText.mockResolvedValue({ text: '多喝水', steps: [], usage: {} });
+    await chat({
+      userId: 'u1', userEmail: 'u1@test.com', message: '今天还疼',
+      sessionId: 's1', language: 'zh', toolRegistry: mockToolReg, memoryManager: realMM,
+    });
+
+    const turn1 = mockGenerateText.mock.calls[0][0].messages;
+    const turn1User = turn1.filter(m => m.role === 'user' && m.content === '今天还疼');
+    expect(turn1User).toHaveLength(1);
+
+    // Turn 2: memory is warm — should not have a duplicate from turn 1
+    mockGenerateText.mockResolvedValue({ text: '建议就医', steps: [], usage: {} });
+    await chat({
+      userId: 'u1', userEmail: 'u1@test.com', message: '还是疼',
+      sessionId: 's1', language: 'zh', toolRegistry: mockToolReg, memoryManager: realMM,
+    });
+
+    const turn2 = mockGenerateText.mock.calls[1][0].messages;
+    const turn2Dup = turn2.filter(m => m.role === 'user' && m.content === '今天还疼');
+    expect(turn2Dup).toHaveLength(1);
+    expect(turn2[turn2.length - 1]).toEqual({ role: 'user', content: '还是疼' });
   });
 });
