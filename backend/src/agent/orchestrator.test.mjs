@@ -39,6 +39,10 @@ describe('orchestrator.chat', () => {
     mockMemory.loadPatientProfile.mockResolvedValue(null);
     mockMemory.searchRelevant.mockResolvedValue([]);
     mockMemory.getRecentMessages.mockResolvedValue([]);
+    mockToolReg.getForSkill.mockReturnValue({
+      query_vitals: { description: 'vitals' },
+      query_medications: { description: 'meds' },
+    });
   });
 
   test('falls back to healthChat when no skillRegistry provided', async () => {
@@ -307,7 +311,6 @@ describe('orchestrator.chat', () => {
     };
     const realMM = new MemoryManager({ chatSessionRepo: mockSessionRepo });
 
-    // Turn 1: cold start — hydrates from DB which already has '今天还疼'
     mockGenerateText.mockResolvedValue({ text: '多喝水', steps: [], usage: {} });
     await chat({
       userId: 'u1', userEmail: 'u1@test.com', message: '今天还疼',
@@ -318,7 +321,6 @@ describe('orchestrator.chat', () => {
     const turn1User = turn1.filter(m => m.role === 'user' && m.content === '今天还疼');
     expect(turn1User).toHaveLength(1);
 
-    // Turn 2: memory is warm — should not have a duplicate from turn 1
     mockGenerateText.mockResolvedValue({ text: '建议就医', steps: [], usage: {} });
     await chat({
       userId: 'u1', userEmail: 'u1@test.com', message: '还是疼',
@@ -329,5 +331,143 @@ describe('orchestrator.chat', () => {
     const turn2Dup = turn2.filter(m => m.role === 'user' && m.content === '今天还疼');
     expect(turn2Dup).toHaveLength(1);
     expect(turn2[turn2.length - 1]).toEqual({ role: 'user', content: '还是疼' });
+  });
+
+  // --- Phase 5: Safety integration tests ---
+
+  test('intercepts crisis messages and returns safe response without calling LLM', async () => {
+    const mockSafety = {
+      interceptSensitiveTopics: jest.fn().mockReturnValue('请拨打 400-161-9995'),
+    };
+    const result = await chat({
+      userId: 'u1', userEmail: 'u1@test.com', message: '我不想活了',
+      sessionId: 's1', language: 'zh',
+      toolRegistry: mockToolReg, memoryManager: mockMemory, safety: mockSafety,
+    });
+
+    expect(result.intercepted).toBe('crisis');
+    expect(result.message).toContain('400-161-9995');
+    expect(mockGenerateText).not.toHaveBeenCalled();
+  });
+
+  test('does not intercept normal messages', async () => {
+    const mockSafety = {
+      interceptSensitiveTopics: jest.fn().mockReturnValue(null),
+      detectHallucination: jest.fn().mockReturnValue({ flagged: false }),
+      assertWritePermission: jest.fn(),
+    };
+    mockGenerateText.mockResolvedValue({ text: 'ok', steps: [], usage: {} });
+    const result = await chat({
+      userId: 'u1', userEmail: 'u1@test.com', message: '我头疼',
+      sessionId: 's1', language: 'zh',
+      toolRegistry: mockToolReg, memoryManager: mockMemory, safety: mockSafety,
+    });
+
+    expect(result.intercepted).toBeUndefined();
+    expect(mockGenerateText).toHaveBeenCalledTimes(1);
+  });
+
+  test('appends hallucination warning when flagged', async () => {
+    const mockSafety = {
+      interceptSensitiveTopics: jest.fn().mockReturnValue(null),
+      detectHallucination: jest.fn().mockReturnValue({ flagged: true, reason: 'numeric_without_tool_call' }),
+      assertWritePermission: jest.fn(),
+    };
+    mockGenerateText.mockResolvedValue({
+      text: '您的血压是 120mmHg', steps: [{ toolCalls: [] }], usage: {},
+    });
+
+    const result = await chat({
+      userId: 'u1', userEmail: 'u1@test.com', message: '我的血压',
+      sessionId: 's1', language: 'zh',
+      toolRegistry: mockToolReg, memoryManager: mockMemory, safety: mockSafety,
+    });
+
+    expect(result.message).toContain('⚠️');
+    expect(result.message).toContain('未经您的健康记录核实');
+  });
+
+  test('returns budget fallback when token limit exceeded', async () => {
+    mockGenerateText.mockRejectedValue(
+      Object.assign(new Error('max_tokens exceeded'), { code: 'max_tokens' }),
+    );
+
+    const result = await chat({
+      userId: 'u1', userEmail: 'u1@test.com', message: '很长的问题',
+      sessionId: 's1', language: 'zh',
+      toolRegistry: mockToolReg, memoryManager: mockMemory,
+    });
+
+    expect(result.budgetExceeded).toBe(true);
+    expect(result.message).toContain('超出了处理预算');
+  });
+
+  test('returns English budget fallback', async () => {
+    mockGenerateText.mockRejectedValue(new Error('max_tokens'));
+
+    const result = await chat({
+      userId: 'u1', userEmail: 'u1@test.com', message: 'long question',
+      sessionId: 's1', language: 'en',
+      toolRegistry: mockToolReg, memoryManager: mockMemory,
+    });
+
+    expect(result.budgetExceeded).toBe(true);
+    expect(result.message).toContain('processing budget');
+  });
+
+  test('rethrows non-budget errors', async () => {
+    mockGenerateText.mockRejectedValue(new Error('network error'));
+    await expect(chat({
+      userId: 'u1', userEmail: 'u1@test.com', message: 'test',
+      sessionId: 's1', language: 'zh',
+      toolRegistry: mockToolReg, memoryManager: mockMemory,
+    })).rejects.toThrow('network error');
+  });
+
+  test('calls traceRecorder.record after successful response', async () => {
+    const mockTraceRecorder = { record: jest.fn().mockResolvedValue({}) };
+    mockGenerateText.mockResolvedValue({
+      text: 'ok', steps: [{ toolCalls: [] }], usage: { inputTokens: 100 },
+    });
+
+    await chat({
+      userId: 'u1', userEmail: 'u1@test.com', message: 'test',
+      sessionId: 's1', language: 'zh',
+      toolRegistry: mockToolReg, memoryManager: mockMemory,
+      traceRecorder: mockTraceRecorder,
+    });
+
+    expect(mockTraceRecorder.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'u1', sessionId: 's1', skill: 'health_chat', userMessage: 'test',
+      }),
+    );
+  });
+
+  test('assertWritePermission is called for each tool', async () => {
+    const mockSafety = {
+      interceptSensitiveTopics: jest.fn().mockReturnValue(null),
+      detectHallucination: jest.fn().mockReturnValue({ flagged: false }),
+      assertWritePermission: jest.fn(),
+    };
+    mockGenerateText.mockResolvedValue({ text: 'ok', steps: [], usage: {} });
+
+    await chat({
+      userId: 'u1', userEmail: 'u1@test.com', message: 'test',
+      sessionId: 's1', language: 'zh',
+      toolRegistry: mockToolReg, memoryManager: mockMemory, safety: mockSafety,
+    });
+
+    expect(mockSafety.assertWritePermission).toHaveBeenCalledTimes(2);
+  });
+
+  test('passes maxTokens to generateText', async () => {
+    mockGenerateText.mockResolvedValue({ text: 'ok', steps: [], usage: {} });
+    await chat({
+      userId: 'u1', userEmail: 'u1@test.com', message: 'test',
+      sessionId: 's1', language: 'zh',
+      toolRegistry: mockToolReg, memoryManager: mockMemory,
+    });
+    expect(mockGenerateText.mock.calls[0][0].maxTokens).toBe(4096);
   });
 });

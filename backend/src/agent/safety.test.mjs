@@ -103,4 +103,119 @@ describe('Agent safety', () => {
     ).resolves.toBeUndefined();
     expect(mockLogger.error).toHaveBeenCalled();
   });
+
+  describe('interceptSensitiveTopics', () => {
+    test('returns crisis response for Chinese suicide keywords', () => {
+      const result = safety.interceptSensitiveTopics('我不想活了', 'zh');
+      expect(result).toContain('400-161-9995');
+      expect(result).toContain('关心您的安全');
+    });
+
+    test('returns crisis response for Chinese self-harm keywords', () => {
+      expect(safety.interceptSensitiveTopics('我想自残')).toContain('400-161-9995');
+    });
+
+    test('returns English crisis response when language is en', () => {
+      const result = safety.interceptSensitiveTopics('I want to kill myself', 'en');
+      expect(result).toContain('crisis hotline');
+      expect(result).toContain('safety');
+    });
+
+    test('detects English self-harm patterns', () => {
+      expect(safety.interceptSensitiveTopics('thinking about self-harm', 'en')).not.toBeNull();
+    });
+
+    test('returns null for normal health messages', () => {
+      expect(safety.interceptSensitiveTopics('我头疼', 'zh')).toBeNull();
+      expect(safety.interceptSensitiveTopics('I have a headache', 'en')).toBeNull();
+    });
+
+    test('returns null for empty or null message', () => {
+      expect(safety.interceptSensitiveTopics('', 'zh')).toBeNull();
+      expect(safety.interceptSensitiveTopics(null)).toBeNull();
+    });
+
+    test('logs a warning when crisis content detected', () => {
+      safety.interceptSensitiveTopics('想自杀');
+      expect(mockLogger.warn).toHaveBeenCalled();
+    });
+
+    test('detects 结束生命', () => {
+      expect(safety.interceptSensitiveTopics('我想结束生命')).not.toBeNull();
+    });
+
+    test('does not trigger on unrelated 自 characters', () => {
+      expect(safety.interceptSensitiveTopics('自然而然恢复了')).toBeNull();
+    });
+  });
+
+  describe('detectHallucination', () => {
+    test('flags answer with numeric medical values but no tool calls', () => {
+      const result = safety.detectHallucination(
+        '您的血压是 120mmHg，很正常',
+        [{ text: 'answer', toolCalls: [], toolResults: [] }],
+      );
+      expect(result.flagged).toBe(true);
+      expect(result.reason).toBe('numeric_without_tool_call');
+    });
+
+    test('does not flag when tool calls are present', () => {
+      const result = safety.detectHallucination(
+        '您的血压是 120mmHg',
+        [{ text: '', toolCalls: [{ toolName: 'query_vitals' }], toolResults: [] }],
+      );
+      expect(result.flagged).toBe(false);
+    });
+
+    test('does not flag answer without numeric medical claims', () => {
+      expect(safety.detectHallucination('多休息，多喝水', []).flagged).toBe(false);
+    });
+
+    test('does not flag empty or null answer', () => {
+      expect(safety.detectHallucination('', []).flagged).toBe(false);
+      expect(safety.detectHallucination(null, []).flagged).toBe(false);
+    });
+
+    test('detects Chinese unit patterns', () => {
+      const r1 = safety.detectHallucination('建议服用 500毫克', [{ toolCalls: [] }]);
+      expect(r1.flagged).toBe(true);
+    });
+
+    test('detects English unit patterns', () => {
+      const r = safety.detectHallucination('Take 10mg daily', [{ toolCalls: [] }]);
+      expect(r.flagged).toBe(true);
+    });
+
+    test('logs warning on flagged hallucination', () => {
+      safety.detectHallucination('血糖 5.6mmol', [{ toolCalls: [] }]);
+      expect(mockLogger.warn).toHaveBeenCalled();
+    });
+  });
+
+  describe('assertWritePermission', () => {
+    test('throws when write tool used by skill without allowWrite', () => {
+      const mockRegistry = { isWriteTool: (n) => n === 'update_meds' };
+      const skill = { name: 'health_chat', safetyRules: {} };
+      expect(() => safety.assertWritePermission('update_meds', mockRegistry, skill)).toThrow(
+        /not authorized for write tool/,
+      );
+    });
+
+    test('does not throw when skill has allowWrite', () => {
+      const mockRegistry = { isWriteTool: () => true };
+      const skill = { name: 'admin', safetyRules: { allowWrite: true } };
+      expect(() => safety.assertWritePermission('update_meds', mockRegistry, skill)).not.toThrow();
+    });
+
+    test('does not throw for read-only tools', () => {
+      const mockRegistry = { isWriteTool: () => false };
+      const skill = { name: 'health_chat', safetyRules: {} };
+      expect(() => safety.assertWritePermission('query_vitals', mockRegistry, skill)).not.toThrow();
+    });
+
+    test('does not throw when no registry provided', () => {
+      const skill = { name: 'x', safetyRules: {} };
+      expect(() => safety.assertWritePermission('any', null, skill)).not.toThrow();
+    });
+  });
 });
