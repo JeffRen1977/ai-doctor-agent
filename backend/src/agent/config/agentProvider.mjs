@@ -18,3 +18,9 @@ export function getAgentModel() {
 export function getLightModel() {
   return getAgentProvider()(process.env.AGENT_MODEL_LIGHT || 'gpt-4o-mini');
 }
+
+export function getEmbeddingModel() {
+  return getAgentProvider().embedding(
+    process.env.AGENT_EMBEDDING_MODEL || 'text-embedding-3-small',
+  );
+}

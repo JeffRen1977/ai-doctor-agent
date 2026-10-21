@@ -107,6 +107,55 @@ export class MemoryManager {
     }
   }
 
+  async summarizeSession(userId, sessionId, { generateTextFn } = {}) {
+    const messages = this.shortTerm.getMessages(userId, sessionId);
+    if (!messages || messages.length < 4) return null;
+
+    const transcript = messages
+      .map((m) => `${m.role === 'user' ? '用户' : 'AI'}：${m.content}`)
+      .join('\n');
+
+    const maxChars = 6000;
+    const truncated = transcript.length > maxChars
+      ? transcript.slice(0, maxChars) + '\n…(truncated)'
+      : transcript;
+
+    try {
+      let gen = generateTextFn;
+      let model;
+      if (!gen) {
+        const ai = await import('ai');
+        const provider = await import('./config/agentProvider.mjs');
+        gen = ai.generateText;
+        model = provider.getLightModel();
+      }
+      const result = await gen({
+        ...(model ? { model } : {}),
+        system: [
+          '你是医疗对话摘要助手。请将以下对话压缩为一段简洁的摘要（不超过 200 字），',
+          '保留：主要健康问题、关键数据、诊断建议、用户偏好。',
+          '丢弃：寒暄、重复确认、格式标记。只输出摘要，不要其他内容。',
+        ].join(''),
+        prompt: truncated,
+      });
+
+      const summary = (result.text || '').trim();
+      if (!summary) return null;
+
+      await this.longTerm.store(userId, {
+        type: 'summary',
+        content: summary,
+        importance: 0.6,
+        sourceSessionId: sessionId,
+      });
+
+      return summary;
+    } catch (err) {
+      console.warn('⚠️ MemoryManager.summarizeSession failed:', err.message);
+      return null;
+    }
+  }
+
   clearUserSessions(userId) {
     this.shortTerm.clearByUser(userId);
     for (const key of this._hydrated) {

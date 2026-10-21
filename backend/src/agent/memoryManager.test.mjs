@@ -233,4 +233,73 @@ describe('MemoryManager', () => {
     });
     await expect(mm.rememberTurn('u1', 's1', '我有糖尿病', '可能是血糖偏高')).resolves.toBeUndefined();
   });
+
+  describe('summarizeSession', () => {
+    test('compresses a multi-turn session into a summary memory', async () => {
+      const mockMemRepo = { save: jest.fn().mockResolvedValue(undefined), search: jest.fn() };
+      const mockGenerate = jest.fn().mockResolvedValue({ text: '患者讨论了血糖控制问题，AI建议定期监测。' });
+      const mm = new MemoryManager({ agentMemoryRepo: mockMemRepo });
+
+      mm.appendToSession('u1', 's1', 'user', '我的血糖最近偏高');
+      mm.appendToSession('u1', 's1', 'assistant', '建议您定期监测血糖');
+      mm.appendToSession('u1', 's1', 'user', '多久测一次');
+      mm.appendToSession('u1', 's1', 'assistant', '建议每天测两次');
+
+      const summary = await mm.summarizeSession('u1', 's1', { generateTextFn: mockGenerate });
+      expect(summary).toBe('患者讨论了血糖控制问题，AI建议定期监测。');
+      expect(mockGenerate).toHaveBeenCalledWith(expect.objectContaining({
+        prompt: expect.stringContaining('血糖'),
+      }));
+      expect(mockMemRepo.save).toHaveBeenCalledWith('u1', expect.objectContaining({
+        type: 'summary', importance: 0.6, sourceSessionId: 's1',
+      }));
+    });
+
+    test('returns null for sessions with fewer than 4 messages', async () => {
+      const mm = new MemoryManager();
+      mm.appendToSession('u1', 's1', 'user', 'hi');
+      mm.appendToSession('u1', 's1', 'assistant', 'hello');
+      expect(await mm.summarizeSession('u1', 's1')).toBeNull();
+    });
+
+    test('returns null when generateText returns empty text', async () => {
+      const mm = new MemoryManager({ agentMemoryRepo: { save: jest.fn(), search: jest.fn() } });
+      mm.appendToSession('u1', 's1', 'user', 'a');
+      mm.appendToSession('u1', 's1', 'assistant', 'b');
+      mm.appendToSession('u1', 's1', 'user', 'c');
+      mm.appendToSession('u1', 's1', 'assistant', 'd');
+
+      const result = await mm.summarizeSession('u1', 's1', {
+        generateTextFn: jest.fn().mockResolvedValue({ text: '' }),
+      });
+      expect(result).toBeNull();
+    });
+
+    test('swallows generateText errors and returns null', async () => {
+      const mm = new MemoryManager({ agentMemoryRepo: { save: jest.fn(), search: jest.fn() } });
+      mm.appendToSession('u1', 's1', 'user', 'a');
+      mm.appendToSession('u1', 's1', 'assistant', 'b');
+      mm.appendToSession('u1', 's1', 'user', 'c');
+      mm.appendToSession('u1', 's1', 'assistant', 'd');
+
+      const result = await mm.summarizeSession('u1', 's1', {
+        generateTextFn: jest.fn().mockRejectedValue(new Error('LLM down')),
+      });
+      expect(result).toBeNull();
+    });
+
+    test('truncates long transcripts before sending to LLM', async () => {
+      const mockGenerate = jest.fn().mockResolvedValue({ text: 'summary' });
+      const mm = new MemoryManager({ agentMemoryRepo: { save: jest.fn(), search: jest.fn() } });
+
+      for (let i = 0; i < 50; i++) {
+        mm.appendToSession('u1', 's1', 'user', '很长的消息'.repeat(100));
+        mm.appendToSession('u1', 's1', 'assistant', '很长的回复'.repeat(100));
+      }
+
+      await mm.summarizeSession('u1', 's1', { generateTextFn: mockGenerate });
+      const prompt = mockGenerate.mock.calls[0][0].prompt;
+      expect(prompt.length).toBeLessThanOrEqual(6020);
+    });
+  });
 });

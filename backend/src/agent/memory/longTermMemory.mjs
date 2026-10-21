@@ -4,14 +4,33 @@ const MAX_CONCLUSION_LENGTH = 500;
 const MAX_PREFERENCE_LENGTH = 200;
 
 export class LongTermMemory {
-  constructor({ agentMemoryRepo } = {}) {
+  constructor({ agentMemoryRepo, embedFn } = {}) {
     this.repo = agentMemoryRepo || null;
+    this._embedFn = embedFn || null;
+  }
+
+  async generateEmbedding(text) {
+    if (!text) return null;
+    try {
+      let fn = this._embedFn;
+      if (!fn) {
+        const { embed } = await import('ai');
+        const { getEmbeddingModel } = await import('../config/agentProvider.mjs');
+        fn = (opts) => embed({ model: getEmbeddingModel(), ...opts });
+      }
+      const result = await fn({ value: text.slice(0, 8000) });
+      return result.embedding;
+    } catch (err) {
+      console.warn('⚠️ LongTermMemory.generateEmbedding failed:', err.message);
+      return null;
+    }
   }
 
   async search(query, userId, limit = 5) {
     if (!this.repo) return [];
     try {
-      return await this.repo.search(userId, query, limit);
+      const queryEmbedding = await this.generateEmbedding(query);
+      return await this.repo.search(userId, query, limit, queryEmbedding);
     } catch (err) {
       console.warn('⚠️ LongTermMemory.search failed:', err.message);
       return [];
@@ -20,7 +39,8 @@ export class LongTermMemory {
 
   async store(userId, { type, content, importance = 0.5, sourceSessionId }) {
     if (!this.repo) return;
-    await this.repo.save(userId, { type, content, importance, sourceSessionId });
+    const embedding = await this.generateEmbedding(content);
+    await this.repo.save(userId, { type, content, importance, sourceSessionId, embedding });
   }
 
   async extractAndStore(userId, sessionId, messages) {

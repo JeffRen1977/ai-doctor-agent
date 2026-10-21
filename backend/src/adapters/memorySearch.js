@@ -33,18 +33,47 @@ function timeDecay(dateStr) {
   return Math.max(0, 1 - days / 180);
 }
 
-function rankMemories(memories, query, limit = 5) {
+function cosineSimilarity(a, b) {
+  if (!a || !b || a.length !== b.length || a.length === 0) return 0;
+  let dot = 0, normA = 0, normB = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
+  }
+  const denom = Math.sqrt(normA) * Math.sqrt(normB);
+  return denom === 0 ? 0 : dot / denom;
+}
+
+function rankMemories(memories, query, limit = 5, queryEmbedding = null) {
   const tokens = tokenize(query);
-  if (tokens.length === 0) return [];
+  const hasEmbedding = queryEmbedding && queryEmbedding.length > 0;
 
   const scored = [];
   for (const m of memories) {
     const lower = (m.content || '').toLowerCase();
-    const matchCount = tokens.filter((t) => lower.includes(t)).length;
-    if (matchCount === 0) continue;
-    const score = (matchCount / tokens.length) * 0.5
-      + (m.importance ?? 0.5) * 0.3
-      + timeDecay(m.updatedAt || m.createdAt) * 0.2;
+    const matchCount = tokens.length > 0
+      ? tokens.filter((t) => lower.includes(t)).length
+      : 0;
+
+    const semScore = hasEmbedding && m.embedding && m.embedding.length > 0
+      ? cosineSimilarity(queryEmbedding, m.embedding)
+      : 0;
+
+    if (matchCount === 0 && semScore < 0.3) continue;
+
+    let score;
+    if (hasEmbedding && semScore > 0) {
+      score = semScore * 0.4
+        + (tokens.length > 0 ? (matchCount / tokens.length) * 0.2 : 0)
+        + (m.importance ?? 0.5) * 0.2
+        + timeDecay(m.updatedAt || m.createdAt) * 0.2;
+    } else {
+      score = (tokens.length > 0 ? (matchCount / tokens.length) * 0.5 : 0)
+        + (m.importance ?? 0.5) * 0.3
+        + timeDecay(m.updatedAt || m.createdAt) * 0.2;
+    }
+
     scored.push({ ...m, score });
   }
 
@@ -52,4 +81,4 @@ function rankMemories(memories, query, limit = 5) {
   return scored.slice(0, limit);
 }
 
-module.exports = { tokenize, rankMemories };
+module.exports = { tokenize, rankMemories, cosineSimilarity, timeDecay };

@@ -11,6 +11,7 @@ function normalize(doc) {
     userId: doc.userId,
     type: doc.type,
     content: doc.content,
+    embedding: doc.embedding || null,
     importance: doc.importance ?? 0.5,
     accessCount: doc.accessCount ?? 0,
     sourceSessionId: doc.sourceSessionId || null,
@@ -20,13 +21,17 @@ function normalize(doc) {
   };
 }
 
-async function save(userId, { type, content, importance = 0.5, sourceSessionId, metadata }) {
+async function save(userId, { type, content, importance = 0.5, sourceSessionId, metadata, embedding }) {
   const col = getCollection(COLLECTION);
   const now = new Date().toISOString();
+  const $set = { type, importance, sourceSessionId, metadata, updatedAt: now };
+  if (embedding && embedding.length > 0) {
+    $set.embedding = embedding;
+  }
   await col.updateOne(
     { userId, content },
     {
-      $set: { type, importance, sourceSessionId, metadata, updatedAt: now },
+      $set,
       $setOnInsert: { userId, content, accessCount: 0, createdAt: now },
     },
     { upsert: true },
@@ -44,10 +49,10 @@ async function findByUser(userId, { type, limit = 20 } = {}) {
   return docs.map(normalize);
 }
 
-async function search(userId, query, limit = 5) {
-  if (tokenize(query).length === 0) return [];
+async function search(userId, query, limit = 5, queryEmbedding = null) {
+  if (tokenize(query).length === 0 && !queryEmbedding) return [];
   const candidates = await findByUser(userId, { limit: SEARCH_POOL_SIZE });
-  return rankMemories(candidates, query, limit);
+  return rankMemories(candidates, query, limit, queryEmbedding);
 }
 
 async function deleteByUser(userId) {
