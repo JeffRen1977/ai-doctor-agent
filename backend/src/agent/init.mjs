@@ -10,6 +10,10 @@ import { healthChatSkill } from './skills/healthChat.mjs';
 import { symptomAnalysisSkill } from './skills/symptomAnalysis.mjs';
 import { drugInteractionSkill } from './skills/drugInteraction.mjs';
 import { riskAssessmentSkill } from './skills/riskAssessment.mjs';
+import { nutritionAnalysisSkill } from './skills/nutritionAnalysis.mjs';
+import { exercisePlanningSkill } from './skills/exercisePlanning.mjs';
+import { emotionalSupportSkill } from './skills/emotionalSupport.mjs';
+import { metricsExplanationSkill } from './skills/metricsExplanation.mjs';
 
 let _instance = null;
 
@@ -47,6 +51,10 @@ export function initAgent(repos) {
   skillRegistry.register(symptomAnalysisSkill);
   skillRegistry.register(drugInteractionSkill);
   skillRegistry.register(riskAssessmentSkill);
+  skillRegistry.register(nutritionAnalysisSkill);
+  skillRegistry.register(exercisePlanningSkill);
+  skillRegistry.register(emotionalSupportSkill);
+  skillRegistry.register(metricsExplanationSkill);
 
   const memoryManager = new MemoryManager({
     chatSessionRepo: repos.chatSessionRepo,

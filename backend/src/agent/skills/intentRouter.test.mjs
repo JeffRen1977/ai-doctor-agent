@@ -11,6 +11,10 @@ function buildRegistry() {
   reg.register(make('symptom_analysis'));
   reg.register(make('drug_interaction'));
   reg.register(make('risk_assessment'));
+  reg.register(make('nutrition_analysis'));
+  reg.register(make('exercise_planning'));
+  reg.register(make('emotional_support'));
+  reg.register(make('metrics_explanation'));
   return reg;
 }
 
@@ -87,5 +91,69 @@ describe('classifyIntent', () => {
 
   test('drug_interaction wins over symptom_analysis by priority', () => {
     expect(classifyIntent('吃了这个药副作用让我头疼', reg)).toBe('drug_interaction');
+  });
+
+  // --- Nutrition analysis ---
+
+  test('routes nutrition query in Chinese', () => {
+    expect(classifyIntent('糖尿病人早餐吃什么好', reg)).toBe('nutrition_analysis');
+  });
+
+  test('routes diet advice in Chinese', () => {
+    expect(classifyIntent('我想控制饮食减肥', reg)).toBe('nutrition_analysis');
+  });
+
+  test('routes calorie question in English', () => {
+    expect(classifyIntent('how many calories should I eat per meal', reg)).toBe('nutrition_analysis');
+  });
+
+  // --- Exercise planning ---
+
+  test('routes exercise query in Chinese', () => {
+    expect(classifyIntent('我适合做什么运动', reg)).toBe('exercise_planning');
+  });
+
+  test('routes fitness plan request', () => {
+    expect(classifyIntent('帮我制定一个运动计划', reg)).toBe('exercise_planning');
+  });
+
+  test('routes exercise query in English', () => {
+    expect(classifyIntent('what exercise is good for diabetes', reg)).toBe('exercise_planning');
+  });
+
+  // --- Emotional support ---
+
+  test('routes anxiety query in Chinese', () => {
+    expect(classifyIntent('我最近很焦虑，压力很大', reg)).toBe('emotional_support');
+  });
+
+  test('routes depression query in Chinese', () => {
+    expect(classifyIntent('心情不好，情绪低落', reg)).toBe('emotional_support');
+  });
+
+  test('routes emotional query in English', () => {
+    expect(classifyIntent('I feel so stressed and overwhelmed', reg)).toBe('emotional_support');
+  });
+
+  test('emotional_support wins over symptom_analysis for insomnia + mood', () => {
+    expect(classifyIntent('心情不好睡不着', reg)).toBe('emotional_support');
+  });
+
+  // --- Metrics explanation ---
+
+  test('routes metrics explanation query in Chinese', () => {
+    expect(classifyIntent('我的检查结果什么意思', reg)).toBe('metrics_explanation');
+  });
+
+  test('routes HbA1c explanation query', () => {
+    expect(classifyIntent('什么是HbA1c', reg)).toBe('metrics_explanation');
+  });
+
+  test('routes lab results query in English', () => {
+    expect(classifyIntent('can you explain my lab results', reg)).toBe('metrics_explanation');
+  });
+
+  test('routes normal range question', () => {
+    expect(classifyIntent('血脂的正常范围是多少', reg)).toBe('metrics_explanation');
   });
 });

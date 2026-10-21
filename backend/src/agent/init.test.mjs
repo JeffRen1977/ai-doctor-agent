@@ -26,14 +26,15 @@ describe('initAgent', () => {
     expect(typeof memoryManager.appendToSession).toBe('function');
   });
 
-  test('registers all 4 skills with healthChat as default', () => {
+  test('registers all 8 skills with healthChat as default', () => {
     const { skillRegistry } = initAgent(fakeRepos);
     expect(skillRegistry.list()).toEqual(
       expect.arrayContaining([
         'health_chat', 'symptom_analysis', 'drug_interaction', 'risk_assessment',
+        'nutrition_analysis', 'exercise_planning', 'emotional_support', 'metrics_explanation',
       ]),
     );
-    expect(skillRegistry.list()).toHaveLength(4);
+    expect(skillRegistry.list()).toHaveLength(8);
     expect(skillRegistry.getDefault().name).toBe('health_chat');
   });
 

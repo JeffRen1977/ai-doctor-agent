@@ -20,6 +20,19 @@ const INTENT_RULES = [
     ],
   },
   {
+    skillName: 'emotional_support',
+    priority: 25,
+    patterns: [
+      /焦虑/, /抑郁/, /情绪低落/, /心情不好/, /压力大/, /烦躁/,
+      /崩溃/, /绝望/, /害怕/, /恐慌/, /紧张/, /难过/, /伤心/,
+      /睡不着.*心情|心情.*睡不着/, /不想.*活/, /活着.*没意思/,
+      /心理/, /情绪/, /心态/, /郁闷/, /烦恼/,
+      /anxious/i, /depress/i, /stress/i, /overwhelm/i, /panic/i,
+      /emotion/i, /mental.*health/i, /feeling.*down/i, /mood/i,
+      /scared/i, /hopeless/i, /worried.*constant/i,
+    ],
+  },
+  {
     skillName: 'symptom_analysis',
     priority: 20,
     patterns: [
@@ -28,6 +41,42 @@ const INTENT_RULES = [
       /浑身/, /乏力/, /失眠/, /眩晕/, /腹泻/, /便秘/, /气短/,
       /symptom/i, /headache/i, /fever/i, /cough/i, /pain/i,
       /nausea|nauseous/i, /dizz/i, /fatigue/i, /insomnia/i, /vomit/i,
+    ],
+  },
+  {
+    skillName: 'nutrition_analysis',
+    priority: 15,
+    patterns: [
+      /营养/, /饮食/, /吃什么/, /食谱/, /热量/, /卡路里/,
+      /碳水/, /蛋白质/, /脂肪/, /膳食/, /早餐|午餐|晚餐/,
+      /减肥.*吃/, /血糖.*吃/, /糖尿病.*饮食/, /忌口/,
+      /nutrition/i, /diet/i, /calorie/i, /meal/i, /food.*recommend/i,
+      /what.*eat/i, /carb/i, /protein/i, /breakfast|lunch|dinner/i,
+    ],
+  },
+  {
+    skillName: 'exercise_planning',
+    priority: 15,
+    patterns: [
+      /运动/, /锻炼/, /健身/, /跑步/, /散步/, /游泳/,
+      /瑜伽/, /太极/, /步数/, /有氧/, /力量.*训练/,
+      /运动.*计划/, /运动.*建议/, /能不能运动/, /运动.*强度/,
+      /exercise/i, /workout/i, /fitness/i, /running/i, /walking/i,
+      /yoga/i, /swimming/i, /physical.*activ/i, /training.*plan/i,
+    ],
+  },
+  {
+    skillName: 'metrics_explanation',
+    priority: 12,
+    patterns: [
+      /指标.*什么意思/, /指标.*解读/, /指标.*正常/, /指标.*偏高|偏低/,
+      /报告.*看不懂/, /报告.*解释/, /检查.*结果/, /化验.*结果/,
+      /什么是.*HbA1c|HbA1c.*什么/, /糖化血红蛋白/,
+      /什么是.*血脂|血脂.*什么/, /什么是.*肌酐|肌酐.*什么/,
+      /正常范围/, /参考值/, /数值.*含义/,
+      /explain.*metric/i, /what.*(?:does|is).*(?:level|value|reading)/i,
+      /test.*result/i, /lab.*result/i, /normal.*range/i,
+      /what.*HbA1c/i, /understand.*report/i,
     ],
   },
   {
