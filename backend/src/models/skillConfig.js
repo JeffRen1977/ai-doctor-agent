@@ -9,8 +9,21 @@ const skillConfigSchema = new mongoose.Schema({
   changes:       { type: [String], default: [] },
   evaluationScore: { type: Number },
   activatedAt:   { type: Date },
+  safetyRulesHash: { type: String },
   metadata:      { type: mongoose.Schema.Types.Mixed, default: {} },
 }, { timestamps: true });
+
+skillConfigSchema.pre('save', async function guardSafetyRules() {
+  if (!this.isNew || !this.parentVersion || !this.safetyRulesHash) return;
+  const parent = await this.constructor.findOne({
+    skill: this.skill, version: this.parentVersion,
+  });
+  if (parent?.safetyRulesHash && parent.safetyRulesHash !== this.safetyRulesHash) {
+    throw new Error(
+      `Safety rules mutation blocked: hash ${this.safetyRulesHash} differs from parent ${parent.safetyRulesHash}`,
+    );
+  }
+});
 
 skillConfigSchema.index({ skill: 1, version: 1 }, { unique: true });
 

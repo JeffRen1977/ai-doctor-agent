@@ -52,4 +52,22 @@ describe('SkillConfig model', () => {
     });
     expect(doc.status).toBe('candidate');
   });
+
+  test('accepts safetyRulesHash field', () => {
+    const doc = new SkillConfig({
+      skill: 'health_chat',
+      version: '1.0.0',
+      safetyRulesHash: 'abc123',
+    });
+    const err = doc.validateSync();
+    expect(err).toBeUndefined();
+    expect(doc.safetyRulesHash).toBe('abc123');
+  });
+
+  test('safetyRulesHash defaults to undefined', () => {
+    const doc = new SkillConfig({
+      skill: 'health_chat', version: '1.0.0',
+    });
+    expect(doc.safetyRulesHash).toBeUndefined();
+  });
 });
